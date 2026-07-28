@@ -1,0 +1,50 @@
+topic_type,topic_slug,recommended_keyword,search_volume,cpc_usd,competition_level,keyword_difficulty,search_intent
+page,home,marketing for dentists,1900,45.11,MEDIUM,3,commercial
+page,home,dental marketing,1900,45.11,MEDIUM,25,commercial
+page,home,dental seo marketing,1300,38.61,LOW,16,commercial
+page,home,digital marketing for dentists,390,32.82,LOW,0,commercial
+page,home,firegang dental marketing,390,21.11,LOW,1,navigational
+page,home,marketing dental,1900,45.11,MEDIUM,46,commercial
+page,local-seo,local seo for dental,1000,53.69,LOW,0,commercial
+page,local-seo,local seo for dentists,1000,53.69,LOW,0,commercial
+page,local-seo,dental seo companies,1000,68.89,LOW,1,commercial
+page,local-seo,dental seo service,1300,43.17,LOW,6,commercial
+page,local-seo,seo for dental,1300,38.61,LOW,7,commercial
+page,local-seo,dental seo services,1300,43.17,LOW,8,commercial
+page,patient-generation,how to get more dental patients,50,26.69,LOW,0,informational
+page,patient-generation,how to get more patients for dental office,30,27.21,MEDIUM,0,informational
+page,patient-generation,how to get more patients in a dental office,30,27.21,MEDIUM,0,informational
+page,patient-generation,dental patient acquisition,20,,LOW,0,commercial
+page,patient-generation,dental leads,20,106.36,MEDIUM,0,transactional
+page,patient-generation,dental insurance leads,20,19.13,HIGH,0,commercial
+page,website-design,dental website design,880,38.69,LOW,8,commercial
+page,website-design,dental clinic website design,880,38.69,LOW,41,commercial
+page,website-design,dental website design templates,170,14.19,MEDIUM,0,informational
+page,website-design,dental design website,880,38.69,LOW,56,navigational
+page,website-design,dental website design service,260,,LOW,13,commercial
+page,website-design,website design dental,880,38.69,LOW,84,commercial
+page,paid-ads,google ads for dental,320,44.28,LOW,0,commercial
+page,paid-ads,dental google ads,320,44.28,LOW,0,commercial
+page,paid-ads,dental google ads agency,90,115.24,LOW,8,commercial
+page,paid-ads,dental facebook ads examples,30,,LOW,0,informational
+page,paid-ads,dental ads on facebook,10,,LOW,0,commercial
+page,paid-ads,dental clinic facebook ads,30,,LOW,50,navigational
+page,reputation,straine dental management reviews,30,,LOW,1,informational
+page,reputation,premier care dental management reviews,20,,LOW,0,commercial
+page,reputation,mge dental management reviews,30,,LOW,10,informational
+page,reputation,south georgia dental management reviews,20,,LOW,50,commercial
+page,reputation,dental practice management software reviews,10,,LOW,20,commercial
+page,reputation,dental care management reviews,10,,,50,informational
+page,pricing-services,dental seo marketing services,170,,LOW,14,commercial
+page,pricing-services,marketing dental services,390,53.6,LOW,52,commercial
+page,pricing-services,dental marketing services,390,53.6,LOW,72,commercial
+page,pricing-services,dental digital marketing services,140,,LOW,57,commercial
+page,pricing-services,dental online marketing services,70,,LOW,79,commercial
+page,pricing-services,digital marketing services for dental clinics,10,,,50,commercial
+page,about,dental marketing company,880,49.06,MEDIUM,72,commercial
+page,about,dental marketing consultant,170,6.42,LOW,42,commercial
+page,about,dental seo internet marketing company,70,,LOW,16,commercial
+page,about,dental implant marketing company,30,47.87,MEDIUM,2,navigational
+page,about,dental online marketing company,210,,LOW,79,commercial
+page,about,dental seo marketing company,110,,LOW,38,commercial
+competitor-term,ai-angle,ai for dental practices,10,,LOW,50,commercial

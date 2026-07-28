@@ -1,0 +1,23 @@
+page,status,primary_keyword,monthly_volume,keyword_difficulty,search_intent,section_purpose,key_message
+Homepage,BUILT NOW,marketing for dentists / dental marketing,1900,3-25,commercial,Convert cold visitor into a discovery-call lead,"Smile AI Marketing helps dental clinics grow local visibility, patient enquiries, and revenue - process-driven, not jargon"
+Local SEO / Google Business Profile page,planned,local seo for dentists,1000,0,commercial,Rank for the easiest high-intent local term found in research,Explain Google Business Profile + map-pack strategy in plain English
+Dental SEO Services page,planned,dental seo services,1300,8,commercial,Service depth for visitors comparing agencies,Detail deliverables and reporting cadence
+Website Design for Dental Clinics page,planned,dental website design,880,8,commercial,Show design/UX credibility,Before/after style mockups, mobile-first emphasis
+Google & Meta Ads for Dentists page,planned,google ads for dental,320,0,commercial,Capture paid-acquisition intent,Explain cost-per-lead thinking for a non-marketer owner
+Reputation & Reviews page,planned,dental reviews management,-,-,informational,Address a top dentist pain point (bad/few reviews),Simple review-generation workflow explanation
+About page,planned,dental marketing company,880,72,commercial,Build trust without fabricated stats,Founder story / mission / why dental-specific + AI-assisted
+Pricing / Packages page,planned,dental marketing packages,-,-,commercial,Reduce friction for a "how much does this cost" visitor,Tiered packages framed around outcomes not just channels
+Contact / Book a Call page,planned,hire dental marketing agency,-,-,transactional,Low-friction conversion point,Short form + what happens after you submit it
+
+,,,,,,,
+HOMEPAGE SECTION MAP,,,,,,,
+section,goal,keyword_alignment,content_notes,,,,
+Header,Navigation + brand recall,brand: Smile AI Marketing (text logo),Sticky nav; primary CTA button always visible,,,,
+Hero,Hook + primary CTA,"marketing for dentists, dental marketing",One-sentence value prop + subhead + CTA; no stock photography needed,,,,
+Trust strip,Quick credibility without fabricated stats,-,"""Built specifically for dental clinics"" positioning statements (service focus, dental-only, response-time promise) instead of fake client counts",,,,
+Problem section,Show we understand dentist pain points,dental patient acquisition / dental leads,"3 pain points: low visibility, inconsistent enquiries, no time to manage marketing",,,,
+Process / how it works,Core differentiator vs competitors (see competitor-scan.csv insight #1),local seo for dentists / dental seo services,Animated 4-step flow diagram: Visibility -> Enquiries -> Conversion -> Growth,,,,
+Services grid,Summarize service pillars,dental seo services / dental website design / google ads for dental / dental reviews management,4 concise cards linking to future dedicated pages,,,,
+Why AI section,Explain the AI differentiator honestly,AI for dental practices (low volume but core brand angle),Frame AI as faster response + always-on monitoring, not magic/hype,,,,
+Final CTA,Conversion,hire dental marketing agency,Free strategy call framing; placeholder contact until real details provided,,,,
+Footer,Secondary nav + trust,-,Text logo + concise links + placeholder contact,,,,
