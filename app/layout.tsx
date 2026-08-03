@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Fraunces, Manrope, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -10,10 +10,10 @@ const fraunces = Fraunces({
   axes: ["opsz", "SOFT"],
 });
 
-const plexSans = IBM_Plex_Sans({
+const manrope = Manrope({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: "%s | Smile AI Marketing",
   },
   description:
-    "Smile AI Marketing helps dental clinics win more local visibility, turn searches into enquiries, and convert enquiries into booked patients — with AI-assisted execution and a plain-English process.",
+    "Smile AI Marketing helps dental clinics improve local visibility, generate qualified patient enquiries, and turn more searches into booked appointments — dental-only marketing, no long-term contracts.",
   keywords: [
     "dental marketing",
     "dental marketing agency",
@@ -49,14 +49,14 @@ export const metadata: Metadata = {
     siteName: "Smile AI Marketing",
     title: "Smile AI Marketing | Dental Marketing Agency for Local Growth",
     description:
-      "Local visibility, more enquiries, and more booked patients for dental clinics — explained in plain English, run with AI-assisted execution.",
+      "More local patients, fewer empty chairs — local visibility, qualified enquiries, and booked appointments for dental clinics.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Smile AI Marketing" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Smile AI Marketing | Dental Marketing Agency for Local Growth",
     description:
-      "Local visibility, more enquiries, and more booked patients for dental clinics.",
+      "More local patients, fewer empty chairs — for dental clinics.",
     images: ["/opengraph-image"],
   },
   robots: { index: true, follow: true },
@@ -70,7 +70,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable}`}
+      className={`${fraunces.variable} ${manrope.variable} ${plexMono.variable}`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink antialiased">
         {children}
