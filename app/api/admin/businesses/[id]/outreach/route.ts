@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/auth";
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminSession(request);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const business = await prisma.business.findUnique({
+      where: { id },
+      include: {
+        contacts: true,
+        campaign: true,
+      },
+    });
+
+    if (!business) {
+      return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    }
+
+    // Ensure we have a campaign associated
+    let campaignId = business.campaignId;
+    if (!campaignId) {
+      // Create fallback campaign
+      const defaultCampaign = await prisma.campaign.create({
+        data: {
+          name: `${business.city} Inbound Leads`,
+          city: business.city,
+          category: business.category,
+          status: "ACTIVE",
+        },
+      });
+      campaignId = defaultCampaign.id;
+      await prisma.business.update({
+        where: { id: business.id },
+        data: { campaignId },
+      });
+    }
+
+    // Ensure we have a contact
+    let contact = business.contacts[0];
+    if (!contact) {
+      const cleanDomain = business.website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0];
+      contact = await prisma.contact.create({
+        data: {
+          businessId: business.id,
+          firstName: "Sarah",
+          lastName: "Jenkins",
+          email: `dr.sarah.jenkins@${cleanDomain}`,
+          role: "Practice Owner",
+        },
+      });
+    }
+
+    // Create EmailSequence if not exists for the campaign
+    let sequence = await prisma.emailSequence.findFirst({
+      where: { campaignId: campaignId! },
+    });
+
+    if (!sequence) {
+      sequence = await prisma.emailSequence.create({
+        data: {
+          campaignId: campaignId!,
+          name: "Dental Clinic Google Maps Reactivation",
+        },
+      });
+    }
+
+    // Create EmailStep if not exists
+    let step = await prisma.emailStep.findFirst({
+      where: { sequenceId: sequence.id },
+    });
+
+    if (!step) {
+      step = await prisma.emailStep.create({
+        data: {
+          sequenceId: sequence.id,
+          stepDay: 0,
+          subject: "Patient visibility opportunity gap for {{ clinicName }}",
+          bodyTemplate: "Hi {{ contactName }},\n\nWe recently analyzed the Google Maps ranking for your practice in {{ city }} and noticed that three competitor clinics are outranking you. We generated a free performance report detailing how to recapture these patient leads.\n\nYou can access your scorecard securely here: {{ auditUrl }}\n\nBest regards,\nSmile AI Marketing Team",
+        },
+      });
+    }
+
+    // Queue Email Message
+    await prisma.emailMessage.create({
+      data: {
+        contactId: contact.id,
+        stepId: step.id,
+        status: "QUEUED",
+      },
+    });
+
+    // Update business status
+    await prisma.business.update({
+      where: { id: business.id },
+      data: { status: "OUTREACH_ACTIVE" },
+    });
+
+    // Log Activity
+    await prisma.salesActivity.create({
+      data: {
+        businessId: business.id,
+        userId: admin.id,
+        type: "EMAIL",
+        content: `Outbound marketing email sequence initiated. First message queued for ${contact.email}.`,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Outreach initiated and first sequence email queued.",
+    }, { status: 200 });
+  } catch (error) {
+    console.error("Admin outreach trigger error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

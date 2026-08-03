@@ -20,33 +20,51 @@ export default function Hero() {
       <div className="mx-auto grid max-w-[1200px] items-center gap-14 px-6 sm:px-8 lg:grid-cols-[55%_45%] lg:gap-10">
         <div>
           <Eyebrow>Marketing built only for dental clinics</Eyebrow>
-          <h1 className="mt-5 font-display text-[2.6rem] leading-[1.08] font-medium text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-            More local patients.
-            <br />
-            <span className="text-teal-deep">Fewer empty chairs.</span>
+          <h1 className="mt-5 font-display text-[2.4rem] leading-[1.1] font-medium text-ink sm:text-[3.2rem] lg:text-[3.5rem]">
+            See why patients in your city find competing dental clinics first.
           </h1>
-          <p className="mt-6 max-w-lg font-body text-lg leading-relaxed text-slate">
-            We help dental clinics improve their local visibility, generate
-            qualified patient enquiries, and turn more searches into booked
-            appointments.
+          <p className="mt-6 max-w-lg font-body text-[16px] leading-relaxed text-slate">
+            Enter your website and city to run an automated check of your local search presence, page speed, and competitor gaps.
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-4">
-            <a
-              href="#contact"
-              className="rounded-full bg-teal px-8 py-4 font-body text-base font-semibold text-ink shadow-[0_14px_34px_-14px_rgba(14,170,155,0.55)] transition-colors hover:bg-teal-deep hover:text-white"
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const target = e.currentTarget;
+              const website = (target.elements.namedItem("website") as HTMLInputElement).value;
+              const city = (target.elements.namedItem("city") as HTMLInputElement).value;
+              window.location.href = `/free-dental-audit?website=${encodeURIComponent(website)}&city=${encodeURIComponent(city)}`;
+            }}
+            className="mt-8 space-y-3 max-w-lg rounded-2xl border border-line bg-white p-4 shadow-lg sm:flex sm:items-center sm:gap-2 sm:space-y-0"
+          >
+            <div className="flex-1">
+              <input
+                name="website"
+                type="text"
+                required
+                placeholder="Clinic website (e.g. clinic.com)"
+                className="w-full bg-transparent px-3 py-2 font-body text-sm text-ink focus:outline-none"
+              />
+            </div>
+            <div className="h-6 w-px bg-line hidden sm:block" />
+            <div className="flex-1">
+              <input
+                name="city"
+                type="text"
+                required
+                placeholder="City (e.g. Chicago)"
+                className="w-full bg-transparent px-3 py-2 font-body text-sm text-ink focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full sm:w-auto shrink-0 rounded-full bg-teal px-6 py-3 font-body text-xs font-bold text-ink hover:bg-teal-deep hover:text-white transition-colors"
             >
-              Get Your Free Growth Plan
-            </a>
-            <a
-              href="#how-it-works"
-              className="rounded-full border border-line bg-white px-8 py-4 font-body text-base font-semibold text-ink transition-colors hover:border-teal hover:text-teal-deep"
-            >
-              See How It Works
-            </a>
-          </div>
+              Run My Free Dental Audit
+            </button>
+          </form>
 
-          <p className="mt-6 font-body text-[14.5px] text-slate">
+          <p className="mt-6 font-body text-[13.5px] text-slate">
             Dental-only marketing <span className="mx-2 text-line" aria-hidden>·</span>
             No long-term contracts <span className="mx-2 text-line" aria-hidden>·</span>
             Human-reviewed campaigns
