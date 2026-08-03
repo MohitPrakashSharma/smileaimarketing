@@ -1,11 +1,14 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import SampleAuditPreview from "@/components/SampleAuditPreview";
 import ProblemSection from "@/components/ProblemSection";
 import HowItWorks from "@/components/HowItWorks";
-import GalleryStrip from "@/components/GalleryStrip";
-import ServicesGrid from "@/components/ServicesGrid";
-import ReportingDashboard from "@/components/ReportingDashboard";
-import FAQ, { FAQS } from "@/components/FAQ";
+import CompetitorComparison from "@/components/CompetitorComparison";
+import AuditCoverage from "@/components/AuditCoverage";
+import TrustMethodology from "@/components/TrustMethodology";
+import ReviewOptions from "@/components/ReviewOptions";
+import FAQ from "@/components/FAQ";
+import { FAQS } from "@/components/faqData";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 
@@ -52,11 +55,13 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
+        <SampleAuditPreview />
         <ProblemSection />
         <HowItWorks />
-        <GalleryStrip />
-        <ServicesGrid />
-        <ReportingDashboard />
+        <CompetitorComparison />
+        <AuditCoverage />
+        <TrustMethodology />
+        <ReviewOptions />
         <FAQ />
         <FinalCTA />
       </main>

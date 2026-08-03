@@ -1,135 +1,317 @@
 "use client";
 
-import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
-import { IconSearch, IconMapPin, IconChat, IconCalendarCheck, IconTrendingUp } from "@/components/icons";
-import Eyebrow from "@/components/Eyebrow";
-
-const FLOW = [
-  { label: "Google Search", Icon: IconSearch },
-  { label: "Clinic Found", Icon: IconMapPin },
-  { label: "Patient Enquiry", Icon: IconChat },
-  { label: "Appointment Booked", Icon: IconCalendarCheck },
-];
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { IconMapPin, IconMonitor, IconStar, IconTrendingUp } from "@/components/icons";
 
 export default function Hero() {
-  const reduceMotion = useReducedMotion();
+  const router = useRouter();
+
+  // Form states
+  const [website, setWebsite] = useState("");
+  const [city, setCity] = useState("");
+  const [clinicName, setClinicName] = useState("");
+
+  // Validation & Submission states
+  const [websiteError, setWebsiteError] = useState("");
+  const [cityError, setCityError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateInputs = () => {
+    let isValid = true;
+    
+    // Website validation
+    const trimmedWeb = website.trim();
+    if (!trimmedWeb) {
+      setWebsiteError("Website is required");
+      isValid = false;
+    } else {
+      // Basic domain check
+      const domainPattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+      const urlPattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+      if (!domainPattern.test(trimmedWeb) && !urlPattern.test(trimmedWeb)) {
+        setWebsiteError("Please enter a valid clinic website (e.g., dentalclinic.com)");
+        isValid = false;
+      } else {
+        setWebsiteError("");
+      }
+    }
+
+    // City validation
+    const trimmedCity = city.trim();
+    if (!trimmedCity) {
+      setCityError("City is required");
+      isValid = false;
+    } else if (trimmedCity.length < 2) {
+      setCityError("Please enter a valid city name");
+      isValid = false;
+    } else {
+      setCityError("");
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!validateInputs()) return;
+
+    setIsSubmitting(true);
+
+    // Normalize URL
+    let normalizedWebsite = website.trim().toLowerCase();
+    if (!/^https?:\/\//i.test(normalizedWebsite)) {
+      normalizedWebsite = `https://${normalizedWebsite}`;
+    }
+
+    // Redirect to wizard page with query parameters
+    const params = new URLSearchParams({
+      website: normalizedWebsite,
+      city: city.trim(),
+    });
+    if (clinicName.trim()) {
+      params.append("clinicName", clinicName.trim());
+    }
+
+    router.push(`/free-dental-audit?${params.toString()}`);
+  };
+
+  const handleScrollToSample = () => {
+    const sampleSection = document.getElementById("sample-audit");
+    if (sampleSection) {
+      sampleSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
-    <section id="top" className="pt-14 pb-16 sm:pt-20 sm:pb-24">
-      <div className="mx-auto grid max-w-[1200px] items-center gap-14 px-6 sm:px-8 lg:grid-cols-[55%_45%] lg:gap-10">
+    <section id="top" className="relative bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
+      <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[52%_48%] lg:gap-8">
+        
+        {/* Left Column: Headline and Form */}
         <div>
-          <Eyebrow>Marketing built only for dental clinics</Eyebrow>
-          <h1 className="mt-5 font-display text-[2.4rem] leading-[1.1] font-medium text-ink sm:text-[3.2rem] lg:text-[3.5rem]">
-            See why patients in your city find competing dental clinics first.
+          <span className="rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
+            LOCAL GROWTH AUDIT FOR DENTAL CLINICS
+          </span>
+          <h1 className="mt-5 font-sans text-display text-foreground">
+            See where nearby dental clinics are winning — and what to fix first.
           </h1>
-          <p className="mt-6 max-w-lg font-body text-[16px] leading-relaxed text-slate">
-            Enter your website and city to run an automated check of your local search presence, page speed, and competitor gaps.
+          <p className="mt-6 text-body-large text-muted-foreground max-w-xl">
+            Review your clinic’s local visibility, website experience, reviews, and competitive gaps in one clear audit.
           </p>
 
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              const target = e.currentTarget;
-              const website = (target.elements.namedItem("website") as HTMLInputElement).value;
-              const city = (target.elements.namedItem("city") as HTMLInputElement).value;
-              window.location.href = `/free-dental-audit?website=${encodeURIComponent(website)}&city=${encodeURIComponent(city)}`;
-            }}
-            className="mt-8 space-y-3 max-w-lg rounded-2xl border border-line bg-white p-4 shadow-lg sm:flex sm:items-center sm:gap-2 sm:space-y-0"
+          {/* Primary Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="mt-8 space-y-4 max-w-xl rounded-2xl border border-border bg-surface p-6 shadow-md"
+            noValidate
           >
-            <div className="flex-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Clinic Website Field */}
+              <div className="flex flex-col">
+                <label htmlFor="hero-website" className="text-body-small font-semibold text-foreground mb-1">
+                  Clinic Website <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="hero-website"
+                    type="url"
+                    required
+                    disabled={isSubmitting}
+                    autoComplete="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="clinic.com"
+                    className={`w-full h-12 rounded-lg border px-3 text-body bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
+                      websiteError ? "border-rose-400" : "border-border"
+                    }`}
+                  />
+                </div>
+                {websiteError && <span className="text-metadata text-rose-600 mt-1">{websiteError}</span>}
+              </div>
+
+              {/* City Field */}
+              <div className="flex flex-col">
+                <label htmlFor="hero-city" className="text-body-small font-semibold text-foreground mb-1">
+                  City <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="hero-city"
+                    type="text"
+                    required
+                    disabled={isSubmitting}
+                    autoComplete="address-level2"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Chicago"
+                    className={`w-full h-12 rounded-lg border px-3 text-body bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
+                      cityError ? "border-rose-400" : "border-border"
+                    }`}
+                  />
+                </div>
+                {cityError && <span className="text-metadata text-rose-600 mt-1">{cityError}</span>}
+              </div>
+            </div>
+
+            {/* Optional Clinic Name Field */}
+            <div className="flex flex-col">
+              <label htmlFor="hero-clinic" className="text-body-small font-semibold text-foreground mb-1">
+                Clinic Name <span className="text-metadata text-muted-foreground font-normal">(Optional)</span>
+              </label>
               <input
-                name="website"
+                id="hero-clinic"
                 type="text"
-                required
-                placeholder="Clinic website (e.g. clinic.com)"
-                className="w-full bg-transparent px-3 py-2 font-body text-sm text-ink focus:outline-none"
+                disabled={isSubmitting}
+                value={clinicName}
+                onChange={(e) => setClinicName(e.target.value)}
+                placeholder="Metro Dental Care"
+                className="w-full h-12 rounded-lg border border-border px-3 text-body bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            <div className="h-6 w-px bg-line hidden sm:block" />
-            <div className="flex-1">
-              <input
-                name="city"
-                type="text"
-                required
-                placeholder="City (e.g. Chicago)"
-                className="w-full bg-transparent px-3 py-2 font-body text-sm text-ink focus:outline-none"
-              />
+
+            {/* Submit Action */}
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 h-12 rounded-full bg-primary font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60 flex items-center justify-center"
+              >
+                {isSubmitting ? "Initiating Free Scan..." : "Audit My Clinic"}
+              </button>
+              <button
+                type="button"
+                onClick={handleScrollToSample}
+                className="h-12 rounded-full border border-border bg-surface px-6 font-body text-base font-semibold text-foreground transition-colors hover:bg-surface-muted flex items-center justify-center"
+              >
+                View Sample Audit
+              </button>
             </div>
-            <button
-              type="submit"
-              className="w-full sm:w-auto shrink-0 rounded-full bg-teal px-6 py-3 font-body text-xs font-bold text-ink hover:bg-teal-deep hover:text-white transition-colors"
-            >
-              Run My Free Dental Audit
-            </button>
           </form>
 
-          <p className="mt-6 font-body text-[13.5px] text-slate">
-            Dental-only marketing <span className="mx-2 text-line" aria-hidden>·</span>
-            No long-term contracts <span className="mx-2 text-line" aria-hidden>·</span>
-            Human-reviewed campaigns
-          </p>
+          {/* Trust Microcopy */}
+          <ul className="mt-6 space-y-2 text-metadata text-muted-foreground">
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>No Google account access required.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>Based on publicly available business signals.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>Clear recommendations, not generic scores.</span>
+            </li>
+          </ul>
         </div>
 
-        <div>
-          <div className="relative">
-            <div className="relative aspect-[6/5] overflow-hidden rounded-3xl shadow-[0_30px_60px_-25px_rgba(8,44,58,0.35)]">
-              <Image
-                src="/images/hero-search-analytics.jpg"
-                alt="Local search and traffic analytics reviewed on a tablet"
-                fill
-                priority
-                sizes="(min-width: 1024px) 45vw, 90vw"
-                className="object-cover"
-              />
+        {/* Right Column: Realistic Product Preview Mockup */}
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
+          {/* Header Bar */}
+          <div className="flex items-center justify-between border-b border-border bg-background px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-red-400" />
+              <span className="h-3 w-3 rounded-full bg-yellow-400" />
+              <span className="h-3 w-3 rounded-full bg-green-400" />
+              <span className="ml-2 font-mono text-xs text-muted-foreground">audit-preview-tool</span>
             </div>
-
-            <motion.div
-              className="absolute -bottom-5 -left-4 flex items-center gap-2.5 rounded-xl border border-line bg-white py-3 pl-3.5 pr-4 shadow-[0_16px_32px_-12px_rgba(8,44,58,0.3)] sm:-left-6"
-              initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal/10 text-teal-deep">
-                <IconTrendingUp className="h-4 w-4" />
-              </span>
-              <p className="font-body text-[12.5px] font-medium leading-tight text-ink">
-                Search visibility
-                <br />
-                <span className="text-slate">tracked weekly</span>
-              </p>
-            </motion.div>
+            <span className="rounded bg-accent-soft px-2 py-0.5 font-label text-[10px] tracking-wider text-primary">
+              Sample audit preview
+            </span>
           </div>
 
-          <div className="relative mt-8 rounded-2xl border border-line bg-white px-5 py-5">
-            <div
-              aria-hidden
-              className="absolute left-[15%] right-[15%] top-[34px] h-px border-t border-dashed border-line"
-            />
-            <div className="relative flex items-start justify-between gap-1">
-              {FLOW.map((step, i) => (
-                <motion.div
-                  key={step.label}
-                  className="flex flex-1 flex-col items-center text-center"
-                  initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.15 + i * 0.12 }}
-                >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      i === FLOW.length - 1 ? "bg-sky text-ink-2" : "bg-mist text-teal-deep"
-                    }`}
-                  >
-                    <step.Icon className="h-4.5 w-4.5" />
+          {/* Mock Dashboard Contents */}
+          <div className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4 gap-2">
+              <div>
+                <p className="text-body font-bold text-foreground">Metro Dental Care</p>
+                <p className="text-metadata">Chicago Market Simulator</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-metadata font-semibold text-muted-foreground uppercase">Opportunity</span>
+                <span className="rounded bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">
+                  HIGH
+                </span>
+              </div>
+            </div>
+
+            {/* Metrics List */}
+            <div className="space-y-4">
+              {/* Metric 1 */}
+              <div className="flex items-center justify-between bg-background p-3.5 rounded-xl border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
+                    <IconMapPin className="h-4.5 w-4.5" />
                   </span>
-                  <p className="mt-2 font-body text-[11.5px] font-medium leading-tight text-ink">
-                    {step.label}
-                  </p>
-                </motion.div>
-              ))}
+                  <div>
+                    <p className="text-body-small font-semibold text-foreground">Local Visibility</p>
+                    <p className="text-metadata">Map-pack ranking indicator</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-body font-bold text-rose-600">42/100</p>
+                  <p className="text-metadata text-rose-600 font-semibold uppercase">Poor</p>
+                </div>
+              </div>
+
+              {/* Metric 2 */}
+              <div className="flex items-center justify-between bg-background p-3.5 rounded-xl border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
+                    <IconMonitor className="h-4.5 w-4.5" />
+                  </span>
+                  <div>
+                    <p className="text-body-small font-semibold text-foreground">Website Experience</p>
+                    <p className="text-metadata">Mobile speed & layout test</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-body font-bold text-amber-600">61/100</p>
+                  <p className="text-metadata text-amber-600 font-semibold uppercase">Average</p>
+                </div>
+              </div>
+
+              {/* Metric 3 */}
+              <div className="flex items-center justify-between bg-background p-3.5 rounded-xl border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
+                    <IconStar className="h-4.5 w-4.5" />
+                  </span>
+                  <div>
+                    <p className="text-body-small font-semibold text-foreground">Review Position</p>
+                    <p className="text-metadata">Local map ranking slot</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-body font-bold text-rose-600">7th</p>
+                  <p className="text-metadata text-rose-600 font-semibold uppercase">Buried</p>
+                </div>
+              </div>
+
+              {/* Metric 4 */}
+              <div className="flex items-center justify-between bg-background p-3.5 rounded-xl border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
+                    <IconTrendingUp className="h-4.5 w-4.5" />
+                  </span>
+                  <div>
+                    <p className="text-body-small font-semibold text-foreground">Competitors Ahead</p>
+                    <p className="text-metadata">Higher-ranked local clinics</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-body font-bold text-rose-600">3</p>
+                  <p className="text-metadata text-rose-600 font-semibold uppercase">High Gap</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );

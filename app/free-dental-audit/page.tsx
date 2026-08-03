@@ -33,10 +33,14 @@ function AuditWizardForm() {
   useEffect(() => {
     const queryWebsite = searchParams.get("website");
     const queryCity = searchParams.get("city");
+    const queryClinicName = searchParams.get("clinicName");
     
     if (queryWebsite && queryCity) {
       setWebsite(decodeURIComponent(queryWebsite));
       setCity(decodeURIComponent(queryCity));
+      if (queryClinicName) {
+        setClinicName(decodeURIComponent(queryClinicName));
+      }
       
       // Auto-trigger step 1
       const triggerAutoScan = async () => {
@@ -54,7 +58,7 @@ function AuditWizardForm() {
             body: JSON.stringify({
               website: formattedUrl,
               city: decodeURIComponent(queryCity),
-              clinicName: "My Dental Practice",
+              clinicName: queryClinicName ? decodeURIComponent(queryClinicName) : "My Dental Practice",
               country: "US",
             }),
           });

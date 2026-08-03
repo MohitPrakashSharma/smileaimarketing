@@ -1,36 +1,35 @@
-import Eyebrow from "@/components/Eyebrow";
+"use client";
 
 export default function FinalCTA() {
   return (
-    <section id="contact" className="bg-paper">
-      <div className="mx-auto max-w-[1200px] px-6 py-20 sm:px-8 sm:py-28">
-        <div className="rounded-3xl border border-line bg-white px-8 py-16 text-center shadow-[0_30px_60px_-35px_rgba(8,44,58,0.25)] sm:py-20">
-          <Eyebrow>Free growth plan</Eyebrow>
-          <h2 className="mt-5 font-display text-3xl font-medium text-ink sm:text-[2.75rem]">
-            Ready to grow your clinic locally?
+    <section id="contact" className="border-t border-border bg-surface-muted/30">
+      <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
+        <div className="rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-sm sm:py-16">
+          <span className="rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
+            FREE CONSULTATION
+          </span>
+          <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
+            Ready to grow your practice?
           </h2>
-          <p className="mx-auto mt-5 max-w-md font-body text-[15.5px] leading-relaxed text-slate">
-            Tell us about your practice on a free 20-minute call. No pressure, no
-            contracts to sign on the spot.
+          <p className="mx-auto mt-4 max-w-xl text-body text-muted-foreground leading-relaxed">
+            Book a free 20-minute Growth Plan call. We&apos;ll map your city&apos;s competition and highlight your biggest patient acquisition gaps.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="mailto:hello@smileaimarketing.com?subject=Free%20growth%20plan"
-              className="rounded-full bg-teal px-8 py-4 font-body text-base font-semibold text-ink shadow-[0_14px_34px_-14px_rgba(14,170,155,0.55)] transition-colors hover:bg-teal-deep hover:text-white"
+              href="/book-consultation"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover shadow-sm"
             >
               Get Your Free Growth Plan
             </a>
             <a
               href="mailto:hello@smileaimarketing.com"
-              className="font-body text-[15px] font-medium text-ink underline decoration-line decoration-2 underline-offset-4 transition-colors hover:decoration-teal"
+              className="text-body font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 transition-colors hover:text-primary"
             >
               hello@smileaimarketing.com
             </a>
           </div>
-          <p className="mt-6 font-body text-[13.5px] text-slate">
-            Dental-only marketing <span className="mx-2 text-line" aria-hidden>·</span>
-            No long-term contracts <span className="mx-2 text-line" aria-hidden>·</span>
-            Human-reviewed campaigns
+          <p className="mt-6 text-metadata text-muted-foreground">
+            Dental-only focus · Month-to-month alignment · Human-reviewed actions
           </p>
         </div>
       </div>
