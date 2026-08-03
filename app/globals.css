@@ -8,7 +8,8 @@
   --color-teal: #0eaa9b;
   --color-teal-deep: #0a7a6d;
   --color-slate: #4f6b74;
-  --color-coral: #ff6b61;
+  --color-sky: #e5f0fa;
+  --color-coral: #e2685c;
   --color-line: #dceae7;
 }
 
@@ -20,6 +21,7 @@
   --color-teal: var(--color-teal);
   --color-teal-deep: var(--color-teal-deep);
   --color-slate: var(--color-slate);
+  --color-sky: var(--color-sky);
   --color-coral: var(--color-coral);
   --color-line: var(--color-line);
   --font-display: var(--font-display);

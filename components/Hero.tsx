@@ -117,7 +117,7 @@ export default function Hero() {
                 >
                   <span
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      i === FLOW.length - 1 ? "bg-coral/10 text-coral" : "bg-mist text-teal-deep"
+                      i === FLOW.length - 1 ? "bg-sky text-ink-2" : "bg-mist text-teal-deep"
                     }`}
                   >
                     <step.Icon className="h-4.5 w-4.5" />

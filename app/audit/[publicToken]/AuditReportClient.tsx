@@ -272,7 +272,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* Action 2: In-person Drop off */}
           <div className="rounded-3xl border border-line bg-white p-6 shadow-sm">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-coral/10 text-coral mb-4">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky text-ink-2 mb-4">
               <IconMapPin className="h-5 w-5" />
             </span>
             <h3 className="font-display text-lg font-bold">Request In-Person Visit</h3>
@@ -281,7 +281,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             </p>
 
             {visitSubmitted ? (
-              <div className="mt-6 rounded-2xl bg-coral/10 border border-coral/20 p-4 text-center text-xs font-semibold text-coral">
+              <div className="mt-6 rounded-2xl bg-teal/10 border border-teal/20 p-4 text-center text-xs font-semibold text-teal-deep">
                 Visit request received! Our sales representative will verify your service area and contact your clinic to confirm a timing window.
               </div>
             ) : (
