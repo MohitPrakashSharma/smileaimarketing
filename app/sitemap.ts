@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CASE_STUDIES } from "@/lib/caseStudies";
+import { SERVICES } from "@/lib/services";
 
 const SITE_URL = "https://smileaimarketing.com";
 
@@ -11,6 +12,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 1,
     },
+    {
+      url: `${SITE_URL}/services`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    ...SERVICES.map((service) => ({
+      url: `${SITE_URL}/services/${service.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     {
       url: `${SITE_URL}/case-studies`,
       lastModified: new Date(),

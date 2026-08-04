@@ -10,6 +10,7 @@ const SECTION_LINKS = [
 ];
 
 const PAGE_LINKS = [
+  { href: "/services", label: "Services" },
   { href: "/case-studies", label: "Case Studies" },
   { href: "/privacy", label: "Privacy Policy" },
 ];
