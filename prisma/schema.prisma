@@ -15,9 +15,16 @@ enum UserRole {
 
 enum CampaignStatus {
   DRAFT
+  READY
+  DISCOVERING
+  PROCESSING
+  REVIEW_REQUIRED
+  READY_FOR_OUTREACH
   ACTIVE
   PAUSED
   COMPLETED
+  PARTIAL
+  FAILED
 }
 
 enum BusinessStatus {
@@ -76,7 +83,7 @@ model User {
 model Campaign {
   id          String         @id @default(uuid())
   name        String
-
+  
   // Step 1: Target market
   country     String         @default("US")
   state       String?
@@ -94,19 +101,23 @@ model Campaign {
   keywords           String[] @default([])
   competitorCount     Int     @default(3)
   dataFreshnessDays   Int     @default(30)
-  dataProvider        String  @default("MOCK") // "MOCK" | "GOOGLE_PLACES" | "DATAFORSEO" — only MOCK is functional today
+  dataProvider        String  @default("MOCK") // "MOCK" | "TEST_PROVIDER" | "GOOGLE_PLACES" | "DATAFORSEO"
 
   // Step 4: Outreach configuration
   outreachDailyLimit Int     @default(8)
   testMode            Boolean @default(true)
 
   status      CampaignStatus @default(DRAFT)
+  startedAt   DateTime?
+  completedAt DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   businesses  Business[]
   sequences   EmailSequence[]
 
   @@index([status])
+  @@index([city])
+  @@index([createdAt])
 }
 
 model Business {
@@ -124,6 +135,7 @@ model Business {
   phone            String?
   category         String
   status           BusinessStatus  @default(DISCOVERED)
+  leadSource       String          @default("campaign_outreach") // "campaign_outreach" | "website_audit"
   opportunityScore Int             @default(0)
 
   // Discovery provider metadata
@@ -132,8 +144,9 @@ model Business {
   longitude        Float?
   rating           Float?
   reviewCount      Int?
-  providerSource   String?         // "GOOGLE_PLACES" | "DATAFORSEO" | "MANUAL" | "SEED"
+  providerSource   String?         // "TEST_PROVIDER" | "GOOGLE_PLACES" | "DATAFORSEO" | "MANUAL" | "SEED"
   rawProviderRef   Json?           // opaque provider payload — never exposed to the public frontend
+  firstDiscoveredAt DateTime?      @default(now())
   lastCheckedAt    DateTime?
 
   createdAt        DateTime        @default(now())
@@ -142,12 +155,14 @@ model Business {
   audits           Audit[]
   appointments     Appointment[]
   salesActivities  SalesActivity[]
+  engagementEvents EngagementEvent[]
 
   @@unique([website, city])
   @@index([campaignId])
   @@index([status])
   @@index([city])
   @@index([normalizedDomain])
+  @@index([createdAt])
 }
 
 model Contact {
@@ -176,12 +191,17 @@ model Audit {
   publicToken      String          @unique @default(uuid()) // Secure non-sequential URL token
   status           AuditStatus     @default(PENDING)
   score            Int             @default(0)
+  summaryText      String?         // Fact-based AI / deterministic audit summary
+  pdfStatus        String          @default("NOT_REQUESTED") // "NOT_REQUESTED" | "QUEUED" | "GENERATING" | "READY" | "FAILED"
+  pdfUrl           String?
+  pdfGeneratedAt   DateTime?
   viewCount        Int             @default(0)
   lastViewedAt     DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   results          AuditResult[]
   competitorGaps   Competitor[]
+  engagementEvents EngagementEvent[]
 
   @@index([businessId])
   @@index([publicToken])
@@ -195,7 +215,7 @@ model AuditResult {
   category      String      // e.g., "LOCAL_VISIBILITY", "WEBSITE_QUALITY", "CONVERSION", "REPUTATION"
   score         Int         // Category specific score
   findingsJson  Json        // Structured facts e.g. { speed: 45, ssl: false }
-  detailsJson   Json?       // AI-rewritten copy and human recommendations
+  detailsJson   Json?       // Copy and human recommendations
   createdAt     DateTime    @default(now())
 
   @@index([auditId])
@@ -243,7 +263,7 @@ model EmailMessage {
   status           EmailStatus       @default(QUEUED)
   scheduledTime    DateTime?         // When outreach is scheduled to be sent
 
-  messageId        String?           // External email service ID (e.g. Resend, Sendgrid)
+  messageId        String?           // External email service ID
   sentAt           DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -256,16 +276,23 @@ model EmailMessage {
 }
 
 model EngagementEvent {
-  id             String       @id @default(uuid())
-  emailMessageId String
-  emailMessage   EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
-  eventType      String       // "OPEN", "CLICK", "BOUNCE", "SPAM", "UNSUBSCRIBE"
+  id             String        @id @default(uuid())
+  emailMessageId String?
+  emailMessage   EmailMessage? @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  businessId     String?
+  business       Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  auditId        String?
+  audit          Audit?        @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  eventType      String        // "campaign_created", "business_discovered", "audit_completed", "OPEN", "CLICK", "REPORT_VIEW", "PDF_DOWNLOAD", "BOOKING_REQUESTED"
   linkClicked    String?
   ipAddress      String?
   userAgent      String?
-  timestamp      DateTime     @default(now())
+  timestamp      DateTime      @default(now())
 
   @@index([emailMessageId])
+  @@index([businessId])
+  @@index([auditId])
+  @@index([eventType])
 }
 
 model Appointment {
@@ -275,13 +302,15 @@ model Appointment {
   contactId        String
   contact          Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   type             AppointmentType
-  status           AppointmentStatus @default(SCHEDULED)
+  status           AppointmentStatus @default(REQUESTED)
   scheduledTime    DateTime
   durationMinutes  Int               @default(15)
   address          String?           // For offline in-person visits
   preferredWindow  String?           // Muted text for timing range
   notes            String?
-  salesBriefingUrl String?           // URL link to generated PDF salesperson brief
+  salesBriefingUrl String?           // URL link to generated PDF brief
+  googleEventId    String?
+  meetLink         String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 

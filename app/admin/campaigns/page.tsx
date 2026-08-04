@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
@@ -338,7 +338,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
 export default function AdminCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/campaigns");
       const data = await res.json();
@@ -346,11 +346,14 @@ export default function AdminCampaignsPage() {
     } catch (err) {
       console.error("Error fetching campaigns:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCampaigns();
-  }, []);
+    const timer = setTimeout(() => {
+      void fetchCampaigns();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchCampaigns]);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[63%_37%]">

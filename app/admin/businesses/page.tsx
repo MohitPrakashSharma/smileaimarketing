@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -30,7 +30,7 @@ function BusinessesList() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const fetchBusinesses = async () => {
+  const fetchBusinesses = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/businesses");
       const data = await res.json();
@@ -40,11 +40,14 @@ function BusinessesList() {
     } catch (err) {
       console.error("Error fetching businesses:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchBusinesses();
-  }, []);
+    const timer = setTimeout(() => {
+      void fetchBusinesses();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchBusinesses]);
 
   const handleRunAudit = async (businessId: string) => {
     setLoadingId(businessId);

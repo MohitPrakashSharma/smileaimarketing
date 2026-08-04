@@ -79,3 +79,29 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminSession(request);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { status } = body;
+
+    const campaign = await prisma.campaign.update({
+      where: { id },
+      data: { status },
+    });
+
+    return NextResponse.json({ campaign }, { status: 200 });
+  } catch (error) {
+    console.error("Admin campaign detail PATCH error:", error);
+    return NextResponse.json({ error: "Failed to update campaign" }, { status: 500 });
+  }
+}

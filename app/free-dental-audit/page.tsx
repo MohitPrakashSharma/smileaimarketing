@@ -145,9 +145,12 @@ function AuditWizardForm() {
     if (queryWebsite && queryCity) {
       const decodedWebsite = decodeURIComponent(queryWebsite);
       const decodedCity = decodeURIComponent(queryCity);
-      setWebsite(decodedWebsite);
-      setCity(decodedCity);
-      runScan(decodedWebsite, decodedCity);
+      const timer = setTimeout(() => {
+        setWebsite(decodedWebsite);
+        setCity(decodedCity);
+        runScan(decodedWebsite, decodedCity);
+      }, 0);
+      return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
