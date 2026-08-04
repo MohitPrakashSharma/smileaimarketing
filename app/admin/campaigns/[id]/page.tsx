@@ -15,7 +15,27 @@ type Business = {
 };
 
 type CampaignDetail = {
-  campaign: { id: string; name: string; city: string; category: string; status: string; createdAt: string };
+  campaign: {
+    id: string;
+    name: string;
+    country: string;
+    state: string | null;
+    city: string;
+    category: string;
+    status: string;
+    createdAt: string;
+    maxBusinesses: number;
+    minReviewCount: number | null;
+    websiteRequired: boolean;
+    excludeChains: boolean;
+    excludeExistingContacts: boolean;
+    keywords: string[];
+    competitorCount: number;
+    dataFreshnessDays: number;
+    dataProvider: string;
+    outreachDailyLimit: number;
+    testMode: boolean;
+  };
   counts: { discovered: number; audited: number; contacted: number; converted: number };
   businesses: Business[];
 };
@@ -83,6 +103,62 @@ export default function AdminCampaignDetailPage({ params }: { params: Promise<{ 
           Discovery for this campaign used seed/mock data — real Google Places / DataForSEO discovery isn&apos;t connected yet (see docs/mvp-readiness.md).
         </div>
       )}
+
+      <div className="rounded-2xl border border-border bg-surface p-6">
+        <h2 className="text-body font-bold text-foreground">Configuration</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-body-small sm:grid-cols-3">
+          <div>
+            <dt className="text-metadata text-muted-foreground">Target Market</dt>
+            <dd className="font-semibold text-foreground">
+              {[campaign.city, campaign.state, campaign.country].filter(Boolean).join(", ")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Max Businesses</dt>
+            <dd className="font-semibold text-foreground">{campaign.maxBusinesses}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Min Reviews</dt>
+            <dd className="font-semibold text-foreground">{campaign.minReviewCount ?? "None"}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Lead Criteria</dt>
+            <dd className="font-semibold text-foreground">
+              {[
+                campaign.websiteRequired && "Website required",
+                campaign.excludeChains && "Exclude chains",
+                campaign.excludeExistingContacts && "Exclude existing contacts",
+              ]
+                .filter(Boolean)
+                .join(", ") || "None"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Keywords</dt>
+            <dd className="font-semibold text-foreground">{campaign.keywords.length ? campaign.keywords.join(", ") : "None"}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Competitors Compared</dt>
+            <dd className="font-semibold text-foreground">{campaign.competitorCount}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Data Freshness</dt>
+            <dd className="font-semibold text-foreground">{campaign.dataFreshnessDays} days</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Data Provider</dt>
+            <dd className="font-semibold text-foreground">{campaign.dataProvider}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Outreach Daily Limit</dt>
+            <dd className="font-semibold text-foreground">{campaign.outreachDailyLimit}</dd>
+          </div>
+          <div>
+            <dt className="text-metadata text-muted-foreground">Mode</dt>
+            <dd className="font-semibold text-foreground">{campaign.testMode ? "Test" : "Live"}</dd>
+          </div>
+        </dl>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-border bg-surface p-4">

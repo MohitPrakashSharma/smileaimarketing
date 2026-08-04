@@ -76,8 +76,30 @@ model User {
 model Campaign {
   id          String         @id @default(uuid())
   name        String
+
+  // Step 1: Target market
+  country     String         @default("US")
+  state       String?
   city        String
   category    String
+
+  // Step 2: Lead criteria
+  maxBusinesses            Int     @default(10)
+  minReviewCount           Int?
+  websiteRequired          Boolean @default(true)
+  excludeChains            Boolean @default(false)
+  excludeExistingContacts  Boolean @default(false)
+
+  // Step 3: Audit configuration
+  keywords           String[] @default([])
+  competitorCount     Int     @default(3)
+  dataFreshnessDays   Int     @default(30)
+  dataProvider        String  @default("MOCK") // "MOCK" | "GOOGLE_PLACES" | "DATAFORSEO" — only MOCK is functional today
+
+  // Step 4: Outreach configuration
+  outreachDailyLimit Int     @default(8)
+  testMode            Boolean @default(true)
+
   status      CampaignStatus @default(DRAFT)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

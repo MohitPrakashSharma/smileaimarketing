@@ -12,7 +12,7 @@ Phase 1–4 (inspection, status matrix, baseline execution, DB/infra check) plus
 | 4 | Public audit report | **WORKING** |
 | 5 | PDF generation | **MISSING** |
 | 6 | PDF download | **MISSING** |
-| 7 | Campaign creation | **PARTIAL** |
+| 7 | Campaign creation | **WORKING** (full 5-step wizard: target market, lead criteria, audit config, outreach config, review — all fields persisted) |
 | 8 | Campaign start | **MOCKED** |
 | 9 | Business discovery | **MOCKED** |
 | 10 | Google Places integration | **MISSING** (BLOCKED BY CREDENTIALS once built) |
@@ -43,13 +43,14 @@ Phase 1–4 (inspection, status matrix, baseline execution, DB/infra check) plus
 | 35 | PostgreSQL connectivity | **WORKING** (verified live) |
 | 36 | Redis connectivity | **WORKING** (verified live) |
 
-**14 of 36 WORKING** (up from 8), **11 PARTIAL/MOCKED**, **11 MISSING**. Nothing is FAILED.
+**15 of 36 WORKING** (up from 8), **10 PARTIAL/MOCKED**, **11 MISSING**. Nothing is FAILED.
 
 ## What Was Completed This Pass
 
 All of the following were built, migrated into the live dev database, and **verified end-to-end against real data** (not just compiled) — see "Manual Test Results" below for the actual verification transcript.
 
-1. **Migration baseline established.** No Prisma migration history existed before this (schema was applied via `db push`). Baselined the existing schema into `0_init` without touching any data, then added two proper tracked migrations (`1_mvp_discovery_engagement_appointment_fields`, `2_email_message_scheduled_time`) for everything below. `npx prisma migrate status` is clean; all 4 migrations applied.
+0. **Campaign wizard** — the single-step "name/city/category" form is now a 5-step wizard (Target Market → Lead Criteria → Audit Configuration → Outreach Configuration → Review & Start), matching `docs/admin-workflow-plan.md`'s spec. New `Campaign` fields: `country`, `state`, `maxBusinesses`, `minReviewCount`, `websiteRequired`, `excludeChains`, `excludeExistingContacts`, `keywords` (array), `competitorCount`, `dataFreshnessDays`, `dataProvider`, `outreachDailyLimit`, `testMode`. The mocked seed-discovery logic now generates a variable number of businesses (up to a 10-template pool) honoring `maxBusinesses`, instead of always exactly 3. The API rejects `dataProvider` values other than `MOCK` with a clear error, rather than silently accepting a selection that would do nothing — verified live (400 response, correct message). Campaign detail page now shows a full Configuration panel. `docs/manual-test-checklist.md`'s Campaign section updated accordingly.
+1. **Migration baseline established.** No Prisma migration history existed before this (schema was applied via `db push`). Baselined the existing schema into `0_init` without touching any data, then added tracked migrations for every schema change made across this and the prior pass (`1_mvp_discovery_engagement_appointment_fields`, `2_email_message_scheduled_time`, `3_campaign_wizard_fields`). `npx prisma migrate status` is clean; all 5 migrations applied, zero data loss (row counts checked before/after every migration).
 2. **Business normalization + dedup** (`lib/normalize.ts`): `normalizeDomain()`/`normalizeName()` plus new `Business` columns (`normalizedName`, `normalizedDomain`, `googlePlaceId` (unique), `latitude`, `longitude`, `rating`, `reviewCount`, `providerSource`, `rawProviderRef`, `lastCheckedAt`, `state`). Wired into `inbound-trigger` (checks normalized domain as a second dedup pass after the exact `website_city` lookup) and the campaign seed route (`skipDuplicates: true` added as a direct fix for a latent crash-on-duplicate-city bug found while doing this work).
 3. **Missing indexes added**: `Campaign.status`, `Audit.status`, `Appointment.status`, `Business.normalizedDomain`, plus `EmailMessage.status`/`scheduledTime` (the latter two were added by a parallel edit to this schema mid-session — reconciled into a proper migration rather than left as drift).
 4. **Real, credential-free website check** (`lib/websiteCheck.server.ts`): a genuine `fetch()` against the practice's own site — SSL validity, response time, mobile-viewport meta tag — no third-party API involved. Replaces the hardcoded `WEBSITE_QUALITY` constant in both `unlock-lead` and the admin manual-audit route. This is the one audit category that's now **actually real**, not simulated.
