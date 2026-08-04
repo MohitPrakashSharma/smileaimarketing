@@ -231,8 +231,10 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
           <span className="mt-1 block text-body-small font-bold text-foreground">{business.phone || "—"}</span>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Source</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">{business.providerSource || "—"}</span>
+          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">DATA SOURCE</span>
+          <span className="mt-1 block text-body-small font-bold text-foreground">
+            {business.providerSource === "GOOGLE_PLACES" ? "Google Places" : business.providerSource === "DATAFORSEO" ? "DataForSEO" : business.providerSource === "APOLLO" ? "Apollo" : business.providerSource === "TEST_PROVIDER" ? "Test Fixture" : "Direct Website Check"}
+          </span>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
           <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Opportunity Score</span>

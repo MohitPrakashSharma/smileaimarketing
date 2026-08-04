@@ -10,6 +10,8 @@ import { generateLightAuditPdf } from "./lib/pdfGenerator";
 import { sendOutreachEmail } from "./lib/email.server";
 import { logEngagementEvent } from "./lib/events";
 import { analysisQueue, pdfQueue } from "./lib/queue";
+import { enrichBusinessContact } from "./lib/apollo";
+import { generateAuditSummaryWithOpenAI } from "./lib/openai";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -35,10 +37,10 @@ const discoveryWorker = new Worker(
       city,
       category,
       limit: maxBusinesses || 5,
-      dataProvider: dataProvider || "TEST_PROVIDER",
+      dataProvider: dataProvider || (process.env.DATA_MODE === "live" ? "GOOGLE_PLACES" : "TEST_PROVIDER"),
     });
 
-    console.log(`[Discovery Worker] Retreived ${discoveredItems.length} practices for ${city}`);
+    console.log(`[Discovery Worker] Retrieved ${discoveredItems.length} practices for ${city}`);
 
     let savedCount = 0;
     for (const item of discoveredItems) {
@@ -88,17 +90,26 @@ const discoveryWorker = new Worker(
         },
       });
 
-      // Create default decision maker contact
-      const contact = await prisma.contact.create({
-        data: {
-          businessId: business.id,
-          firstName: "Dr. Sarah",
-          lastName: "Jenkins",
-          email: `dr.jenkins@${normDomain || "clinic.com"}`,
-          phone: item.phone || null,
-          role: "Principal Dentist",
-        },
-      });
+      // Enrich real contact via Apollo
+      const apolloRes = await enrichBusinessContact(business.website);
+      let contactId: string | undefined = undefined;
+
+      if (apolloRes.found && apolloRes.email) {
+        const contact = await prisma.contact.create({
+          data: {
+            businessId: business.id,
+            firstName: apolloRes.firstName || "Practice",
+            lastName: apolloRes.lastName || "Lead",
+            email: apolloRes.email,
+            phone: apolloRes.phone || item.phone || null,
+            role: apolloRes.role || "Principal Dentist",
+            providerId: apolloRes.providerId || null,
+          },
+        });
+        contactId = contact.id;
+      } else {
+        console.log(`[Discovery Worker] Apollo returned no verified contact for ${business.name}. Contact pending manual add.`);
+      }
 
       // Create initial Audit record
       const audit = await prisma.audit.create({
@@ -118,7 +129,7 @@ const discoveryWorker = new Worker(
       // Queue analysis job
       await analysisQueue.add(
         "analyse-business",
-        { businessId: business.id, auditId: audit.id, contactId: contact.id },
+        { businessId: business.id, auditId: audit.id, contactId },
         { jobId: `analysis_${audit.id}` }
       );
 
@@ -180,7 +191,25 @@ const analysisWorker = new Worker(
       reviewCount: business.reviewCount || 45,
     });
 
-    // Clear old results if re-running
+    // Generate OpenAI summary if key available
+    let finalSummary = scoreOutput.summaryText;
+    try {
+      const aiSummaryRes = await generateAuditSummaryWithOpenAI({
+        businessName: business.name,
+        website: business.website,
+        city: business.city,
+        overallScore: scoreOutput.opportunityScore,
+        results: scoreOutput.categoryScores.map((c) => ({ category: c.category, score: c.score })),
+        competitors: scoreOutput.competitors,
+      });
+      if (aiSummaryRes.summary) {
+        finalSummary = aiSummaryRes.summary;
+      }
+    } catch (err) {
+      console.warn("[Analysis Worker] OpenAI summary generation skipped:", err);
+    }
+
+    // Clear old audit results if re-running
     await prisma.auditResult.deleteMany({ where: { auditId: targetAuditId } });
     await prisma.competitor.deleteMany({ where: { auditId: targetAuditId } });
 
@@ -216,7 +245,7 @@ const analysisWorker = new Worker(
       data: {
         status: "COMPLETED",
         score: scoreOutput.opportunityScore,
-        summaryText: scoreOutput.summaryText,
+        summaryText: finalSummary,
       },
     });
 
@@ -245,7 +274,7 @@ const analysisWorker = new Worker(
         city: business.city,
         website: business.website,
         opportunityScore: scoreOutput.opportunityScore,
-        summaryText: scoreOutput.summaryText,
+        summaryText: finalSummary,
         findings: scoreOutput.categoryScores.map((c) => ({
           category: c.category,
           score: c.score,

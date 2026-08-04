@@ -1,4 +1,5 @@
 import { normalizeName } from "./normalization";
+import { searchDataForSeoMaps } from "./dataforseo";
 
 export interface DiscoveredBusinessItem {
   googlePlaceId?: string;
@@ -17,8 +18,8 @@ export interface DiscoveredBusinessItem {
 }
 
 /**
- * Controlled test provider returning up to 5-10 realistic dental practices for a target city.
- * Clearly labeled as TEST_PROVIDER data.
+ * Controlled test provider returning up to 5 realistic dental practices for a target city.
+ * Used ONLY when DATA_MODE !== 'live' and testMode is explicitly requested.
  */
 export function getTestProviderBusinesses(
   city: string,
@@ -105,7 +106,7 @@ export function getTestProviderBusinesses(
 }
 
 /**
- * Main discovery service entry point. Fallback to TEST_PROVIDER if live API key is absent or testMode is active.
+ * Main discovery service entry point. Strict DATA_MODE checks.
  */
 export async function discoverBusinesses(params: {
   city: string;
@@ -113,48 +114,104 @@ export async function discoverBusinesses(params: {
   limit?: number;
   dataProvider?: string;
 }): Promise<DiscoveredBusinessItem[]> {
-  const limit = Math.min(params.limit || 5, 10);
+  const limit = Math.min(params.limit || 5, 5);
   const category = params.category || "Dental Clinic";
+  const isLiveMode = process.env.DATA_MODE === "live";
 
-  // Check if live Google Places API key exists
+  // 1. DataForSEO Provider
+  if (params.dataProvider === "DATAFORSEO" || (isLiveMode && process.env.DATAFORSEO_LOGIN && !params.dataProvider)) {
+    try {
+      const dfsResult = await searchDataForSeoMaps({
+        keyword: category,
+        city: params.city,
+        limit,
+      });
+
+      const items: DiscoveredBusinessItem[] = dfsResult.items.slice(0, limit).map((item) => {
+        const domainClean = item.domain || item.website.replace(/^https?:\/\//, "").split("/")[0];
+        const siteUrl = item.website.startsWith("http") ? item.website : `https://${domainClean}`;
+        return {
+          googlePlaceId: item.place_id,
+          name: item.title,
+          website: siteUrl,
+          address: item.address || params.city,
+          city: params.city,
+          country: "US",
+          phone: item.phone,
+          category,
+          rating: item.rating,
+          reviewCount: item.reviews_count,
+          providerSource: "DATAFORSEO",
+          rawProviderRef: { taskId: dfsResult.task_id, cost: dfsResult.cost },
+        };
+      });
+
+      if (items.length > 0) return items;
+    } catch (err) {
+      console.error("[Discovery] DataForSEO API error:", err);
+      if (isLiveMode) {
+        throw new Error(`DataForSEO live discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  // 2. Google Places API Provider
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (params.dataProvider === "GOOGLE_PLACES" && googleApiKey) {
+  if (params.dataProvider === "GOOGLE_PLACES" || (isLiveMode && googleApiKey)) {
+    if (!googleApiKey) {
+      throw new Error("GOOGLE_PLACES_API_KEY is not configured in environment");
+    }
     try {
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
         `${category} in ${params.city}`
       )}&key=${googleApiKey}`;
+
       const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.results && Array.isArray(data.results)) {
-          const items: DiscoveredBusinessItem[] = data.results.slice(0, limit).map((item: unknown) => {
-            const p = item as Record<string, unknown>;
-            const placeId = typeof p.place_id === "string" ? p.place_id : undefined;
-            const name = typeof p.name === "string" ? p.name : "Dental Practice";
-            const website = typeof p.website === "string" ? p.website : `https://${normalizeName(name).replace(/\s+/g, "")}.com`;
-            const address = typeof p.formatted_address === "string" ? p.formatted_address : params.city;
-            return {
-              googlePlaceId: placeId,
-              name,
-              website,
-              address,
-              city: params.city,
-              country: "US",
-              category,
-              rating: typeof p.rating === "number" ? p.rating : 4.5,
-              reviewCount: typeof p.user_ratings_total === "number" ? p.user_ratings_total : 30,
-              providerSource: "GOOGLE_PLACES",
-              rawProviderRef: { placeId },
-            };
-          });
-          if (items.length > 0) return items;
-        }
+      if (!res.ok) {
+        throw new Error(`Google Places HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+        throw new Error(`Google Places status error: ${data.status} - ${data.error_message || ""}`);
+      }
+
+      if (data.results && Array.isArray(data.results)) {
+        const items: DiscoveredBusinessItem[] = data.results.slice(0, limit).map((item: Record<string, unknown>) => {
+          const placeId = typeof item.place_id === "string" ? item.place_id : undefined;
+          const name = typeof item.name === "string" ? item.name : "Dental Practice";
+          const website = typeof item.website === "string" ? item.website : `https://${normalizeName(name).replace(/\s+/g, "")}.com`;
+          const address = typeof item.formatted_address === "string" ? item.formatted_address : params.city;
+          return {
+            googlePlaceId: placeId,
+            name,
+            website,
+            address,
+            city: params.city,
+            country: "US",
+            category,
+            rating: typeof item.rating === "number" ? item.rating : 4.5,
+            reviewCount: typeof item.user_ratings_total === "number" ? item.user_ratings_total : 30,
+            providerSource: "GOOGLE_PLACES",
+            rawProviderRef: { placeId },
+          };
+        });
+
+        if (items.length > 0) return items;
       }
     } catch (err) {
-      console.warn("[Discovery] Google Places API call failed, falling back to TEST_PROVIDER", err);
+      console.error("[Discovery] Google Places API error:", err);
+      if (isLiveMode) {
+        throw new Error(`Google Places live discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
-  // Fallback to test provider
+  // Strict check: In DATA_MODE=live, fixture/mock data fallback is FORBIDDEN
+  if (isLiveMode) {
+    throw new Error(`No live discovery provider succeeded for ${params.city}. DATA_MODE=live forbids fixture fallback.`);
+  }
+
+  // Fallback to test provider ONLY in test mode
   return getTestProviderBusinesses(params.city, category, limit);
 }

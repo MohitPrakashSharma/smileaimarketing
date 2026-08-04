@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logEngagementEvent } from "@/lib/events";
+import { createGoogleMeetEvent } from "@/lib/googleCalendar";
 
 const bookSchema = z.object({
   scheduledTime: z.string().datetime(),
@@ -79,10 +80,19 @@ export async function POST(
       },
     });
 
+    const meetResult = await createGoogleMeetEvent({
+      appointmentId: appointment.id,
+      summary: `Smile AI Strategy Session with ${business.name}`,
+      description: `Strategy consultation for ${business.name} (${business.website}) in ${business.city}.`,
+      startTime: new Date(scheduledTime),
+      durationMinutes: 15,
+      attendeeEmail: contact.email,
+    });
+
     return NextResponse.json({
       appointmentId: appointment.id,
       status: appointment.status,
-      joinUrl: "https://meet.google.com/xyz-pdq-abc",
+      joinUrl: meetResult.meetUrl,
     }, { status: 200 });
   } catch (error) {
     console.error("Book meeting error:", error);
