@@ -103,7 +103,6 @@ const discoveryWorker = new Worker(
             email: apolloRes.email,
             phone: apolloRes.phone || item.phone || null,
             role: apolloRes.role || "Principal Dentist",
-            providerId: apolloRes.providerId || null,
           },
         });
         contactId = contact.id;

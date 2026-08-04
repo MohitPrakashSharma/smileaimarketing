@@ -22,8 +22,8 @@ export async function enrichBusinessContact(domain: string): Promise<ApolloConta
   const cleanDomain = domain.replace(/^https?:\/\//, "").split("/")[0].toLowerCase();
 
   try {
-    // 1. Apollo Mixed People Search
-    const searchUrl = "https://api.apollo.io/v1/mixed_people/search";
+    // 1. Apollo Mixed People API Search
+    const searchUrl = "https://api.apollo.io/v1/mixed_people/api_search";
     const res = await fetch(searchUrl, {
       method: "POST",
       headers: {
@@ -62,7 +62,6 @@ export async function enrichBusinessContact(domain: string): Promise<ApolloConta
 
     // Pick top decision maker
     const person = people[0];
-    const email = person.email || person.sanitized_phone || undefined;
 
     return {
       found: true,

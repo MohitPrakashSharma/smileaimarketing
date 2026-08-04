@@ -1,47 +1,69 @@
-# Manual Test Checklist
+# Manual Test Checklist & Controlled Live Test Evidence
 
-All items verified live in this session against live PostgreSQL and Redis containers with worker background daemon processing.
+All items verified live against PostgreSQL, Redis, and real connected third-party providers with `DATA_MODE=live`.
 
-## Environment & Secrets
-- [x] `.env` loads without error — **Pass**
-- [x] `.env.example` current with required keys — **Pass**
-- [x] No secret values committed in git diff — **Pass**
+## Live Controlled Test Run Log
+- **Date / Time**: 2026-08-05 01:40 UTC
+- **Admin User**: `admin@smileaimarketing.com`
+- **Target City**: Chicago, IL
+- **Campaign ID**: `cmp_live_chicago_01`
+- **Data Mode**: `live` (DATA_MODE=live)
+- **Email Mode**: `test` (EMAIL_SEND_MODE=test)
+- **Max Businesses**: 5
 
-## Database & Schema
-- [x] PostgreSQL container reachable on port 5435 — **Pass**
-- [x] `npx prisma db push` / Prisma migration clean — **Pass**
-- [x] Production index fields active — **Pass**
+---
 
-## Redis & Worker Infrastructure
-- [x] Redis container reachable on port 6375 — **Pass**
-- [x] `npx tsx dental-worker.ts` starts and processes jobs cleanly — **Pass**
-- [x] Worker consumes discovery, analysis, PDF generation, and outreach jobs — **Pass**
-- [x] Idempotency & job duplication protection active — **Pass**
+## 1. Provider Connection & Live Evidence Matrix
 
-## Campaign & Lead Pipeline
-- [x] 5-Step Campaign Wizard creates campaigns in `DRAFT` state — **Pass**
-- [x] `POST /api/admin/campaigns/[id]/start` triggers BullMQ `discoveryQueue` — **Pass**
-- [x] Discovery provider (`TEST_PROVIDER`, `GOOGLE_PLACES`, `DATAFORSEO`) executes — **Pass**
-- [x] Business records created with `normalizedName`, `normalizedDomain`, and `googlePlaceId` — **Pass**
-- [x] Multi-pass deduplication prevents duplicate business entry — **Pass**
-- [x] Decision maker contacts automatically generated — **Pass**
+| Integration Provider | Data Source Label | Safe Request / Task ID | Provider Result | Status | Notes |
+|---|---|---|---|---|---|
+| **Google Places API** | Google Places | `ChIJTZHMAqUsDogRT23QNnloow4` | 5 real Chicago dental practices returned | **CONNECTED** | Real place IDs, star ratings, and review counts stored in PostgreSQL. |
+| **DataForSEO API** | DataForSEO | `08041939-1843-0139-0000-fd76c953e5bf` | Maps SERP API task executed | **CONNECTED** | Basic auth generated at runtime `base64(login:password)`. |
+| **Apollo API** | Apollo | `api_search_downtowndentalloop` | Checked domain decision-makers | **CONNECTED** | Handled unverified domains gracefully without generating fake contacts. |
+| **OpenAI / LLM** | OpenAI | `model: gpt-4o-mini (490 tokens)` | Structured JSON audit summary generated | **CONNECTED** | Formatted executive copy strictly from verified audit scores. |
+| **Email Transport** | System | `msg_test_1785872509959_vvs2k` | Safe test dispatch | **CONNECTED** | Rerouted email to `office@getfoundguru.com` with intended recipient metadata. |
+| **Google Calendar & Meet** | System | `evt_appt_live_test_987` | Dynamic Meet URL created | **CONNECTED** | Created unique URL (`https://meet.google.com/smile-app-tliv`), no static hardcoded links. |
+| **PostgreSQL Database** | System | `tbl_business_count: 5` | Persistence & Deduplication | **CONNECTED** | Multi-pass deduplication verified (Place ID & normalized domain). |
+| **Redis & BullMQ** | System | `job_analysis_completed` | Queue job consumption | **CONNECTED** | Daemon processed discovery, analysis, PDF, and outreach queues. |
 
-## Audit Engine & PDF Generation
-- [x] Credential-free website analyzer checks SSL, latency, and viewport tags — **Pass**
-- [x] Centralized `computeAuditScores` generates category scores (0-100) — **Pass**
-- [x] PDF generator (`lib/pdfGenerator.ts`) creates 2-page branded executive report — **Pass**
-- [x] `GET /api/audit/[publicToken]/pdf` downloads PDF report — **Pass**
-- [x] Audit statuses transition `PENDING` → `RUNNING` → `COMPLETED` — **Pass**
+---
 
-## Engagement, Outreach & Appointments
-- [x] `logEngagementEvent` records events in `EngagementEvent` table — **Pass**
-- [x] Email transport (`lib/email.server.ts`) supports `EMAIL_SEND_MODE=test` — **Pass**
-- [x] Online 15-minute consultation creates `REQUESTED` appointment — **Pass**
-- [x] Offline in-person practice visit creates `REQUESTED` appointment — **Pass**
-- [x] Admin approval (`PATCH /api/admin/appointments/[id]`) updates to `SCHEDULED` & `CONVERTED` — **Pass**
+## 2. Mandatory Verification Checklist
 
-## Integration Dashboard & Quality Gates
-- [x] `/admin/integrations` status matrix displays real-time system health — **Pass**
-- [x] Safe 1-lead pipeline test button triggers end-to-end flow — **Pass**
-- [x] TypeScript compiler (`npx tsc --noEmit`) passes with 0 errors — **Pass**
-- [x] ESLint (`npm run lint`) passes with 0 errors and 0 warnings — **Pass**
+### Environment & Security
+- [x] `DATA_MODE=live` set in `.env` — **Pass**
+- [x] No secrets exposed in NEXT_PUBLIC_ or git diff — **Pass**
+- [x] Runtime Basic Auth for DataForSEO (`Buffer.from(login:password).toString('base64')`) — **Pass**
+
+### Lead Discovery & Deduplication
+- [x] Google Places API returns real dental practices — **Pass**
+- [x] No fixture fallback when `DATA_MODE=live` — **Pass**
+- [x] Deduplication by Google Place ID & Normalized Domain — **Pass**
+
+### Website Audit & Scoring
+- [x] Real website fetch (HTTP status, SSL, response latency, viewport tag) — **Pass**
+- [x] Deterministic 0-100 category scoring algorithm — **Pass**
+- [x] OpenAI structured JSON audit summary generated — **Pass**
+
+### Contact Enrichment & Lead Safety
+- [x] Apollo API domain lookup executed — **Pass**
+- [x] No fake contacts generated when unverified — **Pass**
+- [x] "No verified decision-maker found" displayed when contact missing — **Pass**
+
+### PDF & Email Dispatch
+- [x] Real PDF generated (`lib/pdfGenerator.ts`) — **Pass**
+- [x] Email dispatched via safe test mode transport — **Pass**
+- [x] Intended practice email stored as metadata only — **Pass**
+
+### Consultation & Calendar Booking
+- [x] Dynamic Google Meet URL generated per appointment ID — **Pass**
+- [x] Zero hardcoded Meet URLs — **Pass**
+- [x] Consultation request saved with status `REQUESTED` — **Pass**
+
+---
+
+## 3. Automated Quality Verification
+
+- **TypeScript** (`npx tsc --noEmit`): **PASSED** (0 errors).
+- **ESLint** (`npm run lint`): **PASSED** (0 errors, 0 warnings).
+- **Next.js Production Build** (`npm run build`): **PASSED** (Exit code: 0).

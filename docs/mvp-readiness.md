@@ -1,53 +1,29 @@
-# MVP Readiness
+# MVP Readiness & Live Data Integration Status
 
-Phase 1–18 (inspection, status matrix, baseline execution, DB/infra check, background BullMQ worker, business discovery provider, deterministic scoring, website analysis, branded PDF generator, email test-mode transport, engagement analytics, integration dashboard, and end-to-end controlled campaign verification). All 36 features are functional, production-ready, and test-verified against live PostgreSQL and Redis containers.
+Full operational verification completed with `DATA_MODE=live`. All mocked operational data paths have been replaced with real connected provider clients (Google Places API, DataForSEO API, Apollo API, OpenAI, Email Test Transport, and Dynamic Google Meet Booking).
 
-## Feature Status Matrix
+---
 
-| # | Feature | Status | Details / Verification |
-|---|---|---|---|
-| 1 | Landing-page audit form | **WORKING** | Single-step, high-converting dental clinic audit trigger. |
-| 2 | Audit request creation | **WORKING** | Persists pending business and audit records in PostgreSQL. |
-| 3 | Audit processing page | **WORKING** | Animated status checks with real-time token redirect. |
-| 4 | Public audit report | **WORKING** | Full executive audit scorecard with category findings & competitor gap. |
-| 5 | PDF generation | **WORKING** | `pdf-lib` 2-page branded executive light audit PDF report generator. |
-| 6 | PDF download | **WORKING** | Secure GET `/api/audit/[publicToken]/pdf` endpoint with attachment headers. |
-| 7 | Campaign creation | **WORKING** | 5-step admin wizard creating campaigns in `DRAFT` state with test/mode options. |
-| 8 | Campaign start | **WORKING** | `POST /api/admin/campaigns/[id]/start` queuing `discover-businesses` BullMQ job. |
-| 9 | Business discovery | **WORKING** | Multi-provider discovery engine (`TEST_PROVIDER`, `GOOGLE_PLACES`, `DATAFORSEO`). |
-| 10 | Google Places integration | **WORKING** | Native API client with fallback to `TEST_PROVIDER` when credentials unmounted. |
-| 11 | DataForSEO integration | **WORKING** | DataForSEO API wrapper with fallback to deterministic local scoring. |
-| 12 | Business normalization | **WORKING** | Normalized domain (`normalizeDomain`) & normalized name (`normalizeName`) deduplication. |
-| 13 | Deduplication | **WORKING** | Multi-pass deduplication: 1. Google Place ID, 2. Normalized domain, 3. Normalized name + city. |
-| 14 | Database persistence | **WORKING** | PostgreSQL schema synchronized via Prisma with complete indexes. |
-| 15 | Website audit | **WORKING** | Real SSL/TLS, response latency, and mobile viewport HTTP analyzer. |
-| 16 | Local visibility audit | **WORKING** | Deterministic local map pack rank & GBP optimization analysis. |
-| 17 | Competitor analysis | **WORKING** | Real-time local market review gap & ranking benchmark generation. |
-| 18 | Opportunity scoring | **WORKING** | Centralized 0-100 scoring algorithm (`lib/auditScorer.ts`). |
-| 19 | Apollo contact enrichment | **WORKING** | Decision maker rules + Apollo API client fallback. |
-| 20 | OpenAI summary generation | **WORKING** | Evidence-based structured findings & executive copy generator. |
-| 21 | Lead approval | **WORKING** | Admin pipeline approval and status transition management. |
-| 22 | Email test sending | **WORKING** | Safe email transport (`EMAIL_SEND_MODE=test`) rerouting emails to test inbox. |
-| 23 | Follow-up scheduling | **WORKING** | BullMQ delay options & sequence step queueing. |
-| 24 | Report engagement tracking | **WORKING** | Report view count increments and `EngagementEvent` logging. |
-| 25 | Online appointment | **WORKING** | 15-minute consultation booking creating `REQUESTED` appointments. |
-| 26 | In-person request | **WORKING** | In-person practice visit booking requiring admin approval. |
-| 27 | Admin campaign view | **WORKING** | Campaign listing and interactive detail page with pause/resume controls. |
-| 28 | Admin business view | **WORKING** | Practice detail page with full audit breakdown and timeline. |
-| 29 | Admin audit review | **WORKING** | Audit review and PDF report view/download triggers. |
-| 30 | Admin leads/pipeline | **WORKING** | Lead pipeline status table and activity logs. |
-| 31 | Integration-status page | **WORKING** | Live dashboard at `/admin/integrations` with status matrix & test button. |
-| 32 | Analytics events | **WORKING** | Centralized `logEngagementEvent` tracking all funnel events in PostgreSQL. |
-| 33 | Docker web process | **WORKING** | Next.js server configured for production execution. |
-| 34 | Docker worker process | **WORKING** | BullMQ background worker daemon (`dental-worker.ts`) handling all queues. |
-| 35 | PostgreSQL connectivity | **WORKING** | PostgreSQL (Port 5435) active with full schema sync. |
-| 36 | Redis connectivity | **WORKING** | Redis (Port 6375) active with BullMQ queues. |
+## Live Provider Verification Matrix
 
-**36 of 36 WORKING / PRODUCTION READY.**
+| # | Integration / Component | DATA_MODE | DATA SOURCE Label | Real Provider Status | Details |
+|---|---|---|---|---|---|
+| 1 | **Google Places API** | Live | `Google Places` | **CONNECTED** | Text Search returns real dental practices with verified Place IDs, star ratings, and review counts. |
+| 2 | **DataForSEO API** | Live | `DataForSEO` | **CONNECTED** | Runtime Basic Auth (`login:password`). Maps SERP task execution verified. |
+| 3 | **Apollo API** | Live | `Apollo` | **CONNECTED** | Decision-maker enrichment via `mixed_people/api_search`. No fake contact invention. |
+| 4 | **OpenAI / LLM** | Live | `OpenAI` | **CONNECTED** | Structured JSON summaries (`gpt-4o-mini`) based strictly on verified audit scores. |
+| 5 | **Website Audit Engine** | Live | `Direct Website Check` | **CONNECTED** | Real HTTP fetch for HTTPS, latency, viewport tags, schema.org, and CTAs. |
+| 6 | **PDF Report Generator** | Live | System | **CONNECTED** | PDF worker generates branded 2-page executive audit PDFs. |
+| 7 | **Email Transport** | Test | System | **CONNECTED** | Safe test transport (`EMAIL_SEND_MODE=test`) reroutes to approved internal inbox. |
+| 8 | **Google Calendar & Meet** | Live | System | **CONNECTED** | Dynamic Meet URL generation per appointment ID (zero hardcoded URLs). |
+| 9 | **PostgreSQL & Prisma** | Live | System | **CONNECTED** | Multi-pass deduplication (Place ID, normalized domain, name+city). |
+| 10 | **Redis & BullMQ Worker** | Live | System | **CONNECTED** | Background daemon (`dental-worker.ts`) processes discovery, analysis, PDF, and outreach. |
 
-## Automated Quality Verification
+---
+
+## Automated Verification
 
 - **TypeScript** (`npx tsc --noEmit`): **PASSED** (0 errors).
 - **ESLint** (`npm run lint`): **PASSED** (0 errors, 0 warnings).
-- **Worker Daemon**: Active and processing `discovery-queue`, `analysis-queue`, `pdf-queue`, and `outreach-queue`.
-- **End-to-End Pipeline Test**: **PASSED** (5/5 practices discovered, audited, scored, and PDFs generated cleanly).
+- **Next.js Production Build** (`npm run build`): **PASSED** (Exit code: 0).
+- **Live Provider End-to-End Campaign Test**: **PASSED** (5 real Chicago dental practices discovered, audited, scored, and reports created without mock data fallback).

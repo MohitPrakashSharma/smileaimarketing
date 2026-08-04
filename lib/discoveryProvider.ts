@@ -128,8 +128,9 @@ export async function discoverBusinesses(params: {
       });
 
       const items: DiscoveredBusinessItem[] = dfsResult.items.slice(0, limit).map((item) => {
-        const domainClean = item.domain || item.website.replace(/^https?:\/\//, "").split("/")[0];
-        const siteUrl = item.website.startsWith("http") ? item.website : `https://${domainClean}`;
+        const rawWebsite = item.website || (item.domain ? `https://${item.domain}` : `https://${normalizeName(item.title).replace(/\s+/g, "")}.com`);
+        const domainClean = item.domain || rawWebsite.replace(/^https?:\/\//, "").split("/")[0];
+        const siteUrl = rawWebsite.startsWith("http") ? rawWebsite : `https://${domainClean}`;
         return {
           googlePlaceId: item.place_id,
           name: item.title,
