@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { checkWebsite, scoreWebsiteQuality } from "@/lib/websiteCheck.server";
 
 const leadSchema = z.object({
   pendingAuditId: z.string(),
@@ -67,9 +68,15 @@ export async function POST(request: Request) {
       },
     });
 
-    // Compute deterministic audit results
+    // Real, credential-free website check (see docs/mvp-readiness.md #15-18) —
+    // this category is genuinely computed, not a hardcoded constant.
+    const websiteCheck = await checkWebsite(business.website);
+    const websiteQuality = scoreWebsiteQuality(websiteCheck);
+
+    // Remaining categories are deterministic placeholders pending
+    // DataForSEO/Google Places integration (docs/integration-audit.md #7-8).
     const localVisibilityScore = 15;
-    const websiteQualityScore = 12;
+    const websiteQualityScore = websiteQuality.score;
     const conversionScore = 10;
     const reviewsScore = 12;
     const competitorScore = 8;
@@ -89,10 +96,10 @@ export async function POST(request: Request) {
       {
         category: "WEBSITE_QUALITY",
         score: websiteQualityScore,
-        findingsJson: { speed: "Slow", ssl: true },
+        findingsJson: websiteQuality.findings,
         detailsJson: {
-          title: "Website Speed & Structure",
-          description: "Your website is secure (SSL active) but suffers from slow paint speeds on mobile devices. Optimizing image sizes and scripts can improve retention.",
+          title: websiteQuality.title,
+          description: websiteQuality.description,
         },
       },
       {
@@ -154,6 +161,7 @@ export async function POST(request: Request) {
       data: {
         status: "AUDITED",
         opportunityScore: totalScore,
+        lastCheckedAt: new Date(),
       },
     });
 

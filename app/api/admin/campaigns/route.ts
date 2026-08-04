@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { z } from "zod";
+import { normalizeDomain, normalizeName } from "@/lib/normalize";
 
 const campaignSchema = z.object({
   name: z.string().min(3),
@@ -60,37 +61,32 @@ export async function POST(request: Request) {
       },
     });
 
-    // Simulate Background Discovery Worker by seeding 3 discovered businesses for this campaign
+    // Simulate Background Discovery Worker by seeding 3 discovered businesses for this campaign.
+    // NOTE: this is still MOCKED discovery (docs/mvp-readiness.md #8-9) — real
+    // discovery is blocked on Google Places/DataForSEO credentials. The
+    // normalization fields are populated now so the dedup mechanism itself
+    // is exercised and ready for when a real provider is wired in.
+    const seedBusinesses = [
+      { name: `${city} Dental Care Group`, website: `https://${city.toLowerCase().replace(/\s+/g, "")}dentalcare.com` },
+      { name: `Apex Family Dentistry`, website: `https://apexfamilydentist${city.toLowerCase().replace(/\s+/g, "")}.com` },
+      { name: `Downtown Dental Studio`, website: `https://downtowndental${city.toLowerCase().replace(/\s+/g, "")}.com` },
+    ];
+
     await prisma.business.createMany({
-      data: [
-        {
-          campaignId: campaign.id,
-          name: `${city} Dental Care Group`,
-          website: `https://${city.toLowerCase().replace(/\s+/g, "")}dentalcare.com`,
-          city,
-          category,
-          status: "DISCOVERED",
-          opportunityScore: 0,
-        },
-        {
-          campaignId: campaign.id,
-          name: `Apex Family Dentistry`,
-          website: `https://apexfamilydentist${city.toLowerCase().replace(/\s+/g, "")}.com`,
-          city,
-          category,
-          status: "DISCOVERED",
-          opportunityScore: 0,
-        },
-        {
-          campaignId: campaign.id,
-          name: `Downtown Dental Studio`,
-          website: `https://downtowndental${city.toLowerCase().replace(/\s+/g, "")}.com`,
-          city,
-          category,
-          status: "DISCOVERED",
-          opportunityScore: 0,
-        },
-      ],
+      data: seedBusinesses.map((b) => ({
+        campaignId: campaign.id,
+        name: b.name,
+        normalizedName: normalizeName(b.name),
+        website: b.website,
+        normalizedDomain: normalizeDomain(b.website),
+        city,
+        category,
+        status: "DISCOVERED" as const,
+        opportunityScore: 0,
+        providerSource: "SEED",
+        lastCheckedAt: new Date(),
+      })),
+      skipDuplicates: true,
     });
 
     return NextResponse.json({ campaign }, { status: 201 });

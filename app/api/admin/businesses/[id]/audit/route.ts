@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { checkWebsite, scoreWebsiteQuality } from "@/lib/websiteCheck.server";
 
 export async function POST(
   request: Request,
@@ -22,9 +23,14 @@ export async function POST(
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
     }
 
-    // Generate deterministic mock scores
+    // Real, credential-free website check (see docs/mvp-readiness.md #15-18).
+    const websiteCheck = await checkWebsite(business.website);
+    const websiteQuality = scoreWebsiteQuality(websiteCheck);
+
+    // Remaining categories are deterministic placeholders pending
+    // DataForSEO/Google Places integration (docs/integration-audit.md #7-8).
     const localVisibilityScore = 18;
-    const websiteQualityScore = 14;
+    const websiteQualityScore = websiteQuality.score;
     const conversionScore = 12;
     const reviewsScore = 10;
     const competitorScore = 10;
@@ -53,10 +59,10 @@ export async function POST(
       {
         category: "WEBSITE_QUALITY",
         score: websiteQualityScore,
-        findingsJson: { speed: "Slow", ssl: true },
+        findingsJson: websiteQuality.findings,
         detailsJson: {
-          title: "Website Speed & Structure",
-          description: "Your website is secure (SSL active) but suffers from slow paint speeds on mobile devices. Optimizing image sizes and scripts can improve retention.",
+          title: websiteQuality.title,
+          description: websiteQuality.description,
         },
       },
       {
@@ -114,6 +120,7 @@ export async function POST(
       data: {
         status: "OUTREACH_PENDING",
         opportunityScore: totalScore,
+        lastCheckedAt: new Date(),
       },
     });
 

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 
 type Business = {
@@ -140,13 +141,13 @@ function BusinessesList() {
             {filtered.map((b) => (
               <div key={b.id} className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <Link href={`/admin/businesses/${b.id}`} className="min-w-0 hover:opacity-80">
                     <p className="truncate font-semibold text-foreground">{b.name}</p>
                     <p className="truncate text-metadata text-muted-foreground">
                       {b.website.replace(/^https?:\/\//, "")}
                     </p>
                     <p className="mt-0.5 text-metadata text-muted-foreground">{b.city}, {b.country}</p>
-                  </div>
+                  </Link>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[b.status] || DEFAULT_STATUS_CLASS}`}>
                     {b.status.replace(/_/g, " ")}
                   </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -80,7 +81,7 @@ export default function AdminCampaignsPage() {
         ) : (
           <div className="space-y-3">
             {campaigns.map((c) => (
-              <div key={c.id} className="rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40">
+              <Link key={c.id} href={`/admin/campaigns/${c.id}`} className="block rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-body font-bold text-foreground">{c.name}</h3>
@@ -117,7 +118,7 @@ export default function AdminCampaignsPage() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

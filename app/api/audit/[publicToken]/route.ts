@@ -21,6 +21,14 @@ export async function GET(
       return NextResponse.json({ error: "Audit report not found" }, { status: 404 });
     }
 
+    // Record the view — best-effort, must not block/fail the response.
+    prisma.audit
+      .update({
+        where: { id: audit.id },
+        data: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
+      })
+      .catch((err) => console.error("Failed to record audit view:", err));
+
     // Format the response payload safely
     const scorecard = {
       localVisibility: audit.results.find((r) => r.category === "LOCAL_VISIBILITY")?.score || 0,
