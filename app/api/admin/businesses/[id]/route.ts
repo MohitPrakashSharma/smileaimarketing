@@ -14,9 +14,29 @@ export async function GET(
 
     const { id } = await params;
 
+    // rawProviderRef is deliberately not selected — internal-only per
+    // docs/mvp-readiness.md #6 ("do not expose complete raw provider
+    // responses to the public frontend"). This is an admin page, but
+    // there's no reason to ship an opaque provider payload to the browser.
     const business = await prisma.business.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        website: true,
+        address: true,
+        city: true,
+        state: true,
+        country: true,
+        phone: true,
+        category: true,
+        status: true,
+        opportunityScore: true,
+        providerSource: true,
+        rating: true,
+        reviewCount: true,
+        lastCheckedAt: true,
+        createdAt: true,
         campaign: { select: { id: true, name: true } },
         contacts: true,
         appointments: { orderBy: { createdAt: "desc" } },
@@ -32,13 +52,7 @@ export async function GET(
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
     }
 
-    // rawProviderRef intentionally omitted from the response — internal-only
-    // per docs/mvp-readiness.md #6 ("do not expose complete raw provider
-    // responses to the public frontend"). This is an admin page, but there's
-    // no reason to ship an opaque provider payload to the browser either.
-    const { rawProviderRef: _rawProviderRef, ...businessSafe } = business;
-
-    return NextResponse.json({ business: businessSafe });
+    return NextResponse.json({ business });
   } catch (error) {
     console.error("Admin business detail GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

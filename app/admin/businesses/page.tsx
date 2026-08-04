@@ -179,7 +179,11 @@ function BusinessesList() {
                 <tbody className="divide-y divide-border text-body-small">
                   {filtered.map((b) => (
                     <tr key={b.id} className="transition-colors hover:bg-surface-muted/40">
-                      <td className="p-4 font-semibold text-foreground">{b.name}</td>
+                      <td className="p-4 font-semibold text-foreground">
+                        <Link href={`/admin/businesses/${b.id}`} className="hover:text-primary hover:underline">
+                          {b.name}
+                        </Link>
+                      </td>
                       <td className="p-4 text-metadata text-muted-foreground">
                         <a href={b.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">
                           {b.website.replace(/^https?:\/\//, "")}
