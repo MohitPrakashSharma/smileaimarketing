@@ -7,10 +7,14 @@ import {
   IconStorefront,
   IconChat,
   IconCalendarCheck,
-  IconTrendingUp,
   IconSettings,
   IconCheck,
+  IconAlertTriangle,
 } from "@/components/icons";
+import { AdminCard } from "@/components/admin/AdminCard";
+import { EmptyState } from "@/components/admin/EmptyState";
+import { ActionMenu } from "@/components/admin/ActionMenu";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 
 interface CampaignItem {
   id: string;
@@ -25,6 +29,7 @@ interface BusinessItem {
   name: string;
   website: string;
   city: string;
+  state?: string;
   status: string;
   opportunityScore: number;
   contactCount: number;
@@ -39,7 +44,7 @@ interface AuditItem {
   pdfStatus: string;
   pdfUrl?: string;
   viewCount: number;
-  business?: { name: string; website: string; id: string };
+  business?: { name: string; website: string; id: string; city?: string };
 }
 
 interface AppointmentItem {
@@ -47,7 +52,7 @@ interface AppointmentItem {
   type: "ONLINE" | "IN_PERSON";
   status: string;
   scheduledTime: string;
-  business?: { id: string; name: string };
+  business?: { id: string; name: string; city?: string };
   contact?: { firstName: string; lastName: string; email: string };
 }
 
@@ -55,7 +60,7 @@ interface OutreachItem {
   id: string;
   status: string;
   createdAt: string;
-  contact?: { firstName: string; lastName: string; email: string; business?: { id: string; name: string } };
+  contact?: { firstName: string; lastName: string; email: string; business?: { id: string; name: string; city?: string } };
   step?: { subject: string };
 }
 
@@ -123,288 +128,370 @@ export default function AdminOverviewPage() {
     );
   }
 
-  // 1. Campaigns requiring action
-  const campaignsNeedingAction = campaigns.filter(
-    (c) => c.status === "DRAFT" || c.status === "PAUSED" || c.status === "FAILED"
-  );
-
-  // 2. Businesses awaiting verification
-  const businessesAwaitingVerification = businesses.filter(
+  // 1. Leads awaiting verification
+  const leadsAwaitingVerification = businesses.filter(
     (b) => b.status === "DISCOVERED" || b.status === "PENDING_VERIFICATION"
   );
 
-  // 3. Audits ready
-  const auditsReady = audits.filter((a) => a.status === "COMPLETED");
+  // 2. Audits/PDFs ready for review
+  const auditsReady = audits.filter((a) => a.status === "COMPLETED" || a.pdfStatus === "READY");
 
-  // 4. PDFs failed or ready
-  const pdfsAttention = audits.filter(
-    (a) => a.pdfStatus === "FAILED" || a.pdfStatus === "READY"
-  );
-
-  // 5. Contacts missing
-  const contactsMissing = businesses.filter((b) => b.contactCount === 0);
-
-  // 6. Emails awaiting approval
+  // 3. Emails awaiting approval
   const emailsAwaitingApproval = messages.filter(
     (m) => m.status === "QUEUED" || m.status === "PENDING"
   );
 
-  // 7. Hot report viewers
-  const hotReportViewers = audits
-    .filter((a) => a.viewCount > 0)
-    .sort((a, b) => b.viewCount - a.viewCount);
-
-  // 8. Meetings requested
+  // 4. Meetings requiring action
   const meetingsRequested = appointments.filter((ap) => ap.status === "REQUESTED");
 
-  // 9. Integration failures/warnings
+  // 5. Campaigns failed or paused
+  const campaignsFailedOrPaused = campaigns.filter(
+    (c) => c.status === "FAILED" || c.status === "PAUSED" || c.status === "DRAFT"
+  );
+
+  // 6. Integration problems
   const integrationIssues = integrations.filter(
     (i) => i.status === "MISSING" || i.status === "MOCKED" || i.status === "TEST_MODE"
   );
 
+  // Summary Metrics Counts
+  const activeCampaignsCount = campaigns.filter((c) => c.status === "RUNNING" || c.status === "ACTIVE").length;
+  const leadsAwaitingActionCount = leadsAwaitingVerification.length;
+  const auditsReadyCount = auditsReady.length;
+  const meetingsRequestedCount = meetingsRequested.length;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-heading-2 font-bold text-foreground">Campaign Command Centre</h1>
-          <p className="mt-1 text-body-small text-muted-foreground">
-            Actionable queues requiring admin intervention across active practice lead funnels.
+          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Overview</h1>
+          <p className="text-body-small text-muted-foreground">
+            What needs your operational attention right now across practice lead funnels.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/campaigns"
-            className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
-          >
-            + Create New Campaign
-          </Link>
-          <Link
-            href="/admin/integrations"
-            className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-4 text-xs font-semibold text-foreground hover:bg-surface-muted"
-          >
-            System Status
-          </Link>
+      </div>
+
+      {/* Top Summary Metrics Row (4 Small Cards) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Active Campaigns</span>
+            <IconTarget className="h-4 w-4 text-primary" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-foreground">{activeCampaignsCount}</p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Leads Awaiting Action</span>
+            <IconStorefront className="h-4 w-4 text-amber-400" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-foreground">{leadsAwaitingActionCount}</p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Audits Ready</span>
+            <IconCheck className="h-4 w-4 text-emerald-400" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-foreground">{auditsReadyCount}</p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Meetings Requested</span>
+            <IconCalendarCheck className="h-4 w-4 text-sky-400" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-foreground">{meetingsRequestedCount}</p>
         </div>
       </div>
 
-      {/* 9 Actionable Queues Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* 1. Campaigns Requiring Action */}
-        <QueueCard
-          title="Campaigns Requiring Action"
-          badgeCount={campaignsNeedingAction.length}
-          badgeColor="bg-amber-500/10 text-amber-400"
-          Icon={IconTarget}
-          emptyText="All campaigns active & running smoothly."
-          viewAllHref="/admin/campaigns"
-          items={campaignsNeedingAction.map((c) => ({
-            id: c.id,
-            primary: c.name,
-            secondary: `${c.city} • ${c.status}`,
-            href: `/admin/campaigns/${c.id}`,
-            actionLabel: "Control Funnel",
-          }))}
-        />
+      {/* 6 Action Queues (2 Column Responsive Grid) */}
+      <div className="grid gap-5 md:grid-cols-2">
+        {/* 1. Leads Awaiting Verification */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconStorefront className="h-4 w-4 text-amber-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Leads Awaiting Verification</h2>
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                {leadsAwaitingVerification.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/businesses" className="text-xs font-bold text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {leadsAwaitingVerification.length === 0 ? (
+            <EmptyState title="All leads verified" message="No discovered practices awaiting verification." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {leadsAwaitingVerification.slice(0, 5).map((lead) => (
+                <li key={lead.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{lead.name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{lead.city || "Location Pending"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/businesses/${lead.id}`}
+                      className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
+                    >
+                      Verify
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: "View Practice", onClick: () => (window.location.href = `/admin/businesses/${lead.id}`) },
+                        { label: "Reject Practice", variant: "danger", onClick: () => alert(`Rejecting ${lead.name}`) },
+                      ]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
 
-        {/* 2. Businesses Awaiting Verification */}
-        <QueueCard
-          title="Businesses Awaiting Verification"
-          badgeCount={businessesAwaitingVerification.length}
-          badgeColor="bg-indigo-500/10 text-indigo-400"
-          Icon={IconStorefront}
-          emptyText="No discovered practices pending review."
-          viewAllHref="/admin/businesses?status=DISCOVERED"
-          items={businessesAwaitingVerification.map((b) => ({
-            id: b.id,
-            primary: b.name,
-            secondary: b.website.replace(/^https?:\/\//, ""),
-            href: `/admin/businesses/${b.id}`,
-            actionLabel: "Verify Practice",
-          }))}
-        />
+        {/* 2. Audits or PDFs Ready for Review */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconCheck className="h-4 w-4 text-emerald-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Audits & Reports Ready</h2>
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                {auditsReady.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/audits" className="text-xs font-bold text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {auditsReady.length === 0 ? (
+            <EmptyState title="No pending audits" message="All generated audit reports have been reviewed." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {auditsReady.slice(0, 5).map((audit) => (
+                <li key={audit.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{audit.business?.name || "Practice Audit"}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">Score {audit.score}/100</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/audit/${audit.publicToken}`}
+                      target="_blank"
+                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+                    >
+                      Review
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: "View Audit Page", onClick: () => (window.location.href = `/audit/${audit.publicToken}`) },
+                        { label: "Download PDF", onClick: () => window.open(`/api/audit/${audit.publicToken}/pdf`, "_blank") },
+                      ]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
 
-        {/* 3. Audits Ready */}
-        <QueueCard
-          title="Audits Ready for Review"
-          badgeCount={auditsReady.length}
-          badgeColor="bg-emerald-500/10 text-emerald-400"
-          Icon={IconCheck}
-          emptyText="No completed audits pending review."
-          viewAllHref="/admin/audits"
-          items={auditsReady.slice(0, 5).map((a) => ({
-            id: a.id,
-            primary: a.business?.name || "Practice Audit",
-            secondary: `Opportunity Score ${a.score}/100`,
-            href: `/audit/${a.publicToken}`,
-            actionLabel: "View Report",
-          }))}
-        />
+        {/* 3. Emails Awaiting Approval */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconChat className="h-4 w-4 text-sky-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Emails Awaiting Approval</h2>
+              <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400">
+                {emailsAwaitingApproval.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/outreach" className="text-xs font-bold text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {emailsAwaitingApproval.length === 0 ? (
+            <EmptyState title="No emails queued" message="All outreach messages have been dispatched or reviewed." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {emailsAwaitingApproval.slice(0, 5).map((msg) => (
+                <li key={msg.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">
+                      {msg.contact?.business?.name || (msg.contact ? `${msg.contact.firstName} ${msg.contact.lastName}` : "Lead")}
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">{msg.step?.subject || "Outreach Email"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/admin/outreach"
+                      className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
+                    >
+                      Approve
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: "Go to Outreach", onClick: () => (window.location.href = "/admin/outreach") },
+                        { label: "Cancel Email", variant: "danger", onClick: () => alert(`Cancelling email ${msg.id}`) },
+                      ]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
 
-        {/* 4. PDFs Failed or Ready */}
-        <QueueCard
-          title="PDF Reports (Ready / Failed)"
-          badgeCount={pdfsAttention.length}
-          badgeColor="bg-primary/10 text-primary"
-          Icon={IconTarget}
-          emptyText="No PDF actions currently required."
-          viewAllHref="/admin/audits"
-          items={pdfsAttention.slice(0, 5).map((a) => ({
-            id: a.id,
-            primary: a.business?.name || "Audit PDF",
-            secondary: `Status: ${a.pdfStatus}`,
-            href: `/api/audit/${a.publicToken}/pdf`,
-            actionLabel: a.pdfStatus === "READY" ? "Download PDF" : "Regenerate PDF",
-          }))}
-        />
+        {/* 4. Meetings Requiring Action */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconCalendarCheck className="h-4 w-4 text-emerald-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Meetings Requiring Action</h2>
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                {meetingsRequested.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/meetings" className="text-xs font-bold text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {meetingsRequested.length === 0 ? (
+            <EmptyState title="No pending meeting requests" message="All consultation requests have been scheduled." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {meetingsRequested.slice(0, 5).map((app) => (
+                <li key={app.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{app.business?.name || "Practice Request"}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {app.type === "ONLINE" ? "Video Consultation" : "In-Person Visit"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/admin/meetings"
+                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+                    >
+                      Schedule
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: "View Meetings", onClick: () => (window.location.href = "/admin/meetings") },
+                        { label: "Decline Request", variant: "danger", onClick: () => alert(`Declining meeting ${app.id}`) },
+                      ]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
 
-        {/* 5. Contacts Missing */}
-        <QueueCard
-          title="Practices Missing Contacts"
-          badgeCount={contactsMissing.length}
-          badgeColor="bg-danger/10 text-danger"
-          Icon={IconStorefront}
-          emptyText="All practices have decision maker contacts."
-          viewAllHref="/admin/businesses?missing=contact"
-          items={contactsMissing.slice(0, 5).map((b) => ({
-            id: b.id,
-            primary: b.name,
-            secondary: `${b.city} • No contact found`,
-            href: `/admin/businesses/${b.id}`,
-            actionLabel: "Add Contact",
-          }))}
-        />
+        {/* 5. Campaigns Failed or Paused */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconTarget className="h-4 w-4 text-rose-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Campaigns Requiring Action</h2>
+              <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-400">
+                {campaignsFailedOrPaused.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/campaigns" className="text-xs font-bold text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {campaignsFailedOrPaused.length === 0 ? (
+            <EmptyState title="All campaigns running" message="No campaigns are currently failed or paused." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {campaignsFailedOrPaused.slice(0, 5).map((camp) => (
+                <li key={camp.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{camp.name}</p>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="truncate text-[11px] text-muted-foreground">{camp.city}</span>
+                      <StatusBadge status={camp.status} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/campaigns/${camp.id}`}
+                      className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
+                    >
+                      Control
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: "Open Campaign", onClick: () => (window.location.href = `/admin/campaigns/${camp.id}`) },
+                        { label: "Retry Campaign", onClick: () => alert(`Retrying ${camp.name}`) },
+                      ]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
 
-        {/* 6. Emails Awaiting Approval */}
-        <QueueCard
-          title="Emails Awaiting Approval"
-          badgeCount={emailsAwaitingApproval.length}
-          badgeColor="bg-amber-500/10 text-amber-400"
-          Icon={IconChat}
-          emptyText="No outreach messages queued."
-          viewAllHref="/admin/outreach"
-          items={emailsAwaitingApproval.slice(0, 5).map((m) => ({
-            id: m.id,
-            primary: m.contact?.business?.name || (m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Lead"),
-            secondary: m.step?.subject || "Initial Outreach",
-            href: "/admin/outreach",
-            actionLabel: "Review & Approve",
-          }))}
-        />
-
-        {/* 7. Hot Report Viewers */}
-        <QueueCard
-          title="Hot Audit Report Viewers"
-          badgeCount={hotReportViewers.length}
-          badgeColor="bg-emerald-500/10 text-emerald-400"
-          Icon={IconTrendingUp}
-          emptyText="No recent report views detected."
-          viewAllHref="/admin/audits"
-          items={hotReportViewers.slice(0, 5).map((a) => ({
-            id: a.id,
-            primary: a.business?.name || "Practice",
-            secondary: `${a.viewCount} views • Score ${a.score}/100`,
-            href: `/admin/businesses/${a.business?.id || ""}`,
-            actionLabel: "Follow Up Now",
-          }))}
-        />
-
-        {/* 8. Meetings Requested */}
-        <QueueCard
-          title="Meetings Requested"
-          badgeCount={meetingsRequested.length}
-          badgeColor="bg-emerald-500/10 text-emerald-400"
-          Icon={IconCalendarCheck}
-          emptyText="No consultation or visit requests pending."
-          viewAllHref="/admin/meetings"
-          items={meetingsRequested.slice(0, 5).map((ap) => ({
-            id: ap.id,
-            primary: ap.business?.name || "Practice",
-            secondary: `${ap.type === "ONLINE" ? "Video Review" : "In-Person Visit"} • ${ap.contact ? ap.contact.firstName : ""}`,
-            href: "/admin/meetings",
-            actionLabel: "Approve / Schedule",
-          }))}
-        />
-
-        {/* 9. Integration Failures / Health */}
-        <QueueCard
-          title="Integration Health Warnings"
-          badgeCount={integrationIssues.length}
-          badgeColor="bg-amber-500/10 text-amber-400"
-          Icon={IconSettings}
-          emptyText="All integrations green and connected."
-          viewAllHref="/admin/integrations"
-          items={integrationIssues.map((i) => ({
-            id: i.key,
-            primary: i.name,
-            secondary: i.details,
-            href: "/admin/integrations",
-            actionLabel: "Check Status",
-          }))}
-        />
-      </div>
-    </div>
-  );
-}
-
-function QueueCard({
-  title,
-  badgeCount,
-  badgeColor,
-  Icon,
-  emptyText,
-  viewAllHref,
-  items,
-}: {
-  title: string;
-  badgeCount: number;
-  badgeColor: string;
-  Icon: typeof IconTarget;
-  emptyText: string;
-  viewAllHref: string;
-  items: { id: string; primary: string; secondary: string; href: string; actionLabel: string }[];
-}) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-border bg-surface p-5">
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-primary">
-            <Icon className="h-4 w-4" />
-          </span>
-          <h2 className="text-body font-bold text-foreground">{title}</h2>
-        </div>
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${badgeColor}`}>
-          {badgeCount}
-        </span>
-      </div>
-
-      {items.length === 0 ? (
-        <p className="my-6 text-center text-body-small text-muted-foreground">{emptyText}</p>
-      ) : (
-        <ul className="my-2 divide-y divide-border/40">
-          {items.map((item) => (
-            <li key={item.id} className="py-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-body-small font-semibold text-foreground">{item.primary}</p>
-                  <p className="truncate text-metadata text-muted-foreground">{item.secondary}</p>
-                </div>
-                <Link
-                  href={item.href}
-                  className="shrink-0 rounded-lg bg-surface-muted px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/15"
-                >
-                  {item.actionLabel}
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-auto pt-3 text-right">
-        <Link href={viewAllHref} className="text-metadata font-bold text-muted-foreground hover:text-primary">
-          View All Items &rarr;
-        </Link>
+        {/* 6. Integration Problems */}
+        <AdminCard
+          header={
+            <div className="flex items-center gap-2">
+              <IconAlertTriangle className="h-4 w-4 text-amber-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Integration Warnings</h2>
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                {integrationIssues.length}
+              </span>
+            </div>
+          }
+          action={
+            <Link href="/admin/integrations" className="text-xs font-bold text-primary hover:underline">
+              View status
+            </Link>
+          }
+        >
+          {integrationIssues.length === 0 ? (
+            <EmptyState title="All integrations healthy" message="All background services and APIs are connected." />
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {integrationIssues.map((integ) => (
+                <li key={integ.key} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">{integ.name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{integ.details}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/admin/integrations"
+                      className="inline-flex h-8 items-center rounded-lg bg-surface-muted px-3 text-xs font-bold text-foreground hover:bg-border"
+                    >
+                      Check
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
       </div>
     </div>
   );

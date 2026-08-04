@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { ActionMenu } from "@/components/admin/ActionMenu";
+import { EmptyState } from "@/components/admin/EmptyState";
 
 type OutreachMessage = {
   id: string;
@@ -11,12 +14,22 @@ type OutreachMessage = {
   step?: { subject: string; bodyTemplate?: string };
 };
 
+const TABS = [
+  { label: "Awaiting Approval", value: "AWAITING" },
+  { label: "Scheduled", value: "SCHEDULED" },
+  { label: "Sent", value: "SENT" },
+  { label: "Engaged", value: "ENGAGED" },
+  { label: "Failed", value: "FAILED" },
+  { label: "Stopped", value: "STOPPED" },
+];
+
 export default function AdminOutreachPage() {
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
-  const [selectedMessage, setSelectedMessage] = useState<OutreachMessage | null>(null);
+  const [selectedTab, setSelectedTab] = useState("AWAITING");
+  const [previewMessage, setPreviewMessage] = useState<OutreachMessage | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
-  const [testEmailRecipient, setTestEmailRecipient] = useState("dr.jenkins@apexfamilydentistrychicago.com");
+  const [testEmailRecipient, setTestEmailRecipient] = useState("hello@smileaimarketing.com");
 
   const fetchOutreach = useCallback(async () => {
     try {
@@ -35,6 +48,14 @@ export default function AdminOutreachPage() {
     return () => clearTimeout(timer);
   }, [fetchOutreach]);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setPreviewMessage(null);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleSendTestEmail = async () => {
     setActionLoading(true);
     setActionMessage("");
@@ -46,7 +67,7 @@ export default function AdminOutreachPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send test email");
-      setActionMessage(`Test email sent successfully to ${testEmailRecipient} (Test Mode Transport active)`);
+      setActionMessage(`Test email sent successfully to ${testEmailRecipient}`);
       await fetchOutreach();
     } catch (err: unknown) {
       setActionMessage(err instanceof Error ? err.message : "Test email failed");
@@ -66,7 +87,7 @@ export default function AdminOutreachPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to approve outreach");
-      setActionMessage("All queued outreach messages approved for dispatch.");
+      setActionMessage("All queued outreach messages approved.");
       await fetchOutreach();
     } catch (err: unknown) {
       setActionMessage(err instanceof Error ? err.message : "Approval failed");
@@ -75,177 +96,231 @@ export default function AdminOutreachPage() {
     }
   };
 
-  const totalQueued = messages.filter((m) => m.status === "QUEUED" || m.status === "PENDING").length;
-  const totalSent = messages.filter((m) => m.status === "SENT" || m.status === "DELIVERED").length;
-  const totalOpened = messages.filter((m) => m.status === "OPENED").length;
+  // Filter by tab
+  const filteredMessages = messages.filter((m) => {
+    if (selectedTab === "AWAITING") return m.status === "QUEUED" || m.status === "PENDING" || m.status === "AWAITING_APPROVAL";
+    if (selectedTab === "SCHEDULED") return m.status === "SCHEDULED";
+    if (selectedTab === "SENT") return m.status === "SENT" || m.status === "DELIVERED";
+    if (selectedTab === "ENGAGED") return m.status === "OPENED" || m.status === "CLICKED" || m.status === "REPLIED";
+    if (selectedTab === "FAILED") return m.status === "FAILED" || m.status === "BOUNCED";
+    if (selectedTab === "STOPPED") return m.status === "CANCELLED" || m.status === "STOPPED";
+    return true;
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-heading-2 font-bold text-foreground">Outreach Command Centre</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Email Outreach</h1>
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-400">
-              TEST MODE (SAFE TRANSPORT)
+              SAFE DISPATCH MODE
             </span>
           </div>
-          <p className="mt-1 text-body-small text-muted-foreground">
-            Review, test, approve, and control automated email sequences for practice prospects.
+          <p className="text-body-small text-muted-foreground">
+            Review, approve, and track automated email outreach sequences.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={handleApproveAll} loading={actionLoading}>
-            Approve All Queued Outreach
-          </Button>
-          <Button variant="outline" onClick={handleSendTestEmail} loading={actionLoading}>
-            Send Test Email
+        <div className="flex items-center gap-2">
+          <Button onClick={handleApproveAll} loading={actionLoading} className="!h-9">
+            Approve All Queued
           </Button>
         </div>
       </div>
 
       {actionMessage && (
-        <div role="alert" className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-body-small font-semibold text-primary">
+        <div role="alert" className="rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs font-bold text-primary">
           {actionMessage}
         </div>
       )}
 
-      {/* Summary Tiles */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Queued / Pending</span>
-          <span className="mt-1 block text-heading-2 font-bold text-amber-400">{totalQueued}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Sent</span>
-          <span className="mt-1 block text-heading-2 font-bold text-primary">{totalSent}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Report Opened</span>
-          <span className="mt-1 block text-heading-2 font-bold text-emerald-400">{totalOpened}</span>
-        </div>
-      </div>
-
-      {/* Test Email Dispatch Control Box */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
-        <h2 className="text-body font-bold text-foreground">Send Manual Test Email</h2>
-        <p className="mt-0.5 text-metadata text-muted-foreground">
-          Dispatches a test audit report email through the worker test-mode transport without contacting real prospects.
-        </p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
-            type="email"
-            value={testEmailRecipient}
-            onChange={(e) => setTestEmailRecipient(e.target.value)}
-            placeholder="Recipient email..."
-            className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-body-small text-foreground"
-          />
-          <Button onClick={handleSendTestEmail} loading={actionLoading}>
-            Dispatch Test Email
-          </Button>
+      {/* Manual Test Dispatch Control Box */}
+      <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Send Test Email</h2>
+            <p className="text-[11px] text-muted-foreground">Dispatch sample audit summary report to verified test address.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="email"
+              value={testEmailRecipient}
+              onChange={(e) => setTestEmailRecipient(e.target.value)}
+              placeholder="Test email..."
+              className="h-8 w-60 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+            />
+            <Button variant="outline" onClick={handleSendTestEmail} loading={actionLoading} className="!h-8 !px-3">
+              Send Test
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Email List Table */}
-      {messages.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-8 text-center text-body-small text-muted-foreground">
-          No outreach messages queued yet. Start a campaign or trigger an audit to populate outreach messages.
-        </div>
+      {/* Status Tabs */}
+      <div className="flex overflow-x-auto rounded-xl border border-border bg-surface p-1 gap-1">
+        {TABS.map((tab) => {
+          const count = messages.filter((m) => {
+            if (tab.value === "AWAITING") return m.status === "QUEUED" || m.status === "PENDING" || m.status === "AWAITING_APPROVAL";
+            if (tab.value === "SCHEDULED") return m.status === "SCHEDULED";
+            if (tab.value === "SENT") return m.status === "SENT" || m.status === "DELIVERED";
+            if (tab.value === "ENGAGED") return m.status === "OPENED" || m.status === "CLICKED" || m.status === "REPLIED";
+            if (tab.value === "FAILED") return m.status === "FAILED" || m.status === "BOUNCED";
+            if (tab.value === "STOPPED") return m.status === "CANCELLED" || m.status === "STOPPED";
+            return false;
+          }).length;
+
+          const isActive = selectedTab === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setSelectedTab(tab.value)}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-colors min-h-[36px] ${
+                isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px]">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {filteredMessages.length === 0 ? (
+        <EmptyState
+          title={`No emails in ${TABS.find((t) => t.value === selectedTab)?.label}`}
+          message="No outreach messages currently match this stage."
+        />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-          <div className="border-b border-border p-4">
-            <h2 className="text-body font-bold text-foreground">Outreach Queue &amp; History</h2>
+        <>
+          {/* Mobile Cards (< 1024px) */}
+          <div className="space-y-3 lg:hidden">
+            {filteredMessages.map((m) => (
+              <div key={m.id} className="rounded-xl border border-border bg-surface p-3.5 space-y-2.5 shadow-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-foreground text-sm">{m.contact?.business?.name || "Practice Lead"}</p>
+                    <p className="text-xs text-muted-foreground">{m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Contact pending"}</p>
+                  </div>
+                  <StatusBadge status={m.status} />
+                </div>
+                <p className="text-xs text-foreground font-medium truncate">{m.step?.subject || "Dental Audit Executive Report"}</p>
+
+                <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                  <button
+                    onClick={() => setPreviewMessage(m)}
+                    className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
+                  >
+                    Preview Email
+                  </button>
+                  <ActionMenu
+                    items={[
+                      { label: "Preview Email", onClick: () => setPreviewMessage(m) },
+                      { label: "Approve & Send Now", onClick: handleApproveAll },
+                    ]}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-body-small">
-              <thead className="border-b border-border bg-surface-muted/50 text-metadata font-bold uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="p-4">Recipient</th>
-                  <th className="p-4">Practice Domain</th>
-                  <th className="p-4">Subject Line</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {messages.map((m) => (
-                  <tr key={m.id} className="hover:bg-surface-muted/30">
-                    <td className="p-4 font-semibold text-foreground">
-                      {m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Lead Prospect"}
-                      <div className="text-metadata text-muted-foreground">{m.contact?.email}</div>
-                    </td>
-                    <td className="p-4 text-muted-foreground">
-                      {m.contact?.business?.website?.replace(/^https?:\/\//, "") || "Practice domain"}
-                    </td>
-                    <td className="p-4 font-medium text-foreground">{m.step?.subject || "Dental Visibility Audit Executive Findings"}</td>
-                    <td className="p-4">
-                      <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setSelectedMessage(m)}
-                          className="rounded-lg bg-surface-muted px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-primary/15 hover:text-primary"
-                        >
-                          Preview / Edit
-                        </button>
-                        <button
-                          onClick={handleApproveAll}
-                          className="rounded-lg bg-primary/15 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary hover:text-primary-foreground"
-                        >
-                          Approve
-                        </button>
-                      </div>
-                    </td>
+
+          {/* Desktop Table (>= 1024px) */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-xs lg:block">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-surface-muted/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3">Practice</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Subject Line</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/60 text-xs">
+                  {filteredMessages.map((m) => (
+                    <tr key={m.id} className="transition-colors hover:bg-surface-muted/30">
+                      <td className="px-4 py-3 font-bold text-foreground">
+                        {m.contact?.business?.name || "Practice Lead"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Pending"}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-foreground truncate max-w-xs">
+                        {m.step?.subject || "Executive Dental Audit Findings"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusBadge status={m.status} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setPreviewMessage(m)}
+                            className="inline-flex h-8 items-center rounded-lg bg-surface-muted px-3 text-xs font-bold text-foreground hover:bg-border"
+                          >
+                            Preview
+                          </button>
+                          <ActionMenu
+                            items={[
+                              { label: "Preview Email Content", onClick: () => setPreviewMessage(m) },
+                              { label: "Approve & Send", onClick: handleApproveAll },
+                            ]}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Preview Email Modal */}
-      {selectedMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-6 shadow-xl">
+      {/* Side Panel / Modal Email Preview */}
+      {previewMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-heading-3 font-bold text-foreground">Email Outreach Preview</h3>
-              <button onClick={() => setSelectedMessage(null)} className="text-metadata font-bold text-muted-foreground hover:text-foreground">
+              <h3 className="text-sm font-bold text-foreground">Email Preview</h3>
+              <button onClick={() => setPreviewMessage(null)} className="text-xs font-bold text-muted-foreground hover:text-foreground">
                 ✕ Close
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-body-small">
-              <div>
-                <span className="text-metadata font-semibold text-muted-foreground">To: </span>
-                <span className="font-bold text-foreground">{selectedMessage.contact?.firstName} {selectedMessage.contact?.lastName} ({selectedMessage.contact?.email})</span>
-              </div>
-              <div>
-                <span className="text-metadata font-semibold text-muted-foreground">Subject: </span>
-                <span className="font-bold text-foreground">{selectedMessage.step?.subject || "Dental Visibility Audit Findings"}</span>
-              </div>
-              <div className="rounded-xl border border-border bg-background p-4 text-muted-foreground">
-                <p>Hello Dr. {selectedMessage.contact?.lastName || "Practice Director"},</p>
-                <p className="mt-2">
-                  We recently completed an executive visibility &amp; conversion audit for your practice.
-                  Your estimated Opportunity Score is high, with significant upside in local map rankings and online consultation booking.
-                </p>
-                <p className="mt-2">
-                  You can review your complete audit report and download the 2-page executive summary PDF at your convenience.
-                </p>
-                <p className="mt-4 font-semibold text-foreground">Best regards,<br />Smile AI Marketing Audit Team</p>
-              </div>
+
+            <div className="space-y-2 text-xs">
+              <p><span className="font-bold text-muted-foreground">To:</span> {previewMessage.contact?.firstName} {previewMessage.contact?.lastName} ({previewMessage.contact?.email})</p>
+              <p><span className="font-bold text-muted-foreground">Subject:</span> {previewMessage.step?.subject || "Executive Dental Audit Findings"}</p>
             </div>
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setSelectedMessage(null)}>
+
+            <div className="rounded-lg border border-border bg-background p-4 text-xs text-muted-foreground space-y-2 leading-relaxed">
+              <p>Hello Dr. {previewMessage.contact?.lastName || "Practice Director"},</p>
+              <p>
+                We recently finalized an executive visibility and conversion audit for {previewMessage.contact?.business?.name || "your practice"}.
+              </p>
+              <p>
+                Your report identifies key expansion opportunities in local Google map rankings, website load performance, and online consultation bookings.
+              </p>
+              <p className="font-semibold text-foreground pt-2">Best regards,<br />Smile AI Marketing Audit Team</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                onClick={() => setPreviewMessage(null)}
+                className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
                 Close
-              </Button>
-              <Button onClick={() => { setSelectedMessage(null); handleApproveAll(); }}>
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewMessage(null);
+                  void handleApproveAll();
+                }}
+                className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
+              >
                 Approve &amp; Send
-              </Button>
+              </button>
             </div>
           </div>
         </div>

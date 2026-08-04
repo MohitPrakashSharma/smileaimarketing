@@ -2,14 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { AdminCard } from "@/components/admin/AdminCard";
 
 interface IntegrationItem {
   key: string;
   name: string;
-  status: "CONNECTED" | "READY" | "TEST_MODE" | "CONFIGURED" | "NOT_CONFIGURED" | "AUTHENTICATION_FAILED" | "DEGRADED" | "ERROR" | "MOCKED" | "MISSING";
+  status: string;
   details: string;
   lastTested?: string;
 }
+
+const GROUPS = [
+  { title: "Core Infrastructure", keys: ["postgres", "redis", "worker"] },
+  { title: "Lead & Enrichment Data", keys: ["google_places", "dataforseo", "apollo"] },
+  { title: "Communication & AI", keys: ["email", "google_calendar", "openai"] },
+  { title: "Document & PDF Storage", keys: ["pdf_storage"] },
+];
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
@@ -70,84 +79,76 @@ export default function IntegrationsPage() {
     }
   };
 
-  const getBadgeClass = (status: string) => {
-    switch (status) {
-      case "CONNECTED":
-      case "READY":
-        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "TEST_MODE":
-      case "CONFIGURED":
-        return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-      case "AUTHENTICATION_FAILED":
-      case "MISSING":
-      case "ERROR":
-        return "bg-danger/10 text-danger border-danger/20";
-      case "DEGRADED":
-        return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
-      default:
-        return "bg-muted-foreground/10 text-muted-foreground border-border";
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-heading-2 font-semibold text-foreground">System Integrations &amp; Infrastructure</h1>
-          <p className="mt-1 text-body-small text-muted-foreground">
-            Monitor real-time provider credentials, background queues, database latency, and API readiness.
+          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Integrations</h1>
+          <p className="text-body-small text-muted-foreground">
+            Monitor background services, database connectivity, and external data provider health.
           </p>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center p-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {integrations.map((item) => {
-            const lastResult = testResults[item.key];
-            const currentStatus = lastResult?.status || item.status;
-            const currentDetails = lastResult?.details || item.details;
+      {/* Grouped Status Sections */}
+      <div className="space-y-5">
+        {GROUPS.map((group) => {
+          const items = integrations.filter((i) => group.keys.includes(i.key));
+          const itemsToDisplay = items.length > 0 ? items : integrations.filter((i) => !GROUPS.some((g) => g.keys.includes(i.key)));
 
-            return (
-              <div key={item.key} className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-5">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-bold text-foreground">{item.name}</h3>
-                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getBadgeClass(currentStatus)}`}>
-                      {currentStatus.replace("_", " ")}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-metadata text-muted-foreground">{currentDetails}</p>
+          if (group.title === "Document & PDF Storage" && items.length === 0) return null;
 
-                  {lastResult?.timestamp && (
-                    <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
-                      Last tested: {new Date(lastResult.timestamp).toLocaleTimeString()}
-                    </p>
-                  )}
-                </div>
+          return (
+            <AdminCard key={group.title} title={group.title}>
+              <div className="divide-y divide-border/60">
+                {itemsToDisplay.map((item) => {
+                  const lastResult = testResults[item.key];
+                  const currentStatus = lastResult?.status || item.status;
+                  const currentDetails = lastResult?.details || item.details;
 
-                <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Provider Source: {item.key === "google_places" ? "Google Places" : item.key === "dataforseo" ? "DataForSEO" : item.key === "apollo" ? "Apollo" : item.key === "openai" ? "OpenAI" : "System"}
-                  </span>
-                  <Button
-                    variant="outline"
-                    className="!h-8 !px-3 !text-metadata"
-                    loading={testingKey === item.key}
-                    disabled={testingKey !== null}
-                    onClick={() => handleTestSingle(item.key)}
-                  >
-                    Test Connection
-                  </Button>
-                </div>
+                  return (
+                    <div key={item.key} className="flex flex-col gap-2.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="text-xs font-bold text-foreground">{item.name}</h3>
+                          <StatusBadge status={currentStatus} />
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{currentDetails}</p>
+                        {lastResult?.timestamp && (
+                          <p className="text-[10px] text-muted-foreground/70">
+                            Last tested: {new Date(lastResult.timestamp).toLocaleTimeString()}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="shrink-0">
+                        <Button
+                          variant="outline"
+                          className="!h-8 !px-3 !text-xs"
+                          loading={testingKey === item.key}
+                          disabled={testingKey !== null}
+                          onClick={() => handleTestSingle(item.key)}
+                        >
+                          Test Connection
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </AdminCard>
+          );
+        })}
+      </div>
     </div>
   );
 }

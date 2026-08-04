@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = "admin@smileaimarketing.com";
+  const adminEmail = "hello@smileaimarketing.com";
   const existing = await prisma.user.findUnique({
     where: { email: adminEmail },
   });
@@ -20,7 +20,7 @@ async function main() {
         role: "SUPERADMIN",
       },
     });
-    console.log("Admin user seeded: admin@smileaimarketing.com / admin123");
+    console.log("Admin user seeded: hello@smileaimarketing.com / admin123");
   } else {
     console.log("Admin user already exists");
   }

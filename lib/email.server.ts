@@ -20,7 +20,7 @@ export interface EmailDispatchResult {
 
 export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailDispatchResult> {
   const sendMode = process.env.EMAIL_SEND_MODE || "test";
-  const testRecipients = process.env.EMAIL_TEST_RECIPIENTS || "office@getfoundguru.com";
+  const testRecipients = process.env.EMAIL_TEST_RECIPIENTS || "hello@smileaimarketing.com";
 
   const targetRecipient = sendMode === "live" ? params.toEmail : testRecipients.split(",")[0].trim();
 

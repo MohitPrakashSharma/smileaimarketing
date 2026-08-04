@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
               required
               autoComplete="username"
               inputMode="email"
-              placeholder="admin@smileaimarketing.com"
+              placeholder="hello@smileaimarketing.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />

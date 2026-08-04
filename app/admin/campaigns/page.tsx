@@ -7,6 +7,9 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import ProgressSteps from "@/components/ui/ProgressSteps";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { ActionMenu } from "@/components/admin/ActionMenu";
+import { EmptyState } from "@/components/admin/EmptyState";
 
 type Campaign = {
   id: string;
@@ -14,6 +17,7 @@ type Campaign = {
   city: string;
   category: string;
   status: string;
+  dataProvider?: string;
   _count?: { businesses: number };
   businesses?: { status: string }[];
 };
@@ -72,11 +76,11 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
   const goNext = () => {
     if (step === 1) {
       if (!name.trim() || name.trim().length < 3) {
-        setStep1Error("Campaign name must be at least 3 characters.");
+        setStep1Error("Campaign title must be at least 3 characters.");
         return;
       }
       if (!city.trim()) {
-        setStep1Error("City is required.");
+        setStep1Error("Target city is required.");
         return;
       }
       setStep1Error("");
@@ -118,7 +122,6 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create campaign");
 
-      // Reset for next campaign
       setStep(1);
       setName("");
       setState("");
@@ -134,10 +137,10 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
   };
 
   return (
-    <div className="h-fit rounded-2xl border border-border bg-surface p-6">
-      <h2 className="text-body font-bold text-foreground">New Outbound Campaign</h2>
-      <p className="mt-1 text-metadata text-muted-foreground">
-        Configure target market, lead criteria, audit scope, and outreach limits.
+    <div className="h-fit rounded-xl border border-border bg-surface p-5 shadow-xs">
+      <h2 className="text-sm font-bold text-foreground">New Outbound Campaign</h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Target market, lead criteria, audit scope, and daily limits.
       </p>
 
       <div className="mt-4">
@@ -145,12 +148,12 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
       </div>
 
       {error && (
-        <div role="alert" className="mt-4 rounded-xl border border-danger/20 bg-danger/10 p-3 text-center text-metadata font-semibold text-danger">
+        <div role="alert" className="mt-4 rounded-xl border border-danger/20 bg-danger/10 p-3 text-center text-xs font-bold text-danger">
           {error}
         </div>
       )}
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-4 space-y-3.5">
         {step === 1 && (
           <>
             <FormField id="campaign-name" label="Campaign Title" required optionalLabel={false} error={step1Error && !name.trim() ? step1Error : undefined}>
@@ -158,7 +161,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 id="campaign-name"
                 type="text"
                 required
-                placeholder="e.g. Chicago North Prospecting"
+                placeholder="e.g. Denver Metro Dental Outreach"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 hasError={!!step1Error && !name.trim()}
@@ -173,7 +176,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 </Select>
               </FormField>
               <FormField id="campaign-state" label="State / Region">
-                <Input id="campaign-state" type="text" placeholder="e.g. IL" value={state} onChange={(e) => setState(e.target.value)} />
+                <Input id="campaign-state" type="text" placeholder="e.g. CO" value={state} onChange={(e) => setState(e.target.value)} />
               </FormField>
             </div>
             <FormField id="campaign-city" label="Target City" required optionalLabel={false} error={step1Error && !city.trim() ? step1Error : undefined}>
@@ -181,8 +184,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 id="campaign-city"
                 type="text"
                 required
-                autoComplete="address-level2"
-                placeholder="e.g. Chicago"
+                placeholder="e.g. Denver"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 hasError={!!step1Error && !city.trim()}
@@ -200,7 +202,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
 
         {step === 2 && (
           <>
-            <FormField id="max-businesses" label="Maximum Businesses" optionalLabel={false} hint="Keep this small (5-10) for a first controlled test.">
+            <FormField id="max-businesses" label="Maximum Businesses" optionalLabel={false}>
               <Input
                 id="max-businesses"
                 type="number"
@@ -220,18 +222,18 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 onChange={(e) => setMinReviewCount(e.target.value)}
               />
             </FormField>
-            <div className="space-y-3 rounded-xl border border-border bg-background p-4">
-              <label className="flex items-center gap-3 text-body-small text-foreground">
-                <input type="checkbox" className="h-5 w-5 rounded border-border text-primary focus:ring-2 focus:ring-primary" checked={websiteRequired} onChange={(e) => setWebsiteRequired(e.target.checked)} />
-                Require a website to qualify
+            <div className="space-y-2 rounded-xl border border-border bg-background p-3 text-xs">
+              <label className="flex items-center gap-2.5 text-foreground">
+                <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" checked={websiteRequired} onChange={(e) => setWebsiteRequired(e.target.checked)} />
+                Require website to qualify
               </label>
-              <label className="flex items-center gap-3 text-body-small text-foreground">
-                <input type="checkbox" className="h-5 w-5 rounded border-border text-primary focus:ring-2 focus:ring-primary" checked={excludeChains} onChange={(e) => setExcludeChains(e.target.checked)} />
+              <label className="flex items-center gap-2.5 text-foreground">
+                <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" checked={excludeChains} onChange={(e) => setExcludeChains(e.target.checked)} />
                 Exclude large dental chains
               </label>
-              <label className="flex items-center gap-3 text-body-small text-foreground">
-                <input type="checkbox" className="h-5 w-5 rounded border-border text-primary focus:ring-2 focus:ring-primary" checked={excludeExistingContacts} onChange={(e) => setExcludeExistingContacts(e.target.checked)} />
-                Exclude businesses with an existing contact
+              <label className="flex items-center gap-2.5 text-foreground">
+                <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" checked={excludeExistingContacts} onChange={(e) => setExcludeExistingContacts(e.target.checked)} />
+                Exclude existing contacts
               </label>
             </div>
           </>
@@ -239,8 +241,8 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
 
         {step === 3 && (
           <>
-            <FormField id="keywords" label="Keywords" hint="Comma-separated, e.g. dentist, teeth whitening, family dentistry">
-              <Input id="keywords" type="text" placeholder="dentist, family dentistry" value={keywordsInput} onChange={(e) => setKeywordsInput(e.target.value)} />
+            <FormField id="keywords" label="Keywords" hint="Comma-separated">
+              <Input id="keywords" type="text" placeholder="dentist, teeth whitening" value={keywordsInput} onChange={(e) => setKeywordsInput(e.target.value)} />
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField id="competitor-count" label="Competitors to Compare" optionalLabel={false}>
@@ -264,17 +266,12 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 />
               </FormField>
             </div>
-            <div className="rounded-xl border border-border bg-background p-4 text-body-small text-muted-foreground">
-              Every audit currently checks SSL, response time, and mobile viewport in real time. Local visibility and
-              competitor data require Google Places / DataForSEO, which aren&apos;t connected yet — see{" "}
-              <span className="font-mono text-metadata">docs/mvp-readiness.md</span>.
-            </div>
           </>
         )}
 
         {step === 4 && (
           <>
-            <FormField id="daily-limit" label="Outreach Daily Limit" optionalLabel={false} hint="Matches OUTREACH_DAILY_LIMIT — keep conservative.">
+            <FormField id="daily-limit" label="Outreach Daily Limit" optionalLabel={false}>
               <Input
                 id="daily-limit"
                 type="number"
@@ -284,49 +281,40 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
                 onChange={(e) => setOutreachDailyLimit(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
               />
             </FormField>
-            <label className="flex items-center gap-3 rounded-xl border border-border bg-background p-4 text-body-small text-foreground">
-              <input type="checkbox" className="h-5 w-5 rounded border-border text-primary focus:ring-2 focus:ring-primary" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
-              Keep this campaign in test mode (recommended until live credentials are configured)
+            <label className="flex items-center gap-2.5 rounded-xl border border-border bg-background p-3 text-xs text-foreground">
+              <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
+              Keep campaign in test mode
             </label>
-            <div className="rounded-xl border border-border bg-background p-4 text-body-small text-muted-foreground">
-              Every outreach email requires manual admin approval before sending — this can&apos;t be changed yet.
-            </div>
           </>
         )}
 
         {step === 5 && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-border bg-background p-4 text-body-small">
+          <div className="space-y-2.5 text-xs">
+            <div className="rounded-xl border border-border bg-background p-3">
               <p className="font-bold text-foreground">{name || "(untitled campaign)"}</p>
-              <p className="mt-1 text-muted-foreground">{category} &bull; {[city, state, country].filter(Boolean).join(", ")}</p>
+              <p className="mt-0.5 text-muted-foreground">{category} &bull; {[city, state, country].filter(Boolean).join(", ")}</p>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-body-small text-muted-foreground">
-              <p>Max businesses: <span className="font-semibold text-foreground">{maxBusinesses}</span></p>
-              <p>Min reviews: <span className="font-semibold text-foreground">{minReviewCount || "None"}</span></p>
-              <p>Keywords: <span className="font-semibold text-foreground">{keywords.length ? keywords.join(", ") : "None"}</span></p>
-              <p>Competitors: <span className="font-semibold text-foreground">{competitorCount}</span></p>
-              <p>Daily outreach limit: <span className="font-semibold text-foreground">{outreachDailyLimit}</span></p>
-              <p>Test mode: <span className="font-semibold text-foreground">{testMode ? "On" : "Off"}</span></p>
-            </div>
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-body-small font-semibold text-amber-700">
-              Discovery will use mock/seed data — Google Places and DataForSEO aren&apos;t connected yet, so businesses created here are for testing the pipeline, not real leads.
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-background p-3 text-muted-foreground">
+              <p>Max businesses: <span className="font-bold text-foreground">{maxBusinesses}</span></p>
+              <p>Daily limit: <span className="font-bold text-foreground">{outreachDailyLimit}</span></p>
+              <p>Test mode: <span className="font-bold text-foreground">{testMode ? "On" : "Off"}</span></p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-5 flex gap-2.5">
         {step > 1 && (
-          <Button variant="secondary" onClick={goBack} disabled={loading}>
+          <Button variant="secondary" onClick={goBack} disabled={loading} className="!h-9">
             Back
           </Button>
         )}
         {step < 5 ? (
-          <Button fullWidth onClick={goNext}>
+          <Button fullWidth onClick={goNext} className="!h-9">
             Continue
           </Button>
         ) : (
-          <Button fullWidth loading={loading} disabled={loading} onClick={handleStart}>
+          <Button fullWidth loading={loading} disabled={loading} onClick={handleStart} className="!h-9">
             Start Campaign
           </Button>
         )}
@@ -355,58 +343,106 @@ export default function AdminCampaignsPage() {
     return () => clearTimeout(timer);
   }, [fetchCampaigns]);
 
+  const renderPrimaryAction = (c: Campaign) => {
+    if (c.status === "DRAFT") {
+      return (
+        <Link
+          href={`/admin/campaigns/${c.id}`}
+          className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
+        >
+          Start Campaign
+        </Link>
+      );
+    }
+    if (c.status === "FAILED") {
+      return (
+        <Link
+          href={`/admin/campaigns/${c.id}`}
+          className="inline-flex h-8 items-center rounded-lg bg-rose-500/10 px-3 text-xs font-bold text-rose-400 hover:bg-rose-500/20"
+        >
+          Retry
+        </Link>
+      );
+    }
+    if (c.status === "COMPLETED") {
+      return (
+        <Link
+          href={`/admin/campaigns/${c.id}`}
+          className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+        >
+          View Results
+        </Link>
+      );
+    }
+    return (
+      <Link
+        href={`/admin/campaigns/${c.id}`}
+        className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
+      >
+        View Progress
+      </Link>
+    );
+  };
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[63%_37%]">
+    <div className="grid gap-6 lg:grid-cols-[62%_38%]">
       {/* Campaigns list */}
       <div className="space-y-4">
-        <h1 className="text-heading-2 font-semibold text-foreground">Active Campaigns</h1>
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Campaigns</h1>
+          <p className="text-body-small text-muted-foreground">Manage active practice discovery and outreach campaigns.</p>
+        </div>
 
         {campaigns.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-surface p-8 text-center text-body-small text-muted-foreground">
-            No campaigns configured yet. Create one to begin discovery.
-          </div>
+          <EmptyState title="No campaigns yet" message="Create your first campaign to initiate business discovery." />
         ) : (
           <div className="space-y-3">
-            {campaigns.map((c) => (
-              <Link key={c.id} href={`/admin/campaigns/${c.id}`} className="block rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-body font-bold text-foreground">{c.name}</h3>
-                    <p className="mt-1 text-metadata text-muted-foreground">
-                      <span className="font-semibold text-primary">{c.category}</span> &bull; {c.city}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      c.status === "ACTIVE"
-                        ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                        : "border border-border bg-muted-foreground/10 text-muted-foreground"
-                    }`}
-                  >
-                    {c.status}
-                  </span>
-                </div>
+            {campaigns.map((c) => {
+              const found = c._count?.businesses || 0;
+              const audited = c.businesses?.filter((b) => b.status === "AUDITED" || b.status === "CONVERTED").length || 0;
+              const converted = c.businesses?.filter((b) => b.status === "CONVERTED").length || 0;
 
-                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
-                  <div>
-                    <span className="block text-metadata text-muted-foreground">Found</span>
-                    <span className="mt-0.5 block font-bold text-primary">{c._count?.businesses || 0}</span>
+              return (
+                <div key={c.id} className="rounded-xl border border-border bg-surface p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/admin/campaigns/${c.id}`} className="truncate font-bold text-foreground text-sm hover:text-primary block">
+                        {c.name}
+                      </Link>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        <span className="font-semibold text-primary">{c.category}</span> &bull; {c.city}
+                      </p>
+                    </div>
+                    <StatusBadge status={c.status} />
                   </div>
-                  <div>
-                    <span className="block text-metadata text-muted-foreground">Audited</span>
-                    <span className="mt-0.5 block font-bold text-primary">
-                      {c.businesses?.filter((b) => b.status === "AUDITED" || b.status === "CONVERTED").length || 0}
-                    </span>
+
+                  <div className="grid grid-cols-3 gap-2 rounded-lg border border-border/50 bg-background p-2.5 text-center text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Leads Found</span>
+                      <span className="block font-extrabold text-foreground mt-0.5">{found}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Audited</span>
+                      <span className="block font-extrabold text-foreground mt-0.5">{audited}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Converted</span>
+                      <span className="block font-extrabold text-emerald-400 mt-0.5">{converted}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-metadata text-muted-foreground">Converted</span>
-                    <span className="mt-0.5 block font-bold text-primary">
-                      {c.businesses?.filter((b) => b.status === "CONVERTED").length || 0}
-                    </span>
+
+                  <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                    {renderPrimaryAction(c)}
+                    <ActionMenu
+                      items={[
+                        { label: "Open Command Centre", onClick: () => (window.location.href = `/admin/campaigns/${c.id}`) },
+                        { label: "View Discovered Leads", onClick: () => (window.location.href = `/admin/businesses?campaign=${c.id}`) },
+                      ]}
+                    />
                   </div>
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

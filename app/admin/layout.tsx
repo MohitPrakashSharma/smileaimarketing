@@ -248,7 +248,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {userMenuOpen && (
                 <div className="animate-fade-in-down absolute right-0 top-11 z-50 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-xl">
                   <p className="truncate px-3 py-2 text-metadata text-muted-foreground">
-                    admin@smileaimarketing.com
+                    hello@smileaimarketing.com
                   </p>
                   <div className="my-1 border-t border-border" />
                   <Link

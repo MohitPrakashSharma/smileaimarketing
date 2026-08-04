@@ -72,7 +72,7 @@ const envSchema = z.object({
   EMAIL_FROM_ADDRESS: optionalNonEmpty,
   EMAIL_REPLY_TO: optionalNonEmpty,
   EMAIL_SEND_MODE: z.enum(["test", "live"]).default("test"),
-  EMAIL_TEST_RECIPIENTS: z.string().default("office@getfoundguru.com"),
+  EMAIL_TEST_RECIPIENTS: z.string().default("hello@smileaimarketing.com"),
 
   // Testing & Control Modes
   DATA_MODE: z.enum(["live", "test"]).default("live"),
