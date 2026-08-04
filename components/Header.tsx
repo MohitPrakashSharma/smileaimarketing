@@ -5,7 +5,7 @@ import { useState } from "react";
 const NAV_LINKS = [
   { href: "#how-it-works", label: "How It Works" },
   { href: "#sample-audit", label: "Sample Audit" },
-  { href: "#audit-coverage", label: "What We Analyse" },
+  { href: "#trust-consultation", label: "Consultation" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -44,7 +44,7 @@ export default function Header() {
                 />
               </svg>
             </span>
-            {" "}AI Marketing
+            {" "}AI<span className="hidden sm:inline"> Marketing</span>
           </span>
         </a>
 
@@ -65,24 +65,24 @@ export default function Header() {
         <div className="hidden lg:flex items-center">
           <button
             onClick={handleScrollToHero}
-            className="whitespace-nowrap rounded-full bg-primary px-5 py-2.5 font-body text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-primary px-5 font-body text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover active:scale-[0.98]"
           >
-            Audit My Clinic
+            Audit My Practice
           </button>
         </div>
 
         {/* Mobile Menu Trigger & Mobile CTA */}
-        <div className="flex items-center gap-3 lg:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           <button
             onClick={handleScrollToHero}
-            className="whitespace-nowrap rounded-full bg-primary px-4 py-2 font-body text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-primary px-4 font-body text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover active:scale-[0.98]"
           >
-            Audit My Clinic
+            Audit My Practice
           </button>
-          
+
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-foreground focus:outline-none"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-foreground focus:outline-none"
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
           >

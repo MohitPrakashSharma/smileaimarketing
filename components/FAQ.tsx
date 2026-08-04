@@ -11,11 +11,8 @@ export default function FAQ() {
             COMMON QUESTIONS
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Frequently Asked Questions
+            Questions before you start?
           </h2>
-          <p className="mt-4 text-body text-muted-foreground">
-            Understand how our local visibility scanner works and how we protect your practice credentials.
-          </p>
         </div>
 
         <div className="mt-12 mx-auto max-w-3xl divide-y divide-border border-y border-border">

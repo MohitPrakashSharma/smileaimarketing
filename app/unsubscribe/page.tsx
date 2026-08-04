@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
+import FormField from "@/components/ui/FormField";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 export default function UnsubscribePage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const submitting = useRef(false);
 
   const handleUnsubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setLoading(true);
     setError("");
 
@@ -27,74 +34,69 @@ export default function UnsubscribePage() {
       }
 
       setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+      submitting.current = false;
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-paper text-ink selection:bg-teal selection:text-white">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="mx-auto flex w-full max-w-[1200px] justify-between px-6 py-6 sm:px-8">
-        <a href="/" className="font-display text-xl font-bold tracking-tight text-ink">
-          Smile AI<span className="text-teal">.</span>
-        </a>
+        <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
+          Smile AI<span className="text-primary">.</span>
+        </Link>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-6 py-12 sm:py-16">
-        <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 shadow-[0_20px_50px_-20px_rgba(8,44,58,0.12)]">
-          <div className="text-center space-y-4">
+      <main className="flex flex-1 items-center justify-center px-6 py-12 sm:py-16">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-lg">
+          <div className="space-y-3 text-center">
             <Eyebrow>Outreach Compliance</Eyebrow>
-            <h1 className="font-display text-2xl font-semibold">Unsubscribe</h1>
-            <p className="font-body text-xs text-slate">
-              Please enter your professional email address below to suppress your email and domain from all future outreach campaigns.
+            <h1 className="text-heading-2 font-semibold text-foreground">Unsubscribe</h1>
+            <p className="text-body-small text-muted-foreground">
+              Enter your professional email to suppress your email and domain from all future outreach.
             </p>
           </div>
 
           {submitted ? (
-            <div className="mt-8 rounded-2xl bg-teal/10 border border-teal/20 p-6 text-center">
-              <p className="font-body text-sm font-semibold text-teal-deep">Unsubscribed Successfully</p>
-              <p className="mt-2 font-body text-xs text-slate">
-                Your email ({email}) and associated clinic domain have been placed on our suppression list.
+            <div className="animate-scale-in mt-8 rounded-xl border border-primary/20 bg-accent-soft p-6 text-center">
+              <p className="text-body-small font-semibold text-primary">Unsubscribed successfully</p>
+              <p className="mt-2 text-body-small text-muted-foreground">
+                {email} and its associated clinic domain have been added to our suppression list.
               </p>
             </div>
           ) : (
-            <form onSubmit={handleUnsubscribe} className="mt-8 space-y-4">
+            <form onSubmit={handleUnsubscribe} className="mt-8 space-y-4" noValidate>
               {error && (
-                <div className="rounded-xl bg-coral/10 border border-coral/20 p-4 text-center text-sm font-semibold text-coral">
+                <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
                   {error}
                 </div>
               )}
 
-              <div>
-                <label htmlFor="email-address" className="block font-body text-xs font-semibold uppercase tracking-wider text-ink-2 mb-2">
-                  Email Address
-                </label>
-                <input
+              <FormField id="email-address" label="Email Address" required optionalLabel={false}>
+                <Input
                   id="email-address"
                   type="email"
                   required
+                  autoComplete="email"
+                  inputMode="email"
                   placeholder="e.g. owner@clinicwebsite.com"
-                  className="w-full rounded-xl border border-line bg-paper px-4 py-3 font-body text-ink focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-              </div>
+              </FormField>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-full bg-coral py-4 font-body text-sm font-bold text-white shadow-[0_12px_28px_-10px_rgba(255,107,97,0.4)] transition-colors hover:bg-red-600 disabled:bg-line disabled:text-slate"
-              >
-                {loading ? "Processing..." : "Confirm Opt-out"}
-              </button>
+              <Button type="submit" variant="danger" fullWidth loading={loading} disabled={loading}>
+                Confirm Opt-out
+              </Button>
             </form>
           )}
         </div>
       </main>
 
-      <footer className="py-6 text-center font-body text-[13px] text-slate border-t border-line">
+      <footer className="border-t border-border py-6 text-center text-metadata text-muted-foreground">
         &copy; {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
       </footer>
     </div>

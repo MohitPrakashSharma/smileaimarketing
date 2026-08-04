@@ -1,23 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Eyebrow from "@/components/Eyebrow";
+import { useEffect, useRef, useState } from "react";
+import FormField from "@/components/ui/FormField";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import Button from "@/components/ui/Button";
+
+type Campaign = {
+  id: string;
+  name: string;
+  city: string;
+  category: string;
+  status: string;
+  _count?: { businesses: number };
+  businesses?: { status: string }[];
+};
 
 export default function AdminCampaignsPage() {
-  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [category, setCategory] = useState("Dental Clinic");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const submitting = useRef(false);
 
   const fetchCampaigns = async () => {
     try {
       const res = await fetch("/api/admin/campaigns");
       const data = await res.json();
-      if (res.ok) {
-        setCampaigns(data.campaigns || []);
-      }
+      if (res.ok) setCampaigns(data.campaigns || []);
     } catch (err) {
       console.error("Error fetching campaigns:", err);
     }
@@ -29,6 +41,8 @@ export default function AdminCampaignsPage() {
 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setLoading(true);
     setError("");
 
@@ -40,138 +54,123 @@ export default function AdminCampaignsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to create campaign");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to create campaign");
 
       setName("");
       setCity("");
       fetchCampaigns();
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8 font-body">
-      <div className="grid gap-8 lg:grid-cols-[65%_35%]">
-        
-        {/* Left Column: Campaigns List */}
-        <div className="space-y-6">
-          <h3 className="font-display text-xl font-semibold text-white">Active Campaigns</h3>
-          
-          {campaigns.length === 0 ? (
-            <div className="rounded-2xl border border-white/5 bg-white/5 p-8 text-center text-slate">
-              No prospecting campaigns configured yet. Create one to begin local business discovery.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {campaigns.map((c) => (
-                <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-teal/50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-display text-lg font-bold text-white">{c.name}</h4>
-                      <p className="text-xs text-slate mt-1">
-                        Category: <span className="text-teal font-semibold">{c.category}</span> &bull; Location: <span className="text-teal font-semibold">{c.city}</span>
-                      </p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 font-label text-[10px] uppercase tracking-wider ${
-                      c.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate/10 text-slate border border-white/10"
-                    }`}>
-                      {c.status}
+    <div className="grid gap-8 lg:grid-cols-[63%_37%]">
+      {/* Campaigns list */}
+      <div className="space-y-4">
+        <h1 className="text-heading-2 font-semibold text-foreground">Active Campaigns</h1>
+
+        {campaigns.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-surface p-8 text-center text-body-small text-muted-foreground">
+            No campaigns configured yet. Create one to begin discovery.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {campaigns.map((c) => (
+              <div key={c.id} className="rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-body font-bold text-foreground">{c.name}</h3>
+                    <p className="mt-1 text-metadata text-muted-foreground">
+                      <span className="font-semibold text-primary">{c.category}</span> &bull; {c.city}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      c.status === "ACTIVE"
+                        ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                        : "border border-border bg-muted-foreground/10 text-muted-foreground"
+                    }`}
+                  >
+                    {c.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                  <div>
+                    <span className="block text-metadata text-muted-foreground">Found</span>
+                    <span className="mt-0.5 block font-bold text-primary">{c._count?.businesses || 0}</span>
+                  </div>
+                  <div>
+                    <span className="block text-metadata text-muted-foreground">Audited</span>
+                    <span className="mt-0.5 block font-bold text-primary">
+                      {c.businesses?.filter((b) => b.status === "AUDITED" || b.status === "CONVERTED").length || 0}
                     </span>
                   </div>
-
-                  {/* Campaign Metrics */}
-                  <div className="mt-6 grid grid-cols-3 gap-4 text-center border-t border-white/10 pt-4">
-                    <div>
-                      <span className="block font-label text-[10px] uppercase tracking-wider text-slate">Clinics Found</span>
-                      <span className="font-display text-xl font-bold text-teal mt-1 block">{c._count?.businesses || 0}</span>
-                    </div>
-                    <div>
-                      <span className="block font-label text-[10px] uppercase tracking-wider text-slate">Audited</span>
-                      <span className="font-display text-xl font-bold text-teal mt-1 block">
-                        {c.businesses?.filter((b: any) => b.status === "AUDITED" || b.status === "CONVERTED").length || 0}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block font-label text-[10px] uppercase tracking-wider text-slate">Converted</span>
-                      <span className="font-display text-xl font-bold text-teal mt-1 block">
-                        {c.businesses?.filter((b: any) => b.status === "CONVERTED").length || 0}
-                      </span>
-                    </div>
+                  <div>
+                    <span className="block text-metadata text-muted-foreground">Converted</span>
+                    <span className="mt-0.5 block font-bold text-primary">
+                      {c.businesses?.filter((b) => b.status === "CONVERTED").length || 0}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Create Campaign Form */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 space-y-6">
-          <div className="space-y-1">
-            <h3 className="font-display text-lg font-semibold text-white">New Outbound Search</h3>
-            <p className="text-xs text-slate">Discovers and analyzes clinics in a selected city automatically.</p>
+              </div>
+            ))}
           </div>
+        )}
+      </div>
 
-          {error && (
-            <div className="rounded-xl bg-coral/10 border border-coral/20 p-4 text-center text-sm font-semibold text-coral">
-              {error}
-            </div>
-          )}
+      {/* Create campaign form */}
+      <div className="h-fit rounded-2xl border border-border bg-surface p-6">
+        <h2 className="text-body font-bold text-foreground">New Outbound Search</h2>
+        <p className="mt-1 text-metadata text-muted-foreground">
+          Discovers and analyzes practices in a city automatically.
+        </p>
 
-          <form onSubmit={handleCreateCampaign} className="space-y-4">
-            <div>
-              <label htmlFor="campaign-name" className="block text-[10px] font-bold uppercase tracking-wider text-slate mb-1">Campaign Title</label>
-              <input
-                id="campaign-name"
-                type="text"
-                required
-                placeholder="e.g. Chicago North Prospecting"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="campaign-city" className="block text-[10px] font-bold uppercase tracking-wider text-slate mb-1">Target City</label>
-              <input
-                id="campaign-city"
-                type="text"
-                required
-                placeholder="e.g. Chicago"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="campaign-category" className="block text-[10px] font-bold uppercase tracking-wider text-slate mb-1">Clinic Category</label>
-              <select
-                id="campaign-category"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="Dental Clinic">General Dentist</option>
-                <option value="Orthodontist">Orthodontist</option>
-                <option value="Pediatric Dentist">Pediatric Dentist</option>
-                <option value="Periodontist">Periodontist</option>
-              </select>
-            </div>
+        {error && (
+          <div role="alert" className="mt-4 rounded-xl border border-danger/20 bg-danger/10 p-3 text-center text-metadata font-semibold text-danger">
+            {error}
+          </div>
+        )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-teal py-4 text-xs font-bold text-ink hover:bg-teal-deep hover:text-white transition-colors"
-            >
-              {loading ? "Discovering Businesses..." : "Initiate Outbound Search"}
-            </button>
-          </form>
-        </div>
+        <form onSubmit={handleCreateCampaign} className="mt-4 space-y-4" noValidate>
+          <FormField id="campaign-name" label="Campaign Title" required optionalLabel={false}>
+            <Input
+              id="campaign-name"
+              type="text"
+              required
+              placeholder="e.g. Chicago North Prospecting"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </FormField>
+          <FormField id="campaign-city" label="Target City" required optionalLabel={false}>
+            <Input
+              id="campaign-city"
+              type="text"
+              required
+              autoComplete="address-level2"
+              placeholder="e.g. Chicago"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+          </FormField>
+          <FormField id="campaign-category" label="Clinic Category" optionalLabel={false}>
+            <Select id="campaign-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="Dental Clinic">General Dentist</option>
+              <option value="Orthodontist">Orthodontist</option>
+              <option value="Pediatric Dentist">Pediatric Dentist</option>
+              <option value="Periodontist">Periodontist</option>
+            </Select>
+          </FormField>
 
+          <Button type="submit" fullWidth loading={loading} disabled={loading}>
+            Start Search
+          </Button>
+        </form>
       </div>
     </div>
   );

@@ -3,10 +3,7 @@ import Hero from "@/components/Hero";
 import SampleAuditPreview from "@/components/SampleAuditPreview";
 import ProblemSection from "@/components/ProblemSection";
 import HowItWorks from "@/components/HowItWorks";
-import CompetitorComparison from "@/components/CompetitorComparison";
-import AuditCoverage from "@/components/AuditCoverage";
-import TrustMethodology from "@/components/TrustMethodology";
-import ReviewOptions from "@/components/ReviewOptions";
+import TrustAndConsultation from "@/components/TrustAndConsultation";
 import FAQ from "@/components/FAQ";
 import { FAQS } from "@/components/faqData";
 import FinalCTA from "@/components/FinalCTA";
@@ -58,10 +55,7 @@ export default function Home() {
         <SampleAuditPreview />
         <ProblemSection />
         <HowItWorks />
-        <CompetitorComparison />
-        <AuditCoverage />
-        <TrustMethodology />
-        <ReviewOptions />
+        <TrustAndConsultation />
         <FAQ />
         <FinalCTA />
       </main>

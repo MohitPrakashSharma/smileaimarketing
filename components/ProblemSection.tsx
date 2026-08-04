@@ -5,18 +5,18 @@ import { IconMapPinOff, IconStar, IconClock } from "@/components/icons";
 const PAINS = [
   {
     Icon: IconMapPinOff,
-    title: "Low local search visibility",
-    detail: "Your clinic is missing from Google Map packs when nearby patients search for local dental services.",
+    title: "Hard to find locally",
+    detail: "Your practice may not appear when nearby patients are ready to book.",
   },
   {
     Icon: IconStar,
-    title: "Weak review signals",
-    detail: "Nearby dental practices show higher star ratings and consistent patient reviews, capturing local trust first.",
+    title: "Competitors look more trusted",
+    detail: "Stronger reviews and profiles can make another clinic feel like the safer choice.",
   },
   {
     Icon: IconClock,
-    title: "No instant online booking",
-    detail: "High-intent website visitors bounce to other clinics because they cannot instantly request or book visits on mobile.",
+    title: "Booking takes too much effort",
+    detail: "Mobile visitors leave when calling or booking is not quick and obvious.",
   },
 ];
 
@@ -29,11 +29,8 @@ export default function ProblemSection() {
             THE REALITY
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Why local clinics lose patients before they call.
+            Where practices lose new patients.
           </h2>
-          <p className="mt-4 text-body text-muted-foreground">
-            If your digital presence is buried or slow, local patients choose competitors without ever contacting you.
-          </p>
         </div>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-3">

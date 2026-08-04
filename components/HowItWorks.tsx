@@ -3,21 +3,9 @@
 import { IconTarget, IconTrendingUp, IconCalendarCheck } from "@/components/icons";
 
 const STEPS = [
-  {
-    Icon: IconTarget,
-    title: "Enter your clinic and city",
-    copy: "Provide your public website URL and primary search location to start the automated visibility scan.",
-  },
-  {
-    Icon: IconTrendingUp,
-    title: "We analyze public signals",
-    copy: "Our algorithms test your Google Maps placement, directory consistency, and mobile performance.",
-  },
-  {
-    Icon: IconCalendarCheck,
-    title: "Review with a specialist",
-    copy: "Access your report online or schedule a brief remote screen share to walk through your local gaps.",
-  },
+  { Icon: IconTarget, title: "Enter your website and city" },
+  { Icon: IconTrendingUp, title: "Review the clearest gaps" },
+  { Icon: IconCalendarCheck, title: "Discuss what to fix first" },
 ];
 
 export default function HowItWorks() {
@@ -29,28 +17,25 @@ export default function HowItWorks() {
             THE PROCESS
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Three steps to reveal local growth gaps.
+            How it works.
           </h2>
           <p className="mt-4 text-body text-muted-foreground">
-            We extract public search engine information and prepare your prioritized action plan in minutes.
+            A focused audit built around the decisions that affect patient enquiries.
           </p>
         </div>
 
         <ol className="mt-12 grid gap-6 sm:grid-cols-3">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="relative rounded-2xl border border-border bg-surface p-6 shadow-sm">
-              <div className="flex items-center gap-4">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
-                  <step.Icon className="h-6 w-6" />
-                </span>
+            <li key={step.title} className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
+                <step.Icon className="h-6 w-6" />
+              </span>
+              <div>
                 <span className="font-label text-xs font-semibold text-primary">
                   STEP {String(i + 1).padStart(2, "0")}
                 </span>
+                <h3 className="mt-1 text-body font-semibold text-foreground">{step.title}</h3>
               </div>
-              <h3 className="mt-5 text-heading-3 font-semibold text-foreground">{step.title}</h3>
-              <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
-                {step.copy}
-              </p>
             </li>
           ))}
         </ol>

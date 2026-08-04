@@ -257,6 +257,45 @@ input, select, textarea {
   color: var(--color-primary-foreground);
 }
 
+/* 8. Shared subtle animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.6s var(--ease-out) both;
+}
+@utility animate-fade-in {
+  animation: fade-in 0.5s var(--ease-out) both;
+}
+@utility animate-scale-in {
+  animation: scale-in 0.35s var(--ease-out) both;
+}
+
 /* prefers-reduced-motion block */
 @media (prefers-reduced-motion: reduce) {
   html {

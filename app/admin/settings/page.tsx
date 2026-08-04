@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import FormField from "@/components/ui/FormField";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 export default function AdminSettingsPage() {
   const [scraperDelay, setScraperDelay] = useState(3000);
@@ -14,52 +17,43 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className="max-w-xl space-y-6 font-body">
+    <div className="max-w-xl space-y-6">
       <div>
-        <h3 className="font-display text-xl font-semibold text-white">System Settings</h3>
-        <p className="text-xs text-slate mt-1 font-body">Configure background workers, email SMTP options, and compliance parameters.</p>
+        <h1 className="text-heading-2 font-semibold text-foreground">Settings</h1>
+        <p className="mt-1 text-body-small text-muted-foreground">
+          Configure background workers, email delivery, and compliance parameters.
+        </p>
       </div>
 
       {success && (
-        <div className="rounded-xl bg-teal/10 border border-teal/20 p-4 text-center text-sm font-semibold text-teal">
+        <div role="status" className="animate-fade-in rounded-xl border border-primary/20 bg-accent-soft p-4 text-center text-body-small font-semibold text-primary">
           Settings updated successfully!
         </div>
       )}
 
-      <form onSubmit={handleSave} className="rounded-3xl border border-white/10 bg-white/5 p-6 space-y-6">
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="scraper-delay" className="block text-[10px] font-bold uppercase tracking-wider text-slate mb-1">Clinic Crawler Delay (ms)</label>
-            <input
-              id="scraper-delay"
-              type="number"
-              required
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-              value={scraperDelay}
-              onChange={(e) => setScraperDelay(Number(e.target.value))}
-            />
-            <span className="text-[10px] text-slate mt-1 block">Throttle delay between HTTP requests to prevent clinic site blocking.</span>
-          </div>
+      <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-border bg-surface p-6">
+        <FormField id="scraper-delay" label="Crawler Delay (ms)" required optionalLabel={false} hint="Throttle delay between requests to avoid rate limits.">
+          <Input
+            id="scraper-delay"
+            type="number"
+            required
+            inputMode="numeric"
+            value={scraperDelay}
+            onChange={(e) => setScraperDelay(Number(e.target.value))}
+          />
+        </FormField>
 
-          <div>
-            <label htmlFor="smtp-host" className="block text-[10px] font-bold uppercase tracking-wider text-slate mb-1">Outreach SMTP Server</label>
-            <input
-              id="smtp-host"
-              type="text"
-              required
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-              value={smtpHost}
-              onChange={(e) => setSmtpHost(e.target.value)}
-            />
-          </div>
-        </div>
+        <FormField id="smtp-host" label="Outreach SMTP Server" required optionalLabel={false}>
+          <Input
+            id="smtp-host"
+            type="text"
+            required
+            value={smtpHost}
+            onChange={(e) => setSmtpHost(e.target.value)}
+          />
+        </FormField>
 
-        <button
-          type="submit"
-          className="rounded-full bg-teal px-6 py-3 text-xs font-bold text-ink hover:bg-teal-deep hover:text-white transition-colors"
-        >
-          Save Configuration
-        </button>
+        <Button type="submit">Save Configuration</Button>
       </form>
     </div>
   );

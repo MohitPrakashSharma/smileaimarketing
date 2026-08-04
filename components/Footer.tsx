@@ -3,7 +3,7 @@
 const LINKS = [
   { href: "#how-it-works", label: "How It Works" },
   { href: "#sample-audit", label: "Sample Audit" },
-  { href: "#audit-coverage", label: "What We Analyse" },
+  { href: "#trust-consultation", label: "Consultation" },
   { href: "#faq", label: "FAQ" },
 ];
 

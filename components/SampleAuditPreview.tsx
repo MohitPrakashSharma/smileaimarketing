@@ -42,9 +42,9 @@ export default function SampleAuditPreview() {
   ];
 
   const actions = [
-    "Fix 3 inconsistent Google Maps address details causing search penalties.",
-    "Compress large images to speed up page load on mobile devices.",
-    "Add an online booking button above the fold to capture mobile visitors.",
+    "Fix inconsistent Google Maps address details.",
+    "Speed up page load on mobile devices.",
+    "Add a booking option visitors can find immediately.",
   ];
 
   return (
@@ -55,10 +55,10 @@ export default function SampleAuditPreview() {
             SAMPLE AUDIT PREVIEW
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            What your free report looks like.
+            Your audit, at a glance.
           </h2>
           <p className="mt-4 text-body text-muted-foreground">
-            A clear checklist of your local competitive gaps, website response speeds, and map optimization issues.
+            See the visibility gaps, competitor advantages, and actions worth prioritising.
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export default function SampleAuditPreview() {
 
           {/* Prioritized Actions */}
           <div className="border-t border-border bg-surface p-6 sm:p-8">
-            <h3 className="text-heading-3 font-semibold text-foreground">Top 3 Recommended Actions</h3>
+            <h3 className="text-heading-3 font-semibold text-foreground">What to fix first</h3>
             <ol className="mt-6 space-y-4">
               {actions.map((action, index) => (
                 <li key={index} className="flex items-start gap-4">
@@ -119,7 +119,7 @@ export default function SampleAuditPreview() {
             onClick={handleScrollToHero}
             className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
           >
-            Run This Audit for My Clinic
+            Audit My Practice
           </button>
         </div>
       </div>
