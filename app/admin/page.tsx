@@ -1,95 +1,119 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  IconStorefront,
   IconTarget,
-  IconTrendingUp,
-  IconCalendarCheck,
+  IconStorefront,
   IconChat,
-  IconMapPin,
+  IconCalendarCheck,
+  IconTrendingUp,
+  IconSettings,
+  IconCheck,
 } from "@/components/icons";
 
-type Business = {
+interface CampaignItem {
+  id: string;
+  name: string;
+  city: string;
+  status: string;
+  createdAt: string;
+}
+
+interface BusinessItem {
   id: string;
   name: string;
   website: string;
   city: string;
   status: string;
   opportunityScore: number;
-  createdAt: string;
-};
+  contactCount: number;
+  auditCount: number;
+}
 
-type Audit = {
+interface AuditItem {
   id: string;
   publicToken: string;
   score: number;
   status: string;
-  createdAt: string;
-  business?: { name: string; website: string };
-};
+  pdfStatus: string;
+  pdfUrl?: string;
+  viewCount: number;
+  business?: { name: string; website: string; id: string };
+}
 
-type Appointment = {
+interface AppointmentItem {
   id: string;
   type: "ONLINE" | "IN_PERSON";
   status: string;
   scheduledTime: string;
-  createdAt: string;
-  business?: { name: string; website: string };
+  business?: { id: string; name: string };
   contact?: { firstName: string; lastName: string; email: string };
-};
+}
 
-type OutreachMessage = {
+interface OutreachItem {
   id: string;
   status: string;
   createdAt: string;
-  contact?: { firstName: string; lastName: string; email: string; business?: { website: string } };
+  contact?: { firstName: string; lastName: string; email: string; business?: { id: string; name: string } };
   step?: { subject: string };
-};
+}
 
-type ActivityItem = {
-  id: string;
-  createdAt: string;
-  label: string;
-  detail: string;
-  Icon: typeof IconStorefront;
-};
+interface IntegrationStatusItem {
+  key: string;
+  name: string;
+  status: string;
+  details: string;
+}
 
 export default function AdminOverviewPage() {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [audits, setAudits] = useState<Audit[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [messages, setMessages] = useState<OutreachMessage[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
+  const [audits, setAudits] = useState<AuditItem[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [messages, setMessages] = useState<OutreachItem[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchAll() {
-      try {
-        const [bRes, aRes, apRes, oRes] = await Promise.all([
-          fetch("/api/admin/businesses"),
-          fetch("/api/admin/audits"),
-          fetch("/api/admin/appointments"),
-          fetch("/api/admin/outreach"),
-        ]);
-        const [bData, aData, apData, oData] = await Promise.all([
-          bRes.json(),
-          aRes.json(),
-          apRes.json(),
-          oRes.json(),
-        ]);
-        if (bRes.ok) setBusinesses(bData.businesses || []);
-        if (aRes.ok) setAudits(aData.audits || []);
-        if (apRes.ok) setAppointments(apData.appointments || []);
-        if (oRes.ok) setMessages(oData.messages || []);
-      } catch (err) {
-        console.error("Error loading overview:", err);
-      } finally {
-        setLoading(false);
-      }
+  const fetchOverviewData = useCallback(async () => {
+    try {
+      const [cRes, bRes, aRes, apRes, oRes, iRes] = await Promise.all([
+        fetch("/api/admin/campaigns"),
+        fetch("/api/admin/businesses"),
+        fetch("/api/admin/audits"),
+        fetch("/api/admin/appointments"),
+        fetch("/api/admin/outreach"),
+        fetch("/api/admin/integrations/status"),
+      ]);
+
+      const [cData, bData, aData, apData, oData, iData] = await Promise.all([
+        cRes.json(),
+        bRes.json(),
+        aRes.json(),
+        apRes.json(),
+        oRes.json(),
+        iRes.json(),
+      ]);
+
+      if (cRes.ok) setCampaigns(cData.campaigns || []);
+      if (bRes.ok) setBusinesses(bData.businesses || []);
+      if (aRes.ok) setAudits(aData.audits || []);
+      if (apRes.ok) setAppointments(apData.appointments || []);
+      if (oRes.ok) setMessages(oData.messages || []);
+      if (iRes.ok) setIntegrations(iData.integrations || []);
+    } catch (err) {
+      console.error("Failed to load overview data:", err);
+    } finally {
+      setLoading(false);
     }
-    fetchAll();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchOverviewData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchOverviewData]);
 
   if (loading) {
     return (
@@ -99,206 +123,289 @@ export default function AdminOverviewPage() {
     );
   }
 
-  const completedAudits = audits.filter((a) => a.status === "COMPLETED").slice(0, 5);
-  const hotLeads = [...businesses]
-    .filter((b) => b.opportunityScore >= 60)
-    .sort((a, b) => b.opportunityScore - a.opportunityScore)
-    .slice(0, 5);
-  const followUpsDue = businesses.filter(
-    (b) => b.status === "OUTREACH_PENDING" || b.status === "OUTREACH_ACTIVE"
+  // 1. Campaigns requiring action
+  const campaignsNeedingAction = campaigns.filter(
+    (c) => c.status === "DRAFT" || c.status === "PAUSED" || c.status === "FAILED"
   );
-  const queuedEmails = messages.filter((m) => m.status === "QUEUED").slice(0, 5);
-  const onlineMeetings = appointments.filter((a) => a.type === "ONLINE" && a.status === "SCHEDULED").slice(0, 5);
-  const inPersonRequests = appointments.filter((a) => a.type === "IN_PERSON" && a.status === "SCHEDULED").slice(0, 5);
 
-  const activity: ActivityItem[] = [
-    ...audits.map((a) => ({
-      id: `audit-${a.id}`,
-      createdAt: a.createdAt,
-      label: `${a.business?.name || "A practice"} audit ${a.status === "COMPLETED" ? "completed" : "started"}`,
-      detail: `Score ${a.score}/100`,
-      Icon: IconTarget,
-    })),
-    ...appointments.map((a) => ({
-      id: `appt-${a.id}`,
-      createdAt: a.createdAt,
-      label: `${a.business?.name || "A practice"} booked a ${a.type === "ONLINE" ? "video review" : "in-person visit"}`,
-      detail: a.contact ? `${a.contact.firstName} ${a.contact.lastName}` : "",
-      Icon: a.type === "ONLINE" ? IconCalendarCheck : IconMapPin,
-    })),
-    ...messages.map((m) => ({
-      id: `msg-${m.id}`,
-      createdAt: m.createdAt,
-      label: `Outreach ${m.status.toLowerCase()} to ${m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "a lead"}`,
-      detail: m.step?.subject || "",
-      Icon: IconChat,
-    })),
-  ]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
+  // 2. Businesses awaiting verification
+  const businessesAwaitingVerification = businesses.filter(
+    (b) => b.status === "DISCOVERED" || b.status === "PENDING_VERIFICATION"
+  );
+
+  // 3. Audits ready
+  const auditsReady = audits.filter((a) => a.status === "COMPLETED");
+
+  // 4. PDFs failed or ready
+  const pdfsAttention = audits.filter(
+    (a) => a.pdfStatus === "FAILED" || a.pdfStatus === "READY"
+  );
+
+  // 5. Contacts missing
+  const contactsMissing = businesses.filter((b) => b.contactCount === 0);
+
+  // 6. Emails awaiting approval
+  const emailsAwaitingApproval = messages.filter(
+    (m) => m.status === "QUEUED" || m.status === "PENDING"
+  );
+
+  // 7. Hot report viewers
+  const hotReportViewers = audits
+    .filter((a) => a.viewCount > 0)
+    .sort((a, b) => b.viewCount - a.viewCount);
+
+  // 8. Meetings requested
+  const meetingsRequested = appointments.filter((ap) => ap.status === "REQUESTED");
+
+  // 9. Integration failures/warnings
+  const integrationIssues = integrations.filter(
+    (i) => i.status === "MISSING" || i.status === "MOCKED" || i.status === "TEST_MODE"
+  );
 
   return (
     <div className="space-y-8">
-      {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Businesses Tracked" value={businesses.length} Icon={IconStorefront} />
-        <StatTile label="Audits Completed" value={completedAudits.length} Icon={IconTarget} />
-        <StatTile label="Hot Leads" value={hotLeads.length} Icon={IconTrendingUp} />
-        <StatTile label="Meetings Scheduled" value={onlineMeetings.length + inPersonRequests.length} Icon={IconCalendarCheck} />
+      {/* Header Banner */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-heading-2 font-bold text-foreground">Campaign Command Centre</h1>
+          <p className="mt-1 text-body-small text-muted-foreground">
+            Actionable queues requiring admin intervention across active practice lead funnels.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/campaigns"
+            className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
+          >
+            + Create New Campaign
+          </Link>
+          <Link
+            href="/admin/integrations"
+            className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-4 text-xs font-semibold text-foreground hover:bg-surface-muted"
+          >
+            System Status
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Queue
+      {/* 9 Actionable Queues Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* 1. Campaigns Requiring Action */}
+        <QueueCard
+          title="Campaigns Requiring Action"
+          badgeCount={campaignsNeedingAction.length}
+          badgeColor="bg-amber-500/10 text-amber-400"
+          Icon={IconTarget}
+          emptyText="All campaigns active & running smoothly."
+          viewAllHref="/admin/campaigns"
+          items={campaignsNeedingAction.map((c) => ({
+            id: c.id,
+            primary: c.name,
+            secondary: `${c.city} • ${c.status}`,
+            href: `/admin/campaigns/${c.id}`,
+            actionLabel: "Control Funnel",
+          }))}
+        />
+
+        {/* 2. Businesses Awaiting Verification */}
+        <QueueCard
+          title="Businesses Awaiting Verification"
+          badgeCount={businessesAwaitingVerification.length}
+          badgeColor="bg-indigo-500/10 text-indigo-400"
+          Icon={IconStorefront}
+          emptyText="No discovered practices pending review."
+          viewAllHref="/admin/businesses?status=DISCOVERED"
+          items={businessesAwaitingVerification.map((b) => ({
+            id: b.id,
+            primary: b.name,
+            secondary: b.website.replace(/^https?:\/\//, ""),
+            href: `/admin/businesses/${b.id}`,
+            actionLabel: "Verify Practice",
+          }))}
+        />
+
+        {/* 3. Audits Ready */}
+        <QueueCard
           title="Audits Ready for Review"
-          emptyText="No completed audits yet."
-          items={completedAudits.map((a) => ({
+          badgeCount={auditsReady.length}
+          badgeColor="bg-emerald-500/10 text-emerald-400"
+          Icon={IconCheck}
+          emptyText="No completed audits pending review."
+          viewAllHref="/admin/audits"
+          items={auditsReady.slice(0, 5).map((a) => ({
             id: a.id,
-            primary: a.business?.name || "Practice",
-            secondary: `Score ${a.score}/100`,
+            primary: a.business?.name || "Practice Audit",
+            secondary: `Opportunity Score ${a.score}/100`,
             href: `/audit/${a.publicToken}`,
+            actionLabel: "View Report",
           }))}
         />
 
-        <Queue
-          title="Hot Leads"
-          emptyText="No high-opportunity leads yet."
-          items={hotLeads.map((b) => ({
+        {/* 4. PDFs Failed or Ready */}
+        <QueueCard
+          title="PDF Reports (Ready / Failed)"
+          badgeCount={pdfsAttention.length}
+          badgeColor="bg-primary/10 text-primary"
+          Icon={IconTarget}
+          emptyText="No PDF actions currently required."
+          viewAllHref="/admin/audits"
+          items={pdfsAttention.slice(0, 5).map((a) => ({
+            id: a.id,
+            primary: a.business?.name || "Audit PDF",
+            secondary: `Status: ${a.pdfStatus}`,
+            href: `/api/audit/${a.publicToken}/pdf`,
+            actionLabel: a.pdfStatus === "READY" ? "Download PDF" : "Regenerate PDF",
+          }))}
+        />
+
+        {/* 5. Contacts Missing */}
+        <QueueCard
+          title="Practices Missing Contacts"
+          badgeCount={contactsMissing.length}
+          badgeColor="bg-danger/10 text-danger"
+          Icon={IconStorefront}
+          emptyText="All practices have decision maker contacts."
+          viewAllHref="/admin/businesses?missing=contact"
+          items={contactsMissing.slice(0, 5).map((b) => ({
             id: b.id,
             primary: b.name,
-            secondary: `${b.city} • ${b.opportunityScore}/100`,
-            href: "/admin/businesses",
+            secondary: `${b.city} • No contact found`,
+            href: `/admin/businesses/${b.id}`,
+            actionLabel: "Add Contact",
           }))}
         />
 
-        <Queue
-          title="Follow-ups Due"
-          emptyText="No outreach in progress."
-          items={followUpsDue.map((b) => ({
-            id: b.id,
-            primary: b.name,
-            secondary: b.status.replace(/_/g, " "),
-            href: "/admin/businesses",
-          }))}
-        />
-
-        <Queue
+        {/* 6. Emails Awaiting Approval */}
+        <QueueCard
           title="Emails Awaiting Approval"
-          emptyText="No queued outreach emails."
-          items={queuedEmails.map((m) => ({
+          badgeCount={emailsAwaitingApproval.length}
+          badgeColor="bg-amber-500/10 text-amber-400"
+          Icon={IconChat}
+          emptyText="No outreach messages queued."
+          viewAllHref="/admin/outreach"
+          items={emailsAwaitingApproval.slice(0, 5).map((m) => ({
             id: m.id,
-            primary: m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Lead",
-            secondary: m.step?.subject || "Marketing sequence",
+            primary: m.contact?.business?.name || (m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Lead"),
+            secondary: m.step?.subject || "Initial Outreach",
             href: "/admin/outreach",
+            actionLabel: "Review & Approve",
           }))}
         />
 
-        <Queue
-          title="Online Meetings"
-          emptyText="No video reviews scheduled."
-          items={onlineMeetings.map((a) => ({
+        {/* 7. Hot Report Viewers */}
+        <QueueCard
+          title="Hot Audit Report Viewers"
+          badgeCount={hotReportViewers.length}
+          badgeColor="bg-emerald-500/10 text-emerald-400"
+          Icon={IconTrendingUp}
+          emptyText="No recent report views detected."
+          viewAllHref="/admin/audits"
+          items={hotReportViewers.slice(0, 5).map((a) => ({
             id: a.id,
             primary: a.business?.name || "Practice",
-            secondary: new Date(a.scheduledTime).toLocaleString(),
-            href: "/admin/appointments",
+            secondary: `${a.viewCount} views • Score ${a.score}/100`,
+            href: `/admin/businesses/${a.business?.id || ""}`,
+            actionLabel: "Follow Up Now",
           }))}
         />
 
-        <Queue
-          title="In-Person Requests"
-          emptyText="No visit requests pending."
-          items={inPersonRequests.map((a) => ({
-            id: a.id,
-            primary: a.business?.name || "Practice",
-            secondary: a.contact ? `${a.contact.firstName} ${a.contact.lastName}` : "",
-            href: "/admin/appointments",
+        {/* 8. Meetings Requested */}
+        <QueueCard
+          title="Meetings Requested"
+          badgeCount={meetingsRequested.length}
+          badgeColor="bg-emerald-500/10 text-emerald-400"
+          Icon={IconCalendarCheck}
+          emptyText="No consultation or visit requests pending."
+          viewAllHref="/admin/meetings"
+          items={meetingsRequested.slice(0, 5).map((ap) => ({
+            id: ap.id,
+            primary: ap.business?.name || "Practice",
+            secondary: `${ap.type === "ONLINE" ? "Video Review" : "In-Person Visit"} • ${ap.contact ? ap.contact.firstName : ""}`,
+            href: "/admin/meetings",
+            actionLabel: "Approve / Schedule",
           }))}
         />
-      </div>
 
-      {/* Recent activity */}
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <h2 className="text-heading-3 font-semibold text-foreground">Recent Activity</h2>
-        {activity.length === 0 ? (
-          <p className="mt-4 text-body-small text-muted-foreground">No recent activity yet.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-border">
-            {activity.map((item) => (
-              <li key={item.id} className="flex items-start gap-3 py-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
-                  <item.Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-body-small font-semibold text-foreground">{item.label}</p>
-                  {item.detail && <p className="text-metadata text-muted-foreground">{item.detail}</p>}
-                </div>
-                <span className="ml-auto shrink-0 text-metadata text-muted-foreground">
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* 9. Integration Failures / Health */}
+        <QueueCard
+          title="Integration Health Warnings"
+          badgeCount={integrationIssues.length}
+          badgeColor="bg-amber-500/10 text-amber-400"
+          Icon={IconSettings}
+          emptyText="All integrations green and connected."
+          viewAllHref="/admin/integrations"
+          items={integrationIssues.map((i) => ({
+            id: i.key,
+            primary: i.name,
+            secondary: i.details,
+            href: "/admin/integrations",
+            actionLabel: "Check Status",
+          }))}
+        />
       </div>
     </div>
   );
 }
 
-function StatTile({
-  label,
-  value,
-  Icon,
-}: {
-  label: string;
-  value: number;
-  Icon: typeof IconStorefront;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-primary">
-        <Icon className="h-4.5 w-4.5" />
-      </span>
-      <span className="mt-3 block text-heading-2 font-bold text-foreground">{value}</span>
-      <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function Queue({
+function QueueCard({
   title,
-  items,
+  badgeCount,
+  badgeColor,
+  Icon,
   emptyText,
+  viewAllHref,
+  items,
 }: {
   title: string;
-  items: { id: string; primary: string; secondary: string; href: string }[];
+  badgeCount: number;
+  badgeColor: string;
+  Icon: typeof IconTarget;
   emptyText: string;
+  viewAllHref: string;
+  items: { id: string; primary: string; secondary: string; href: string; actionLabel: string }[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-body font-bold text-foreground">{title}</h2>
-        <span className="rounded-full bg-surface-muted px-2 py-0.5 text-metadata font-bold text-muted-foreground">
-          {items.length}
+    <div className="flex flex-col rounded-2xl border border-border bg-surface p-5">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-primary">
+            <Icon className="h-4 w-4" />
+          </span>
+          <h2 className="text-body font-bold text-foreground">{title}</h2>
+        </div>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${badgeColor}`}>
+          {badgeCount}
         </span>
       </div>
+
       {items.length === 0 ? (
-        <p className="mt-4 text-body-small text-muted-foreground">{emptyText}</p>
+        <p className="my-6 text-center text-body-small text-muted-foreground">{emptyText}</p>
       ) : (
-        <ul className="mt-3 divide-y divide-border">
+        <ul className="my-2 divide-y divide-border/40">
           {items.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={item.href}
-                className="flex min-h-12 items-center justify-between gap-3 py-2.5 text-body-small hover:text-primary"
-              >
-                <span className="truncate font-semibold text-foreground">{item.primary}</span>
-                <span className="shrink-0 text-metadata text-muted-foreground">{item.secondary}</span>
-              </Link>
+            <li key={item.id} className="py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-body-small font-semibold text-foreground">{item.primary}</p>
+                  <p className="truncate text-metadata text-muted-foreground">{item.secondary}</p>
+                </div>
+                <Link
+                  href={item.href}
+                  className="shrink-0 rounded-lg bg-surface-muted px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/15"
+                >
+                  {item.actionLabel}
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      <div className="mt-auto pt-3 text-right">
+        <Link href={viewAllHref} className="text-metadata font-bold text-muted-foreground hover:text-primary">
+          View All Items &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

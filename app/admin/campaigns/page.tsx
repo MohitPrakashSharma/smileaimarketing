@@ -109,7 +109,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
           keywords,
           competitorCount,
           dataFreshnessDays,
-          dataProvider: "MOCK",
+          dataProvider: "TEST_PROVIDER",
           outreachDailyLimit,
           testMode,
         }),
