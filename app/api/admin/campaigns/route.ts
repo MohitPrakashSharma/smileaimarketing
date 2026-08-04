@@ -2,12 +2,25 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { z } from "zod";
-import { normalizeDomain, normalizeName } from "@/lib/normalize";
+import { logEngagementEvent } from "@/lib/events";
 
 const campaignSchema = z.object({
   name: z.string().min(3),
+  country: z.string().min(2).default("US"),
+  state: z.string().optional(),
   city: z.string().min(2),
   category: z.string().min(2),
+  maxBusinesses: z.number().int().min(1).max(50).default(10),
+  minReviewCount: z.number().int().min(0).optional(),
+  websiteRequired: z.boolean().default(true),
+  excludeChains: z.boolean().default(false),
+  excludeExistingContacts: z.boolean().default(false),
+  keywords: z.array(z.string().min(1)).default([]),
+  competitorCount: z.number().int().min(1).max(10).default(3),
+  dataFreshnessDays: z.number().int().min(1).max(90).default(30),
+  dataProvider: z.string().default("TEST_PROVIDER"),
+  outreachDailyLimit: z.number().int().min(1).max(50).default(8),
+  testMode: z.boolean().default(true),
 });
 
 export async function GET(request: Request) {
@@ -47,46 +60,21 @@ export async function POST(request: Request) {
     const result = campaignSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: result.error.issues[0]?.message || "Invalid parameters" },
+        { status: 400 }
+      );
     }
-
-    const { name, city, category } = result.data;
 
     const campaign = await prisma.campaign.create({
       data: {
-        name,
-        city,
-        category,
-        status: "ACTIVE",
+        ...result.data,
+        status: "DRAFT",
       },
     });
 
-    // Simulate Background Discovery Worker by seeding 3 discovered businesses for this campaign.
-    // NOTE: this is still MOCKED discovery (docs/mvp-readiness.md #8-9) — real
-    // discovery is blocked on Google Places/DataForSEO credentials. The
-    // normalization fields are populated now so the dedup mechanism itself
-    // is exercised and ready for when a real provider is wired in.
-    const seedBusinesses = [
-      { name: `${city} Dental Care Group`, website: `https://${city.toLowerCase().replace(/\s+/g, "")}dentalcare.com` },
-      { name: `Apex Family Dentistry`, website: `https://apexfamilydentist${city.toLowerCase().replace(/\s+/g, "")}.com` },
-      { name: `Downtown Dental Studio`, website: `https://downtowndental${city.toLowerCase().replace(/\s+/g, "")}.com` },
-    ];
-
-    await prisma.business.createMany({
-      data: seedBusinesses.map((b) => ({
-        campaignId: campaign.id,
-        name: b.name,
-        normalizedName: normalizeName(b.name),
-        website: b.website,
-        normalizedDomain: normalizeDomain(b.website),
-        city,
-        category,
-        status: "DISCOVERED" as const,
-        opportunityScore: 0,
-        providerSource: "SEED",
-        lastCheckedAt: new Date(),
-      })),
-      skipDuplicates: true,
+    await logEngagementEvent({
+      eventType: "campaign_created",
     });
 
     return NextResponse.json({ campaign }, { status: 201 });

@@ -1,9 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Button from "@/components/ui/Button";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { ActionMenu } from "@/components/admin/ActionMenu";
+import { EmptyState } from "@/components/admin/EmptyState";
+import { IconSearch } from "@/components/icons";
 
 type Business = {
   id: string;
@@ -13,14 +16,9 @@ type Business = {
   country: string;
   status: string;
   opportunityScore: number;
+  contactCount?: number;
+  updatedAt?: string;
 };
-
-const STATUS_CLASSES: Record<string, string> = {
-  CONVERTED: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-  AUDITED: "bg-primary/10 text-primary border border-primary/20",
-  OUTREACH_ACTIVE: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
-};
-const DEFAULT_STATUS_CLASS = "bg-muted-foreground/10 text-muted-foreground border border-border";
 
 function BusinessesList() {
   const searchParams = useSearchParams();
@@ -29,8 +27,9 @@ function BusinessesList() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState(query);
 
-  const fetchBusinesses = async () => {
+  const fetchBusinesses = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/businesses");
       const data = await res.json();
@@ -40,11 +39,14 @@ function BusinessesList() {
     } catch (err) {
       console.error("Error fetching businesses:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchBusinesses();
-  }, []);
+    const timer = setTimeout(() => {
+      void fetchBusinesses();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchBusinesses]);
 
   const handleRunAudit = async (businessId: string) => {
     setLoadingId(businessId);
@@ -53,7 +55,7 @@ function BusinessesList() {
       const res = await fetch(`/api/admin/businesses/${businessId}/audit`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Audit execution failed");
-      fetchBusinesses();
+      await fetchBusinesses();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to trigger audit");
     } finally {
@@ -68,7 +70,7 @@ function BusinessesList() {
       const res = await fetch(`/api/admin/businesses/${businessId}/outreach`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to start outreach sequence");
-      fetchBusinesses();
+      await fetchBusinesses();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to trigger outreach");
     } finally {
@@ -76,125 +78,163 @@ function BusinessesList() {
     }
   };
 
-  const filtered = query
+  const filtered = search
     ? businesses.filter(
-        (b) => b.name.toLowerCase().includes(query) || b.website.toLowerCase().includes(query)
+        (b) => b.name.toLowerCase().includes(search.toLowerCase()) || b.city.toLowerCase().includes(search.toLowerCase())
       )
     : businesses;
 
-  const renderActions = (b: Business) => {
+  const renderPrimaryAction = (b: Business) => {
     if (b.status === "DISCOVERED") {
       return (
-        <Button
-          variant="primary"
-          className="!h-11 !px-4 !text-metadata"
+        <button
           onClick={() => handleRunAudit(b.id)}
           disabled={loadingId !== null}
-          loading={loadingId === b.id}
+          className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
-          Audit
-        </Button>
+          {loadingId === b.id ? "Auditing..." : "Run Audit"}
+        </button>
       );
     }
     if (b.status === "AUDITED" || b.status === "OUTREACH_PENDING") {
       return (
-        <Button
-          variant="secondary"
-          className="!h-11 !px-4 !text-metadata"
+        <button
           onClick={() => handleStartOutreach(b.id)}
           disabled={loadingId !== null}
-          loading={loadingId === b.id}
+          className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
         >
-          Approve Outreach
-        </Button>
+          {loadingId === b.id ? "Queuing..." : "Approve Outreach"}
+        </button>
       );
     }
-    return <span className="text-metadata font-semibold italic text-muted-foreground">Authorized</span>;
+    return (
+      <Link
+        href={`/admin/businesses/${b.id}`}
+        className="inline-flex h-8 items-center rounded-lg bg-surface-muted px-3 text-xs font-bold text-foreground transition-colors hover:bg-border"
+      >
+        View Details
+      </Link>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-heading-2 font-semibold text-foreground">Discovered Businesses</h1>
-        <p className="mt-1 text-body-small text-muted-foreground">
-          Manage discovered practices, view opportunity scores, and authorize outreach.
-          {query && ` Showing results for "${query}".`}
-        </p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Practice Leads</h1>
+          <p className="text-body-small text-muted-foreground">
+            View practice lead status, opportunity scores, and execute next operational actions.
+          </p>
+        </div>
       </div>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
+        <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-xs font-bold text-danger">
           {error}
         </div>
       )}
 
+      {/* Search Input */}
+      <div className="relative max-w-md">
+        <IconSearch className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter leads by practice name or city..."
+          className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-8 text-center text-body-small text-muted-foreground">
-          {businesses.length === 0
-            ? "No businesses found. Create a campaign to trigger auto-discovery."
-            : "No businesses match your search."}
-        </div>
+        <EmptyState
+          title={businesses.length === 0 ? "No leads discovered yet" : "No leads match search"}
+          message={businesses.length === 0 ? "Run a campaign to auto-discover practices." : "Try adjusting your search query."}
+        />
       ) : (
         <>
-          {/* Mobile: card list */}
+          {/* Mobile Cards (< 1024px) */}
           <div className="space-y-3 lg:hidden">
             {filtered.map((b) => (
-              <div key={b.id} className="rounded-2xl border border-border bg-surface p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <Link href={`/admin/businesses/${b.id}`} className="min-w-0 hover:opacity-80">
-                    <p className="truncate font-semibold text-foreground">{b.name}</p>
-                    <p className="truncate text-metadata text-muted-foreground">
-                      {b.website.replace(/^https?:\/\//, "")}
-                    </p>
-                    <p className="mt-0.5 text-metadata text-muted-foreground">{b.city}, {b.country}</p>
-                  </Link>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[b.status] || DEFAULT_STATUS_CLASS}`}>
-                    {b.status.replace(/_/g, " ")}
-                  </span>
+              <div key={b.id} className="rounded-xl border border-border bg-surface p-3.5 space-y-2.5 shadow-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <Link href={`/admin/businesses/${b.id}`} className="font-bold text-foreground text-sm hover:text-primary">
+                      {b.name}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">{b.city}, {b.country}</p>
+                  </div>
+                  <StatusBadge status={b.status} />
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-body-small font-bold text-foreground">
-                    {b.status === "DISCOVERED" ? "No score yet" : `${b.opportunityScore}/100`}
-                  </span>
-                  {renderActions(b)}
+
+                <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs">
+                  <span className="font-bold text-primary">Score: {b.opportunityScore}/100</span>
+                  <span className="text-muted-foreground">{b.contactCount ? `${b.contactCount} contact(s)` : "No contact"}</span>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                  {renderPrimaryAction(b)}
+                  <ActionMenu
+                    items={[
+                      { label: "View Practice", onClick: () => (window.location.href = `/admin/businesses/${b.id}`) },
+                      { label: "Run Audit", onClick: () => handleRunAudit(b.id) },
+                      { label: "Approve Outreach", onClick: () => handleStartOutreach(b.id) },
+                    ]}
+                  />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Desktop: table */}
-          <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface lg:block">
+          {/* Desktop Table (>= 1024px) */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-xs lg:block">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-border bg-surface-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="p-4">Business</th>
-                    <th className="p-4">Website</th>
-                    <th className="p-4">Location</th>
-                    <th className="p-4 text-center">Status</th>
-                    <th className="p-4 text-center">Score</th>
-                    <th className="p-4 text-right">Actions</th>
+                  <tr className="border-b border-border bg-surface-muted/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3">Practice</th>
+                    <th className="px-4 py-3">City</th>
+                    <th className="px-4 py-3 text-center">Score</th>
+                    <th className="px-4 py-3 text-center">Stage</th>
+                    <th className="px-4 py-3 text-center">Contact Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border text-body-small">
+                <tbody className="divide-y divide-border/60 text-xs">
                   {filtered.map((b) => (
-                    <tr key={b.id} className="transition-colors hover:bg-surface-muted/40">
-                      <td className="p-4 font-semibold text-foreground">{b.name}</td>
-                      <td className="p-4 text-metadata text-muted-foreground">
-                        <a href={b.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">
-                          {b.website.replace(/^https?:\/\//, "")}
-                        </a>
+                    <tr key={b.id} className="transition-colors hover:bg-surface-muted/30">
+                      <td className="px-4 py-3 font-bold text-foreground">
+                        <Link href={`/admin/businesses/${b.id}`} className="hover:text-primary hover:underline">
+                          {b.name}
+                        </Link>
                       </td>
-                      <td className="p-4 text-metadata text-muted-foreground">{b.city}, {b.country}</td>
-                      <td className="p-4 text-center">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${STATUS_CLASSES[b.status] || DEFAULT_STATUS_CLASS}`}>
-                          {b.status.replace(/_/g, " ")}
-                        </span>
-                      </td>
-                      <td className="p-4 text-center font-bold text-foreground">
+                      <td className="px-4 py-3 text-muted-foreground">{b.city}, {b.country}</td>
+                      <td className="px-4 py-3 text-center font-extrabold text-foreground">
                         {b.status === "DISCOVERED" ? "—" : `${b.opportunityScore}/100`}
                       </td>
-                      <td className="p-4 text-right">{renderActions(b)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusBadge status={b.status} />
+                      </td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">
+                        {b.contactCount ? (
+                          <span className="font-semibold text-emerald-400">{b.contactCount} captured</span>
+                        ) : (
+                          <span className="text-amber-400 font-semibold">Missing</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {renderPrimaryAction(b)}
+                          <ActionMenu
+                            items={[
+                              { label: "View Practice Detail", onClick: () => (window.location.href = `/admin/businesses/${b.id}`) },
+                              { label: "Run / Rerun Audit", onClick: () => handleRunAudit(b.id) },
+                              { label: "Approve Email Outreach", onClick: () => handleStartOutreach(b.id) },
+                            ]}
+                          />
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

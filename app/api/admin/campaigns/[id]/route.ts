@@ -53,10 +53,23 @@ export async function GET(
       campaign: {
         id: campaign.id,
         name: campaign.name,
+        country: campaign.country,
+        state: campaign.state,
         city: campaign.city,
         category: campaign.category,
         status: campaign.status,
         createdAt: campaign.createdAt,
+        maxBusinesses: campaign.maxBusinesses,
+        minReviewCount: campaign.minReviewCount,
+        websiteRequired: campaign.websiteRequired,
+        excludeChains: campaign.excludeChains,
+        excludeExistingContacts: campaign.excludeExistingContacts,
+        keywords: campaign.keywords,
+        competitorCount: campaign.competitorCount,
+        dataFreshnessDays: campaign.dataFreshnessDays,
+        dataProvider: campaign.dataProvider,
+        outreachDailyLimit: campaign.outreachDailyLimit,
+        testMode: campaign.testMode,
       },
       counts,
       businesses,
@@ -64,5 +77,31 @@ export async function GET(
   } catch (error) {
     console.error("Admin campaign detail GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminSession(request);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { status } = body;
+
+    const campaign = await prisma.campaign.update({
+      where: { id },
+      data: { status },
+    });
+
+    return NextResponse.json({ campaign }, { status: 200 });
+  } catch (error) {
+    console.error("Admin campaign detail PATCH error:", error);
+    return NextResponse.json({ error: "Failed to update campaign" }, { status: 500 });
   }
 }

@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 
 /**
@@ -45,6 +44,7 @@ const envSchema = z.object({
 
   // OpenAI
   OPENAI_API_KEY: optionalNonEmpty,
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
 
   // Google Places
   GOOGLE_PLACES_API_KEY: optionalNonEmpty,
@@ -72,6 +72,11 @@ const envSchema = z.object({
   EMAIL_FROM_ADDRESS: optionalNonEmpty,
   EMAIL_REPLY_TO: optionalNonEmpty,
   EMAIL_SEND_MODE: z.enum(["test", "live"]).default("test"),
+  EMAIL_TEST_RECIPIENTS: z.string().default("hello@smileaimarketing.com"),
+
+  // Testing & Control Modes
+  DATA_MODE: z.enum(["live", "test"]).default("live"),
+  MAX_TEST_BUSINESSES: z.coerce.number().int().positive().default(5),
 
   ADMIN_EMAIL: z.string().email().optional().or(z.literal("").transform(() => undefined)),
   SALES_NOTIFICATION_EMAIL: z.string().email().optional().or(z.literal("").transform(() => undefined)),

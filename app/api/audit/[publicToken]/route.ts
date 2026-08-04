@@ -39,12 +39,12 @@ export async function GET(
     };
 
     const findings = audit.results.map((r) => {
-      const details = (r.detailsJson as any) || {};
+      const details = (r.detailsJson as Record<string, unknown> | null) || {};
       return {
         category: r.category,
         score: r.score,
-        title: details.title || r.category,
-        detail: details.description || "No description provided.",
+        title: typeof details.title === "string" ? details.title : r.category,
+        detail: typeof details.description === "string" ? details.description : "No description provided.",
       };
     });
 

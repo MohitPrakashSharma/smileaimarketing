@@ -2,7 +2,7 @@
 
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -14,6 +14,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: "bg-primary text-primary-foreground hover:bg-primary-hover active:scale-[0.98]",
   secondary:
     "border border-border bg-surface text-foreground hover:bg-surface-muted active:scale-[0.98]",
+  outline:
+    "border border-border bg-transparent text-foreground hover:bg-surface-muted active:scale-[0.98]",
   ghost: "text-foreground hover:bg-surface-muted active:scale-[0.98]",
   danger: "bg-danger text-white hover:bg-red-600 active:scale-[0.98]",
 };
