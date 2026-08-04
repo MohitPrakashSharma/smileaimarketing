@@ -1,9 +1,8 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
+import { env } from "@/lib/env.server";
 
-const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
-
-const connection = new IORedis(redisUrl, {
+const connection = new IORedis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
 });
 
