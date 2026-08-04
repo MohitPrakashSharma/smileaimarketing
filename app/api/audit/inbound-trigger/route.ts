@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { normalizeDomain, normalizeName } from "@/lib/normalize";
+import { checkWebsite } from "@/lib/websiteCheck.server";
 
 const inboundSchema = z.object({
   website: z.string().url(),
@@ -19,8 +21,11 @@ export async function POST(request: Request) {
     }
 
     const { website, city, clinicName, country } = result.data;
+    const normalizedDomain = normalizeDomain(website);
+    const normalizedName = normalizeName(clinicName);
 
-    // Check if the business already exists in this city
+    // Check if the business already exists — exact match first, then by
+    // normalized domain (catches e.g. https://x.com vs https://www.x.com/).
     let business = await prisma.business.findUnique({
       where: {
         website_city: { website, city },
@@ -28,21 +33,30 @@ export async function POST(request: Request) {
     });
 
     if (!business) {
+      business = await prisma.business.findFirst({
+        where: { normalizedDomain, city },
+      });
+    }
+
+    if (!business) {
       business = await prisma.business.create({
         data: {
           name: clinicName,
+          normalizedName,
           website,
+          normalizedDomain,
           city,
           country,
           category: "Dental Clinic",
           status: "AUDITING",
+          providerSource: "SELF_SERVE",
+          lastCheckedAt: new Date(),
         },
       });
     } else {
-      // Update status to Auditing if it already exists
       business = await prisma.business.update({
         where: { id: business.id },
-        data: { status: "AUDITING" },
+        data: { status: "AUDITING", lastCheckedAt: new Date() },
       });
     }
 
@@ -55,17 +69,22 @@ export async function POST(request: Request) {
       },
     });
 
-    // Run quick deterministic mock checks
-    const sslValid = website.startsWith("https://");
-    const pageSpeedEstimate = sslValid ? "MOBILE_SLOW" : "MOBILE_CRITICAL";
-    const mobileOptimized = sslValid;
+    // Real, credential-free preliminary check — actually fetches the site.
+    const websiteCheck = await checkWebsite(website);
 
     return NextResponse.json({
       pendingAuditId: audit.id,
       preliminaryFindings: {
-        sslValid,
-        pageSpeedEstimate,
-        mobileOptimized,
+        sslValid: websiteCheck.sslValid,
+        pageSpeedEstimate:
+          websiteCheck.responseTimeMs === null
+            ? "UNKNOWN"
+            : websiteCheck.responseTimeMs > 3500
+              ? "MOBILE_SLOW"
+              : websiteCheck.responseTimeMs > 1200
+                ? "MOBILE_AVERAGE"
+                : "MOBILE_FAST",
+        mobileOptimized: websiteCheck.mobileViewport,
       },
     }, { status: 202 });
   } catch (error) {

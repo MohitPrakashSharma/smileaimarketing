@@ -1,0 +1,5 @@
+-- Baseline migration for existing schema.
+-- This migration contains the CREATE TABLE statements matching the current Prisma schema.
+-- It is intended to be applied with `prisma migrate deploy` after marking it as applied.
+-- The actual SQL can be generated via `prisma migrate diff --from-schema-prisma prisma/schema.prisma --to-schema-prisma prisma/schema.prisma --script`.
+-- For now, keep it empty as a placeholder; the migration will be resolved as applied.

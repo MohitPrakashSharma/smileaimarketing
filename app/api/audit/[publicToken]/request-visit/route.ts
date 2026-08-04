@@ -44,14 +44,15 @@ export async function POST(
       return NextResponse.json({ error: "Lead contact details missing" }, { status: 400 });
     }
 
-    // Create Appointment
+    // Create Appointment as REQUESTED — an in-person visit must never appear
+    // confirmed until an admin approves it (docs/mvp-readiness.md #26).
     const appointment = await prisma.appointment.create({
       data: {
         businessId: business.id,
         contactId: contact.id,
         type: "IN_PERSON",
-        status: "SCHEDULED",
-        scheduledTime: new Date(), // Set temporary date, salesperson will override
+        status: "REQUESTED",
+        scheduledTime: new Date(), // Placeholder — admin sets the real time on approval
         durationMinutes: 30,
         address,
         preferredWindow,
@@ -59,11 +60,9 @@ export async function POST(
       },
     });
 
-    // Update business status to cancel future outreach
-    await prisma.business.update({
-      where: { id: business.id },
-      data: { status: "CONVERTED" },
-    });
+    // Business status is intentionally left unchanged here — it only moves
+    // to CONVERTED once an admin approves the visit (see
+    // app/api/admin/appointments/[id]/route.ts).
 
     // Create sales activity
     await prisma.salesActivity.create({
