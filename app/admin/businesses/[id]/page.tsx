@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import { IconMenuDots } from "@/components/icons";
 
 type AuditResultRow = { category: string; score: number; detailsJson: unknown };
 type Audit = {
@@ -63,10 +64,22 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
   
   // Contact Modal state
   const [showContactModal, setShowContactModal] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Principal Dentist");
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setActionMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -187,30 +200,76 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
           </p>
         </div>
 
-        {/* Manual Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => handleUpdateStatus("VERIFIED")} loading={actionLoading}>
-            Verify Practice
-          </Button>
-          <Button variant="outline" onClick={() => handleUpdateStatus("REJECTED")} loading={actionLoading}>
-            Reject
-          </Button>
-          <Button onClick={handleRunAudit} loading={actionLoading}>
-            Run / Rerun Audit
-          </Button>
-          <Button variant="secondary" onClick={() => setShowContactModal(true)}>
+        {/* Single Primary Action + 3-Dot Dropdown for Secondary Actions */}
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowContactModal(true)}>
             + Add Contact
           </Button>
-          {business.status !== "CONVERTED" && (
-            <Button onClick={() => handleUpdateStatus("CONVERTED")} loading={actionLoading}>
-              Mark Won
-            </Button>
-          )}
-          {business.status !== "LOST" && (
-            <Button variant="outline" onClick={() => handleUpdateStatus("LOST")} loading={actionLoading}>
-              Mark Lost
-            </Button>
-          )}
+
+          <div className="relative" ref={actionMenuRef}>
+            <button
+              onClick={() => setActionMenuOpen((v) => !v)}
+              aria-label="More actions"
+              aria-expanded={actionMenuOpen}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <IconMenuDots className="h-4 w-4" />
+            </button>
+
+            {actionMenuOpen && (
+              <div className="animate-fade-in-down absolute right-0 top-11 z-30 w-48 rounded-xl border border-border bg-surface p-1.5 shadow-xl space-y-0.5">
+                <button
+                  onClick={() => {
+                    setActionMenuOpen(false);
+                    void handleUpdateStatus("VERIFIED");
+                  }}
+                  className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted"
+                >
+                  Verify Practice
+                </button>
+                <button
+                  onClick={() => {
+                    setActionMenuOpen(false);
+                    void handleRunAudit();
+                  }}
+                  className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted"
+                >
+                  Run / Rerun Audit
+                </button>
+                {business.status !== "CONVERTED" && (
+                  <button
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      void handleUpdateStatus("CONVERTED");
+                    }}
+                    className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+                  >
+                    Mark Won
+                  </button>
+                )}
+                {business.status !== "LOST" && (
+                  <button
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      void handleUpdateStatus("LOST");
+                    }}
+                    className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-muted"
+                  >
+                    Mark Lost
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setActionMenuOpen(false);
+                    void handleUpdateStatus("REJECTED");
+                  }}
+                  className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

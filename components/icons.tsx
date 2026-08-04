@@ -186,3 +186,11 @@ export function IconMenuDots({ className }: IconProps) {
     </Svg>
   );
 }
+
+export function IconChevronDown({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
