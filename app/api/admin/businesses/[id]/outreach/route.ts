@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { enrichBusinessContact } from "@/lib/apollo";
 
 export async function POST(
   request: Request,
@@ -45,17 +46,28 @@ export async function POST(
       });
     }
 
-    // Ensure we have a contact
+    // A real, verified contact is required — never invent one. Try a fresh
+    // Apollo lookup if discovery didn't find a contact the first time.
     let contact = business.contacts[0];
     if (!contact) {
-      const cleanDomain = business.website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0];
+      const apolloRes = await enrichBusinessContact(business.website);
+      if (!apolloRes.found || !apolloRes.email) {
+        return NextResponse.json(
+          {
+            error:
+              "No verified contact found for this practice yet (Apollo lookup returned nothing). Add a contact manually before starting outreach — we don't send to invented addresses.",
+          },
+          { status: 422 }
+        );
+      }
       contact = await prisma.contact.create({
         data: {
           businessId: business.id,
-          firstName: "Sarah",
-          lastName: "Jenkins",
-          email: `dr.sarah.jenkins@${cleanDomain}`,
-          role: "Practice Owner",
+          firstName: apolloRes.firstName || "Practice",
+          lastName: apolloRes.lastName || "Lead",
+          email: apolloRes.email,
+          phone: apolloRes.phone || null,
+          role: apolloRes.role || "Principal Dentist",
         },
       });
     }
@@ -84,8 +96,9 @@ export async function POST(
         data: {
           sequenceId: sequence.id,
           stepDay: 0,
-          subject: "Patient visibility opportunity gap for {{ clinicName }}",
-          bodyTemplate: "Hi {{ contactName }},\n\nWe recently analyzed the Google Maps ranking for your practice in {{ city }} and noticed that three competitor clinics are outranking you. We generated a free performance report detailing how to recapture these patient leads.\n\nYou can access your scorecard securely here: {{ auditUrl }}\n\nBest regards,\nSmile AI Marketing Team",
+          subject: "Patient visibility opportunity gap for {{clinicName}}",
+          bodyTemplate:
+            "Hi {{contactName}},\n\nWe ran a free growth audit on {{clinicName}}'s online visibility in {{city}} — the kind of thing a prospective patient sees before they ever call you.\n\nA few nearby practices are currently ahead of you in Google search and maps. Nothing in the report is guesswork — it's built from what's actually visible online today, and it's yours to keep either way.",
         },
       });
     }

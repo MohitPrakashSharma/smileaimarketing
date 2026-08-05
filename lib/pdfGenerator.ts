@@ -2,6 +2,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fs from "fs/promises";
 import path from "path";
 import { prisma } from "./prisma";
+import { env } from "./env.server";
 
 export interface AuditPdfData {
   auditId: string;
@@ -60,8 +61,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     const cWhite = rgb(1, 1, 1);
 
     const reportDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://smileaimarketing.com";
-    const reportUrl = `${appUrl}/audit/${data.publicToken}`;
+    const reportUrl = `${env.APP_BASE_URL}/audit/${data.publicToken}`;
 
     // ==========================================
     // PAGE 1 — EXECUTIVE SNAPSHOT

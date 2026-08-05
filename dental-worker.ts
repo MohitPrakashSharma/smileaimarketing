@@ -8,10 +8,12 @@ import { analyzeWebsite } from "./lib/websiteAnalyzer";
 import { computeAuditScores } from "./lib/auditScorer";
 import { generateLightAuditPdf } from "./lib/pdfGenerator";
 import { sendOutreachEmail } from "./lib/email.server";
+import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
 import { analysisQueue, pdfQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
 import { generateAuditSummaryWithOpenAI } from "./lib/openai";
+import { env } from "./lib/env.server";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -338,16 +340,33 @@ const outreachWorker = new Worker(
 
     const business = message.contact.business;
     const audit = business.audits[0];
-    const reportUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/audit/${audit?.publicToken || ""}`;
+
+    if (!audit) {
+      console.error(`[Outreach Worker] No audit found for business ${business.id}. Skipping send.`);
+      return;
+    }
+
+    const reportUrl = `${env.APP_BASE_URL}/audit/${audit.publicToken}`;
+    const pdfUrl = audit.pdfUrl ? `${env.APP_BASE_URL}${audit.pdfUrl}` : undefined;
+
+    const rendered = renderOutreachEmail({
+      subjectTemplate: message.step.subject,
+      bodyTemplate: message.step.bodyTemplate,
+      contactName: message.contact.firstName,
+      clinicName: business.name,
+      city: business.city,
+      reportUrl,
+      pdfUrl,
+      unsubscribeUrl: `${env.APP_BASE_URL}/unsubscribe`,
+    });
 
     const dispatchResult = await sendOutreachEmail({
       emailMessageId: message.id,
       toEmail: message.contact.email,
       toName: `${message.contact.firstName} ${message.contact.lastName}`,
-      subject: message.step.subject.replace("{{clinic_name}}", business.name),
-      bodyHtml: message.step.bodyTemplate,
-      reportUrl,
-      pdfUrl: audit?.pdfUrl || undefined,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     });
 
     await logEngagementEvent({

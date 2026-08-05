@@ -1,13 +1,14 @@
+import nodemailer, { Transporter } from "nodemailer";
 import { prisma } from "./prisma";
+import { env, integrationStatus } from "./env.server";
 
 export interface SendEmailParams {
   emailMessageId?: string;
   toEmail: string;
   toName: string;
   subject: string;
-  bodyHtml: string;
-  reportUrl: string;
-  pdfUrl?: string;
+  html: string;
+  text?: string;
 }
 
 export interface EmailDispatchResult {
@@ -18,13 +19,34 @@ export interface EmailDispatchResult {
   error?: string;
 }
 
+let gmailTransporter: Transporter | null = null;
+
+function getGmailTransporter(): Transporter {
+  if (!gmailTransporter) {
+    gmailTransporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: env.GMAIL_USER,
+        pass: env.GMAIL_APP_PASSWORD,
+      },
+    });
+  }
+  return gmailTransporter;
+}
+
 export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailDispatchResult> {
-  const sendMode = process.env.EMAIL_SEND_MODE || "test";
-  const testRecipients = process.env.EMAIL_TEST_RECIPIENTS || "hello@smileaimarketing.com";
+  const sendMode = env.EMAIL_SEND_MODE;
+  const testRecipients = env.EMAIL_TEST_RECIPIENTS;
+  const goingLive = sendMode === "live" && integrationStatus.gmail;
 
-  const targetRecipient = sendMode === "live" ? params.toEmail : testRecipients.split(",")[0].trim();
+  const targetRecipient = goingLive ? params.toEmail : testRecipients.split(",")[0].trim();
 
-  console.log(`[Email Service] Mode: ${sendMode.toUpperCase()} | Intended: ${params.toEmail} -> Actual: ${targetRecipient}`);
+  console.log(
+    `[Email Service] Mode: ${goingLive ? "LIVE" : "TEST"} | Intended: ${params.toEmail} -> Actual: ${targetRecipient}` +
+      (sendMode === "live" && !integrationStatus.gmail
+        ? " (EMAIL_SEND_MODE=live but GMAIL_USER/GMAIL_APP_PASSWORD are not configured — falling back to test dispatch)"
+        : "")
+  );
 
   try {
     // Check if recipient domain or email is in suppression table
@@ -47,32 +69,46 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
       }
       return {
         success: false,
-        mode: sendMode === "live" ? "live" : "test",
+        mode: goingLive ? "live" : "test",
         recipient: targetRecipient,
         error: "Recipient address or domain is suppressed.",
       };
     }
 
-    // Generate safe messageId identifier
-    const simulatedMsgId = `msg_test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    let messageId: string;
 
-    // Update EmailMessage status in database
+    if (goingLive) {
+      const info = await getGmailTransporter().sendMail({
+        from: `"${env.EMAIL_FROM_NAME}" <${env.EMAIL_FROM_ADDRESS || env.GMAIL_USER}>`,
+        to: `"${params.toName}" <${targetRecipient}>`,
+        replyTo: env.EMAIL_REPLY_TO || env.EMAIL_FROM_ADDRESS,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+      });
+      messageId = info.messageId;
+    } else {
+      // Safe simulator — no external call, used whenever EMAIL_SEND_MODE=test
+      // or live credentials aren't configured yet.
+      messageId = `msg_test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+
     if (params.emailMessageId) {
       await prisma.emailMessage.update({
         where: { id: params.emailMessageId },
         data: {
           status: "SENT",
           sentAt: new Date(),
-          messageId: simulatedMsgId,
+          messageId,
         },
       });
     }
 
     return {
       success: true,
-      mode: sendMode === "live" ? "live" : "test",
+      mode: goingLive ? "live" : "test",
       recipient: targetRecipient,
-      messageId: simulatedMsgId,
+      messageId,
     };
   } catch (error) {
     console.error("[Email Service] Dispatch error:", error);
@@ -84,7 +120,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
     }
     return {
       success: false,
-      mode: sendMode === "live" ? "live" : "test",
+      mode: goingLive ? "live" : "test",
       recipient: targetRecipient,
       error: error instanceof Error ? error.message : "Unknown email failure",
     };

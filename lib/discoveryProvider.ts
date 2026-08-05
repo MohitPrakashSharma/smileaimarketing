@@ -121,6 +121,13 @@ export async function discoverBusinesses(params: {
   const country = params.country || "US";
   const isLiveMode = process.env.DATA_MODE === "live";
 
+  // An explicit "TEST_PROVIDER" request always gets safe synthetic data —
+  // regardless of DATA_MODE — so a campaign's "test mode" toggle is a real
+  // guarantee, not something a live-mode API key can silently override.
+  if (params.dataProvider === "TEST_PROVIDER") {
+    return getTestProviderBusinesses(params.city, category, limit);
+  }
+
   // 1. DataForSEO Provider
   if (params.dataProvider === "DATAFORSEO" || (isLiveMode && process.env.DATAFORSEO_LOGIN && !params.dataProvider)) {
     try {
@@ -163,7 +170,7 @@ export async function discoverBusinesses(params: {
 
   // 2. Google Places API Provider
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (params.dataProvider === "GOOGLE_PLACES" || (isLiveMode && googleApiKey)) {
+  if (params.dataProvider === "GOOGLE_PLACES" || (isLiveMode && googleApiKey && !params.dataProvider)) {
     if (!googleApiKey) {
       throw new Error("GOOGLE_PLACES_API_KEY is not configured in environment");
     }
