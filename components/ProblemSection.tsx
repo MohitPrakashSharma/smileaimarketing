@@ -5,18 +5,18 @@ import { IconMapPinOff, IconStar, IconClock } from "@/components/icons";
 const PAINS = [
   {
     Icon: IconMapPinOff,
-    title: "Hard to find locally",
-    detail: "Your practice may not appear when nearby patients are ready to book.",
+    title: "Patients can't find you when it counts",
+    detail: "Right when someone nearby is ready to book, your practice may not even show up in their search.",
   },
   {
     Icon: IconStar,
-    title: "Competitors look more trusted",
-    detail: "Stronger reviews and profiles can make another clinic feel like the safer choice.",
+    title: "Another practice looks like the safer bet",
+    detail: "More reviews and a stronger profile can make a nearby competitor feel like the obvious choice — even when your care is just as good, or better.",
   },
   {
     Icon: IconClock,
-    title: "Booking takes too much effort",
-    detail: "Mobile visitors leave when calling or booking is not quick and obvious.",
+    title: "Booking isn't as easy as it should be",
+    detail: "If a patient can't call or book you in a couple of taps on their phone, most will simply move to the next name on the list.",
   },
 ];
 
@@ -29,7 +29,7 @@ export default function ProblemSection() {
             THE REALITY
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Where practices lose new patients.
+            Where most practices quietly lose patients.
           </h2>
         </div>
 

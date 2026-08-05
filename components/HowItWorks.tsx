@@ -3,9 +3,9 @@
 import { IconTarget, IconTrendingUp, IconCalendarCheck } from "@/components/icons";
 
 const STEPS = [
-  { Icon: IconTarget, title: "Enter your website and city" },
-  { Icon: IconTrendingUp, title: "Review the clearest gaps" },
-  { Icon: IconCalendarCheck, title: "Discuss what to fix first" },
+  { Icon: IconTarget, title: "Tell us your website and city" },
+  { Icon: IconTrendingUp, title: "See exactly where you're losing ground" },
+  { Icon: IconCalendarCheck, title: "Talk it through with us, no pressure" },
 ];
 
 export default function HowItWorks() {
@@ -20,7 +20,7 @@ export default function HowItWorks() {
             How it works.
           </h2>
           <p className="mt-4 text-body text-muted-foreground">
-            A focused audit built around the decisions that affect patient enquiries.
+            No jargon, no long forms — just a clear look at what&apos;s affecting new patient calls.
           </p>
         </div>
 

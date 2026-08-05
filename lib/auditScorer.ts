@@ -25,6 +25,7 @@ export function computeAuditScores(params: {
   signals: WebsiteSignals;
   rating?: number;
   reviewCount?: number;
+  realCompetitors?: Array<{ name: string; website?: string; rank: number; mapScore: number }>;
 }): AuditScoringOutput {
   const { businessName, city, signals, rating = 4.5, reviewCount = 45 } = params;
 
@@ -46,13 +47,13 @@ export function computeAuditScores(params: {
       pageTitle: signals.pageTitle || null,
     },
     detailsJson: {
-      title: "Website Technical & Speed Check",
+      title: "How fast and trustworthy your website feels",
       description: signals.isHttps && signals.responseTimeMs < 2000
-        ? `${businessName}'s website loads in ${signals.responseTimeMs}ms with valid HTTPS security.`
-        : `Website loading took ${signals.responseTimeMs}ms, creating friction for prospective patients on mobile.`,
+        ? `Your website loads quickly (${signals.responseTimeMs}ms) and uses a secure connection, so patients aren't scared off before they even see your services.`
+        : `Your website takes ${signals.responseTimeMs}ms to load on a phone. Most people give up after three seconds and simply call the next practice on the list — every slow load is a patient you may never hear from.`,
       recommendation: signals.isHttps
-        ? "Optimize image weights and page load assets to achieve sub-1.5 second render times."
-        : "Enable strict SSL HTTPS encryption to prevent browser security warnings.",
+        ? "Keep new photos and pages compressed so your load time stays under 1.5 seconds as the site grows."
+        : "Turn on a secure connection (HTTPS) as soon as possible — browsers actively warn visitors away from sites without one, and it's usually a same-day fix.",
     },
   };
 
@@ -71,11 +72,11 @@ export function computeAuditScores(params: {
       contactForm: signals.hasContactForm,
     },
     detailsJson: {
-      title: "Mobile Lead Capture & Patient CTA Audit",
+      title: "How easy it is for a patient to actually book",
       description: signals.hasBookingCta && signals.hasClickToCall
-        ? "Click-to-call links and booking calls to action are present."
-        : "Missing immediate click-to-call or prominent online booking buttons on the primary mobile screen.",
-      recommendation: "Embed a sticky mobile phone tap target and a direct 2-step appointment request flow.",
+        ? "A visitor can call your office or request an appointment in one tap — you're not losing people at the finish line."
+        : "A patient has to hunt for your phone number or a way to book. On a phone screen, that's often all it takes for someone to leave and call a competitor instead.",
+      recommendation: "Add an always-visible 'Call Now' button and a simple two-step booking form patients can use without leaving the page.",
     },
   };
 
@@ -86,9 +87,9 @@ export function computeAuditScores(params: {
     score: localScore,
     findingsJson: { city, rankEstimate: 7, category: "Dental Practice" },
     detailsJson: {
-      title: "Google Maps & Local Search Rank",
-      description: `${businessName} currently ranks outside the top 3 Google Local Map Pack results in ${city}.`,
-      recommendation: "Claim local citations, standardize Google Business Profile NAP, and optimize category tags.",
+      title: "Where you show up when patients search nearby",
+      description: `When someone nearby searches "dentist in ${city}," ${businessName} isn't showing up in the top 3 results Google shows first — and that top 3 is where almost all the clicks go. Everyone below it is competing for what's left.`,
+      recommendation: "Make sure your practice's name, address, and phone number match exactly everywhere they appear online, and fill out every section of your Google Business Profile — this is the single biggest lever for moving up.",
     },
   };
 
@@ -102,9 +103,11 @@ export function computeAuditScores(params: {
     score: Math.min(100, reputationScore),
     findingsJson: { rating, reviewCount },
     detailsJson: {
-      title: "Patient Review Velocity & Rating",
-      description: `${businessName} has a ${rating} star rating with ${reviewCount} total Google reviews in ${city}.`,
-      recommendation: "Implement automated post-visit SMS review requests to reach 100+ verified 5-star reviews.",
+      title: "How your reviews stack up",
+      description: reviewCount >= 50
+        ? `${businessName} has ${reviewCount} Google reviews at ${rating} stars in ${city} — a solid foundation that new patients trust when they're comparing practices.`
+        : `${businessName} has ${reviewCount} Google reviews at ${rating} stars in ${city}. New patients almost always compare review counts before they look at anything else — a thin number here can quietly cost you the decision, even when the reviews you do have are great.`,
+      recommendation: "Set up a simple text message that goes out to every patient after their visit asking for a quick review. Practices that automate this usually see their review count climb within weeks, without anyone having to remember to ask.",
     },
   };
 
@@ -115,9 +118,9 @@ export function computeAuditScores(params: {
     score: competitorGapScore,
     findingsJson: { topCompetitorCount: 3, reviewGap: 40 },
     detailsJson: {
-      title: "Local Market Share & Competitor Benchmark",
-      description: `Top 3 competing dental clinics in ${city} average 120+ reviews and capture over 60% of local search clicks.`,
-      recommendation: "Execute local SEO search capture to close the visibility gap against leading area clinics.",
+      title: "What the practices ahead of you are doing right",
+      description: `The top 3 dental practices in ${city} average 120+ reviews and take home more than 60% of the clicks from local searches. Right now, that traffic — and those patients — are going to them instead of you.`,
+      recommendation: "A focused push on reviews and local search visibility, kept up consistently, is what moves a practice from page two into that top 3 — usually within a few months, not years.",
     },
   };
 
@@ -135,15 +138,11 @@ export function computeAuditScores(params: {
   // Opportunity score represents practice growth potential (100 - average audit score, clamped)
   const opportunityScore = Math.max(35, Math.min(95, 100 - Math.round(rawAvg * 0.4)));
 
-  const competitors = [
-    { name: `${city} Family Dentistry`, rank: 1, mapScore: 92 },
-    { name: `Apex Dental Group ${city}`, rank: 2, mapScore: 88 },
-    { name: `Downtown Dental Studio`, rank: 3, mapScore: 84 },
-  ];
+  // Never fabricated: real lookups only (see lib/discoveryProvider.ts#findRealCompetitors).
+  // When none are available, this stays empty rather than inventing business names.
+  const competitors = params.realCompetitors || [];
 
-  const summaryText = `${businessName} in ${city} has an Opportunity Score of ${opportunityScore}/100. Audit identified ${
-    signals.isHttps ? "secure HTTPS" : "insecure HTTP"
-  } site infrastructure, ${signals.responseTimeMs}ms response speed, and ${reviewCount} reviews. Implementing mobile conversion CTAs and local map pack optimization can capture missed patient inquiries.`;
+  const summaryText = `${businessName} has an Opportunity Score of ${opportunityScore}/100 in ${city}. In plain terms: patients are searching for a dentist nearby right now, and depending on what we found, some are finding you first — and some are finding someone else instead. This report shows exactly where you're winning, where nearby practices are quietly taking patients that could be yours, and the two or three fixes that will make the biggest difference first.`;
 
   return {
     opportunityScore,

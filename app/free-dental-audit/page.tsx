@@ -303,12 +303,12 @@ function AuditWizardForm() {
       {step === "preview" && preliminary && (
         <div className="animate-fade-in space-y-6">
           <div className="text-center">
-            <Eyebrow>Preliminary Results Ready</Eyebrow>
+            <Eyebrow>Your quick look is ready</Eyebrow>
             <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
-              We found real gaps to fix.
+              Patients are searching nearby right now.
             </h1>
             <p className="mt-2 text-body-small text-muted-foreground">
-              Verify your role to unlock your full scorecard, competitor comparison, and action plan.
+              Here&apos;s a first look. Unlock the full report to see your score, who&apos;s ranking ahead of you, and exactly what to fix first.
             </p>
           </div>
 
@@ -341,7 +341,7 @@ function AuditWizardForm() {
             </div>
             <div className="absolute inset-0 flex items-center justify-center bg-background/60">
               <span className="rounded-full bg-surface px-4 py-1.5 text-metadata font-semibold text-muted-foreground shadow-sm">
-                Full score & competitor gap locked
+                Your score & the practice ahead of you — one step away
               </span>
             </div>
           </div>
@@ -357,7 +357,7 @@ function AuditWizardForm() {
               Back
             </Button>
             <Button type="button" fullWidth onClick={() => setStep("contact")}>
-              Unlock My Full Report
+              See My Full Report
             </Button>
           </div>
         </div>
@@ -367,12 +367,12 @@ function AuditWizardForm() {
       {step === "contact" && (
         <div className="animate-fade-in space-y-6">
           <div className="text-center">
-            <Eyebrow>Last Step</Eyebrow>
+            <Eyebrow>One last step</Eyebrow>
             <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
-              Unlock Your Scorecard
+              Where should we send it?
             </h1>
             <p className="mt-2 text-body-small text-muted-foreground">
-              We&apos;ll send your full report and a link to revisit it anytime.
+              We&apos;ll email your full report and a link you can come back to anytime.
             </p>
           </div>
 
@@ -460,7 +460,7 @@ function AuditWizardForm() {
                   }}
                 />
                 <span className="text-body-small leading-relaxed text-muted-foreground">
-                  I consent to receive diagnostic updates and communications regarding dental marketing solutions. I can opt out at any time.
+                  I&apos;m okay receiving my audit results and occasional practice growth tips by email. I can opt out anytime.
                 </span>
               </label>
               {consentError && (

@@ -2,16 +2,18 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { prisma } from "./lib/prisma";
 import { Prisma } from "@prisma/client";
-import { discoverBusinesses } from "./lib/discoveryProvider";
+import { discoverBusinesses, findRealCompetitors } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
 import { analyzeWebsite } from "./lib/websiteAnalyzer";
 import { computeAuditScores } from "./lib/auditScorer";
 import { generateLightAuditPdf } from "./lib/pdfGenerator";
 import { sendOutreachEmail } from "./lib/email.server";
+import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
 import { analysisQueue, pdfQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
 import { generateAuditSummaryWithOpenAI } from "./lib/openai";
+import { env } from "./lib/env.server";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -23,7 +25,7 @@ const discoveryWorker = new Worker(
   "discovery-queue",
   async (job: Job) => {
     console.log(`[Discovery Worker] Processing job ${job.id} (${job.name})`);
-    const { campaignId, city, category, maxBusinesses, dataProvider } = job.data;
+    const { campaignId, city, country, state, category, maxBusinesses, dataProvider } = job.data;
 
     // Update campaign status
     if (campaignId) {
@@ -35,6 +37,8 @@ const discoveryWorker = new Worker(
 
     const discoveredItems = await discoverBusinesses({
       city,
+      country,
+      state,
       category,
       limit: maxBusinesses || 5,
       dataProvider: dataProvider || (process.env.DATA_MODE === "live" ? "GOOGLE_PLACES" : "TEST_PROVIDER"),
@@ -180,6 +184,17 @@ const analysisWorker = new Worker(
     // Run real credential-free website check
     const signals = await analyzeWebsite(business.website);
 
+    // Real competitor lookup — never fabricated names
+    const realCompetitors = await findRealCompetitors({
+      businessName: business.name,
+      website: business.website,
+      city: business.city,
+      state: business.state || undefined,
+      country: business.country,
+      category: business.category,
+      limit: 3,
+    });
+
     // Calculate deterministic scores
     const scoreOutput = computeAuditScores({
       businessName: business.name,
@@ -188,6 +203,7 @@ const analysisWorker = new Worker(
       signals,
       rating: business.rating || 4.5,
       reviewCount: business.reviewCount || 45,
+      realCompetitors,
     });
 
     // Generate OpenAI summary if key available
@@ -324,16 +340,33 @@ const outreachWorker = new Worker(
 
     const business = message.contact.business;
     const audit = business.audits[0];
-    const reportUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/audit/${audit?.publicToken || ""}`;
+
+    if (!audit) {
+      console.error(`[Outreach Worker] No audit found for business ${business.id}. Skipping send.`);
+      return;
+    }
+
+    const reportUrl = `${env.APP_BASE_URL}/audit/${audit.publicToken}`;
+    const pdfUrl = audit.pdfUrl ? `${env.APP_BASE_URL}${audit.pdfUrl}` : undefined;
+
+    const rendered = renderOutreachEmail({
+      subjectTemplate: message.step.subject,
+      bodyTemplate: message.step.bodyTemplate,
+      contactName: message.contact.firstName,
+      clinicName: business.name,
+      city: business.city,
+      reportUrl,
+      pdfUrl,
+      unsubscribeUrl: `${env.APP_BASE_URL}/unsubscribe`,
+    });
 
     const dispatchResult = await sendOutreachEmail({
       emailMessageId: message.id,
       toEmail: message.contact.email,
       toName: `${message.contact.firstName} ${message.contact.lastName}`,
-      subject: message.step.subject.replace("{{clinic_name}}", business.name),
-      bodyHtml: message.step.bodyTemplate,
-      reportUrl,
-      pdfUrl: audit?.pdfUrl || undefined,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     });
 
     await logEngagementEvent({

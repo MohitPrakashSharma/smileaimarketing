@@ -7,6 +7,7 @@ import { enrichBusinessContact } from "@/lib/apollo";
 import { generateAuditSummaryWithOpenAI } from "@/lib/openai";
 import { sendOutreachEmail } from "@/lib/email.server";
 import { createGoogleMeetEvent } from "@/lib/googleCalendar";
+import { env } from "@/lib/env.server";
 
 export async function POST(request: Request) {
   try {
@@ -145,11 +146,10 @@ export async function POST(request: Request) {
     // 7. Email test
     if (key === "email") {
       const emailRes = await sendOutreachEmail({
-        toEmail: process.env.EMAIL_TEST_RECIPIENTS || "office@getfoundguru.com",
+        toEmail: env.EMAIL_TEST_RECIPIENTS.split(",")[0].trim(),
         toName: "Test Lead",
         subject: "Smile AI Health Check Email",
-        bodyHtml: "<p>Test mode email delivery verification.</p>",
-        reportUrl: "https://smileaimarketing.com/audit/health-check",
+        html: "<p>Test mode email delivery verification.</p>",
       });
       return NextResponse.json({
         status: emailRes.success ? "CONNECTED" : "ERROR",

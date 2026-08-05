@@ -1,22 +1,22 @@
 export const FAQS = [
   {
     q: "Is the audit free?",
-    a: "Yes, the initial scan is entirely free. We look at public maps listings, website loading speed, and visibility gaps to highlight immediate action points.",
+    a: "Yes — completely free. We look at your Google listing, your website, and your online visibility, and hand you a clear list of what to fix first.",
   },
   {
-    q: "What information do you analyse?",
-    a: "We only need your public practice website URL and the city you are located in. We do not require any log-ins, credit cards, or passwords.",
+    q: "What information do you look at?",
+    a: "Just your practice website and the city you're in. No logins, no credit card, nothing to install.",
   },
   {
     q: "Do you need access to our Google account?",
-    a: "No. The entire audit is completed using public search engine simulations and directory results. You do not need to link your Google Business Profile.",
+    a: "No. We only look at what any patient could already see publicly searching for a dentist near them — we never ask to log into your Google Business Profile.",
   },
   {
-    q: "How long does the audit take?",
-    a: "The preliminary analysis triggers instantly. Once you verify ownership, the system generates your complete gap checklist in under two minutes.",
+    q: "How long does it take?",
+    a: "The first look is instant. Once you confirm a few details, your full report is ready in under two minutes.",
   },
   {
-    q: "Can we review the findings online or in person?",
-    a: "Yes. Choose a 15-minute online review, or request a local visit, subject to office location and specialist availability.",
+    q: "Can we go over the findings together?",
+    a: "Whichever you'd prefer — a 15-minute video call, or we'll come by the practice in person where that's available.",
   },
 ];

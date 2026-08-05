@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { analyzeWebsite } from "@/lib/websiteAnalyzer";
 import { computeAuditScores } from "@/lib/auditScorer";
+import { findRealCompetitors } from "@/lib/discoveryProvider";
 import { pdfQueue } from "@/lib/queue";
 import { logEngagementEvent } from "@/lib/events";
 
@@ -74,6 +75,15 @@ export async function POST(request: Request) {
 
     // Real, credential-free website check & deterministic scoring
     const signals = await analyzeWebsite(business.website);
+    const realCompetitors = await findRealCompetitors({
+      businessName: business.name,
+      website: business.website,
+      city: business.city,
+      state: business.state || undefined,
+      country: business.country,
+      category: business.category,
+      limit: 3,
+    });
     const scoreOutput = computeAuditScores({
       businessName: business.name,
       city: business.city,
@@ -81,6 +91,7 @@ export async function POST(request: Request) {
       signals,
       rating: business.rating || 4.5,
       reviewCount: business.reviewCount || 45,
+      realCompetitors,
     });
 
     // Clear old audit results and competitors

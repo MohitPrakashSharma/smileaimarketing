@@ -3,23 +3,23 @@
 import { IconCheck, IconCalendarCheck, IconMapPin } from "@/components/icons";
 
 const TRUST_POINTS = [
-  "No account access required",
-  "Prioritised recommendations",
-  "Estimates clearly labelled",
+  "No login required, ever",
+  "Told what to fix first, not just what's wrong",
+  "Any estimate is clearly marked as one",
 ];
 
 const CONSULTATION_OPTIONS = [
   {
     Icon: IconCalendarCheck,
     title: "15-minute online review",
-    description: "Walk through the main findings and decide what is worth fixing first.",
+    description: "We'll sit down together, walk through what we found, and figure out what's actually worth fixing first.",
     ctaText: "Book Online Review",
     ctaHref: "/book-consultation",
   },
   {
     Icon: IconMapPin,
     title: "Request a clinic visit",
-    description: "Meet locally where coverage and availability permit.",
+    description: "We'll come to your practice and walk your team through it in person, where we're able to.",
     ctaText: "Request a Visit",
     ctaHref: "/book-consultation?type=in-person",
   },
@@ -34,7 +34,7 @@ export default function TrustAndConsultation() {
           <div className="rounded-2xl border border-border bg-surface-muted/30 p-6 sm:p-8">
             <h2 className="text-heading-2 font-semibold text-foreground">Clear findings. Human review.</h2>
             <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
-              No inflated promises or generic scores — just practical findings based on visible business signals.
+              No inflated promises, no generic score pulled out of nowhere — just real findings based on what&apos;s actually visible online today.
             </p>
             <ul className="mt-6 space-y-3">
               {TRUST_POINTS.map((point) => (

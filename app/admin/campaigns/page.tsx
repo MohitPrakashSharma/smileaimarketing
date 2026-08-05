@@ -113,7 +113,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
           keywords,
           competitorCount,
           dataFreshnessDays,
-          dataProvider: "TEST_PROVIDER",
+          dataProvider: testMode ? "TEST_PROVIDER" : "DATAFORSEO",
           outreachDailyLimit,
           testMode,
         }),
@@ -285,6 +285,11 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
               <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
               Keep campaign in test mode
             </label>
+            <p className="text-metadata leading-relaxed text-muted-foreground">
+              {testMode
+                ? "Test mode uses safe, made-up sample businesses — nothing real is discovered or contacted. Uncheck to pull real practices from DataForSEO."
+                : "Live mode will discover real practices via DataForSEO using your configured API credentials."}
+            </p>
           </>
         )}
 
@@ -297,7 +302,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
             <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-background p-3 text-muted-foreground">
               <p>Max businesses: <span className="font-bold text-foreground">{maxBusinesses}</span></p>
               <p>Daily limit: <span className="font-bold text-foreground">{outreachDailyLimit}</span></p>
-              <p>Test mode: <span className="font-bold text-foreground">{testMode ? "On" : "Off"}</span></p>
+              <p>Data source: <span className="font-bold text-foreground">{testMode ? "Sample (test)" : "Live (DataForSEO)"}</span></p>
             </div>
           </div>
         )}

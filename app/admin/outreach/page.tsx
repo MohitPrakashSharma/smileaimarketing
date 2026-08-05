@@ -27,6 +27,9 @@ export default function AdminOutreachPage() {
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [selectedTab, setSelectedTab] = useState("AWAITING");
   const [previewMessage, setPreviewMessage] = useState<OutreachMessage | null>(null);
+  const [previewContent, setPreviewContent] = useState<{ subject: string; html: string; to: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [testEmailRecipient, setTestEmailRecipient] = useState("hello@smileaimarketing.com");
@@ -87,12 +90,70 @@ export default function AdminOutreachPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to approve outreach");
-      setActionMessage("All queued outreach messages approved.");
+      setActionMessage(`${data.count} queued email${data.count === 1 ? "" : "s"} approved and queued for sending.`);
       await fetchOutreach();
     } catch (err: unknown) {
       setActionMessage(err instanceof Error ? err.message : "Approval failed");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleApproveOne = async (messageId: string) => {
+    setActionLoading(true);
+    setActionMessage("");
+    try {
+      const res = await fetch("/api/admin/outreach/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: [messageId] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to approve email");
+      setActionMessage("Email approved and queued for sending.");
+      setPreviewMessage(null);
+      await fetchOutreach();
+    } catch (err: unknown) {
+      setActionMessage(err instanceof Error ? err.message : "Approval failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkReplied = async (messageId: string) => {
+    setActionLoading(true);
+    setActionMessage("");
+    try {
+      const res = await fetch("/api/admin/outreach/mark-replied", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to mark as replied");
+      setActionMessage("Marked as replied.");
+      await fetchOutreach();
+    } catch (err: unknown) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openPreview = async (m: OutreachMessage) => {
+    setPreviewMessage(m);
+    setPreviewContent(null);
+    setPreviewError("");
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/admin/outreach/${m.id}/preview`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load preview");
+      setPreviewContent(data);
+    } catch (err: unknown) {
+      setPreviewError(err instanceof Error ? err.message : "Failed to load preview");
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -209,15 +270,18 @@ export default function AdminOutreachPage() {
 
                 <div className="flex items-center justify-between border-t border-border/40 pt-2">
                   <button
-                    onClick={() => setPreviewMessage(m)}
+                    onClick={() => openPreview(m)}
                     className="inline-flex h-8 items-center rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20"
                   >
                     Preview Email
                   </button>
                   <ActionMenu
                     items={[
-                      { label: "Preview Email", onClick: () => setPreviewMessage(m) },
-                      { label: "Approve & Send Now", onClick: handleApproveAll },
+                      { label: "Preview Email", onClick: () => openPreview(m) },
+                      ...(m.status === "QUEUED" ? [{ label: "Approve & Send Now", onClick: () => handleApproveOne(m.id) }] : []),
+                      ...(["SENT", "DELIVERED", "OPENED", "CLICKED"].includes(m.status)
+                        ? [{ label: "Mark as Replied", onClick: () => handleMarkReplied(m.id) }]
+                        : []),
                     ]}
                   />
                 </div>
@@ -256,15 +320,18 @@ export default function AdminOutreachPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => setPreviewMessage(m)}
+                            onClick={() => openPreview(m)}
                             className="inline-flex h-8 items-center rounded-lg bg-surface-muted px-3 text-xs font-bold text-foreground hover:bg-border"
                           >
                             Preview
                           </button>
                           <ActionMenu
                             items={[
-                              { label: "Preview Email Content", onClick: () => setPreviewMessage(m) },
-                              { label: "Approve & Send", onClick: handleApproveAll },
+                              { label: "Preview Email Content", onClick: () => openPreview(m) },
+                              ...(m.status === "QUEUED" ? [{ label: "Approve & Send", onClick: () => handleApproveOne(m.id) }] : []),
+                              ...(["SENT", "DELIVERED", "OPENED", "CLICKED"].includes(m.status)
+                                ? [{ label: "Mark as Replied", onClick: () => handleMarkReplied(m.id) }]
+                                : []),
                             ]}
                           />
                         </div>
@@ -278,49 +345,67 @@ export default function AdminOutreachPage() {
         </>
       )}
 
-      {/* Side Panel / Modal Email Preview */}
+      {/* Side Panel / Modal Email Preview — shows exactly what would be sent, rendered server-side */}
       {previewMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-2xl space-y-4">
+          <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-sm font-bold text-foreground">Email Preview</h3>
-              <button onClick={() => setPreviewMessage(null)} className="text-xs font-bold text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => {
+                  setPreviewMessage(null);
+                  setPreviewContent(null);
+                }}
+                className="text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
                 ✕ Close
               </button>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <p><span className="font-bold text-muted-foreground">To:</span> {previewMessage.contact?.firstName} {previewMessage.contact?.lastName} ({previewMessage.contact?.email})</p>
-              <p><span className="font-bold text-muted-foreground">Subject:</span> {previewMessage.step?.subject || "Executive Dental Audit Findings"}</p>
-            </div>
+            {previewLoading && (
+              <p className="py-8 text-center text-xs text-muted-foreground">Rendering the actual email content…</p>
+            )}
 
-            <div className="rounded-lg border border-border bg-background p-4 text-xs text-muted-foreground space-y-2 leading-relaxed">
-              <p>Hello Dr. {previewMessage.contact?.lastName || "Practice Director"},</p>
-              <p>
-                We recently finalized an executive visibility and conversion audit for {previewMessage.contact?.business?.name || "your practice"}.
-              </p>
-              <p>
-                Your report identifies key expansion opportunities in local Google map rankings, website load performance, and online consultation bookings.
-              </p>
-              <p className="font-semibold text-foreground pt-2">Best regards,<br />Smile AI Marketing Audit Team</p>
-            </div>
+            {previewError && (
+              <div role="alert" className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-xs font-semibold text-danger">
+                {previewError}
+              </div>
+            )}
+
+            {previewContent && (
+              <>
+                <div className="space-y-1 text-xs">
+                  <p><span className="font-bold text-muted-foreground">To:</span> {previewContent.to}</p>
+                  <p><span className="font-bold text-muted-foreground">Subject:</span> {previewContent.subject}</p>
+                </div>
+
+                <iframe
+                  title="Email preview"
+                  srcDoc={previewContent.html}
+                  className="h-96 w-full rounded-lg border border-border bg-white"
+                />
+              </>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <button
-                onClick={() => setPreviewMessage(null)}
+                onClick={() => {
+                  setPreviewMessage(null);
+                  setPreviewContent(null);
+                }}
                 className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  setPreviewMessage(null);
-                  void handleApproveAll();
-                }}
-                className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
-              >
-                Approve &amp; Send
-              </button>
+              {previewMessage.status === "QUEUED" && (
+                <button
+                  onClick={() => void handleApproveOne(previewMessage.id)}
+                  disabled={actionLoading}
+                  className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                >
+                  Approve &amp; Send
+                </button>
+              )}
             </div>
           </div>
         </div>
