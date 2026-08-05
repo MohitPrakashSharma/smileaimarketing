@@ -55,10 +55,10 @@ export default function SampleAuditPreview() {
             SAMPLE AUDIT PREVIEW
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Your audit, at a glance.
+            Here&apos;s what a real report looks like.
           </h2>
           <p className="mt-4 text-body text-muted-foreground">
-            See the visibility gaps, competitor advantages, and actions worth prioritising.
+            Where you&apos;re falling behind, what nearby competitors are doing better, and what&apos;s worth fixing first — in plain English.
           </p>
         </div>
 

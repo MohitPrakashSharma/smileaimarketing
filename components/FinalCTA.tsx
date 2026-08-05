@@ -52,10 +52,10 @@ export default function FinalCTA() {
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
         <div className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-sm sm:py-14">
           <h2 className="text-heading-1 font-semibold text-foreground">
-            See what your practice should fix first.
+            See what&apos;s costing you new patients.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-body text-muted-foreground">
-            Start with your website and city. We will prepare a clear local growth review.
+            Just your website and city — we&apos;ll do the digging and hand you a clear, plain-English report.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4 text-left" noValidate>

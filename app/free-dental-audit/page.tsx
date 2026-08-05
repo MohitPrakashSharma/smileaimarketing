@@ -308,7 +308,7 @@ function AuditWizardForm() {
               Patients are searching nearby right now.
             </h1>
             <p className="mt-2 text-body-small text-muted-foreground">
-              Here's a first look. Unlock the full report to see your score, who's ranking ahead of you, and exactly what to fix first.
+              Here&apos;s a first look. Unlock the full report to see your score, who&apos;s ranking ahead of you, and exactly what to fix first.
             </p>
           </div>
 

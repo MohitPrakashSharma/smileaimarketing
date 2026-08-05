@@ -84,19 +84,19 @@ export default function Hero() {
         {/* Left Column: Headline and Form */}
         <div>
           <span className="animate-fade-in-up inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
-            LOCAL GROWTH AUDIT FOR DENTAL PRACTICES
+            A FREE GROWTH CHECK-UP FOR YOUR PRACTICE
           </span>
           <h1
             className="animate-fade-in-up mt-5 font-sans text-display text-foreground"
             style={{ animationDelay: "80ms" }}
           >
-            See why nearby dentists get found first.
+            Find out who your patients are calling instead of you.
           </h1>
           <p
             className="animate-fade-in-up mt-6 max-w-xl text-body-large text-muted-foreground"
             style={{ animationDelay: "140ms" }}
           >
-            We review your Google visibility, website, reviews, and booking experience — then show you what to fix first.
+            We&apos;ll look at your Google visibility, your website, your reviews, and how easy it is to book with you — then tell you plainly what to fix first.
           </p>
 
           {/* Primary Form */}
@@ -158,15 +158,15 @@ export default function Hero() {
           >
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>No Google account access required.</span>
+              <span>No login or account access needed.</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>Based on public business signals.</span>
+              <span>Based on what patients can already see.</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>Clear, practical recommendations.</span>
+              <span>Straight talk, not jargon.</span>
             </li>
           </ul>
         </div>
@@ -194,7 +194,7 @@ export default function Hero() {
             <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-body font-bold text-foreground">Metro Dental Care</p>
-                <p className="text-metadata">Chicago Market Simulator</p>
+                <p className="text-metadata">Sample report preview</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-metadata font-semibold uppercase text-muted-foreground">Opportunity</span>
