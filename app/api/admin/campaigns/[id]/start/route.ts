@@ -30,6 +30,8 @@ export async function POST(
       {
         campaignId: campaign.id,
         city: campaign.city,
+        country: campaign.country,
+        state: campaign.state,
         category: campaign.category,
         maxBusinesses: campaign.maxBusinesses,
         dataProvider: campaign.dataProvider,

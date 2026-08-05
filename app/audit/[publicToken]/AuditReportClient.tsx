@@ -36,11 +36,11 @@ type AuditData = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  LOCAL_VISIBILITY: "Strengthen your local map ranking",
-  WEBSITE_QUALITY: "Improve site speed & structure",
-  CONVERSION: "Add an online booking option",
-  REPUTATION: "Grow your review volume",
-  COMPETITOR_GAP: "Close the competitor review gap",
+  LOCAL_VISIBILITY: "Get your practice into Google's top 3 nearby results",
+  WEBSITE_QUALITY: "Make your website faster and easier to trust",
+  CONVERSION: "Make it a one-tap process for patients to book",
+  REPUTATION: "Put your patient reviews on autopilot",
+  COMPETITOR_GAP: "Close the gap with the practices ahead of you",
 };
 
 export default function AuditReportClient({ publicToken }: { publicToken: string }) {
@@ -172,7 +172,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       <header className="border-b border-border bg-surface py-6 shadow-sm">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-4 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div>
-            <Eyebrow>Dental Growth Scorecard</Eyebrow>
+            <Eyebrow>Your practice growth audit, explained simply</Eyebrow>
             <h1 className="mt-2 text-heading-1 font-semibold text-foreground">{business.name}</h1>
             <p className="text-body-small text-muted-foreground">
               {business.website} &bull; {business.city}
@@ -182,7 +182,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
           <div className="animate-scale-in flex items-center gap-4 rounded-2xl border border-border bg-surface-muted/40 px-5 py-4">
             <div className="text-center">
               <span className="block text-metadata font-bold uppercase tracking-wider text-muted-foreground">
-                Overall Score
+                Opportunity Score
               </span>
               <span className="text-display font-bold text-primary">
                 {business.opportunityScore}
@@ -191,7 +191,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             </div>
             <div className="h-8 w-px bg-border" />
             <p className="max-w-[140px] text-body-small font-medium leading-tight text-muted-foreground">
-              {business.opportunityScore >= 70 ? "Healthy local presence." : "High visibility gap discovered."}
+              {business.opportunityScore >= 70
+                ? "You're in a strong position — a few refinements will widen the lead."
+                : "Nearby practices are picking up patients that could be yours."}
             </p>
           </div>
         </div>
@@ -202,7 +204,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         <div className="space-y-8">
           {/* Score breakdown */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-heading-3 font-semibold text-foreground">Performance Breakdown</h2>
+            <h2 className="text-heading-3 font-semibold text-foreground">How your practice scores today</h2>
             <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
               {[
                 { label: "Local Maps", value: scorecard.localVisibility, max: 30 },
@@ -226,7 +228,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* Key Findings */}
           <div className="space-y-4">
-            <h2 className="px-1 text-heading-3 font-semibold text-foreground">Key Findings</h2>
+            <h2 className="px-1 text-heading-3 font-semibold text-foreground">What we found, in plain terms</h2>
             {priorityFindings.map((item, idx) => (
               <div key={item.category} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
@@ -242,7 +244,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* Recommended Actions */}
           <div className="rounded-2xl border border-border bg-surface-muted/30 p-6">
-            <h2 className="text-heading-3 font-semibold text-foreground">Recommended Actions</h2>
+            <h2 className="text-heading-3 font-semibold text-foreground">What to fix first</h2>
             <ol className="mt-4 space-y-3">
               {priorityFindings.map((item) => (
                 <li key={item.category} className="flex items-start gap-3 text-body-small text-foreground">
@@ -255,9 +257,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* Competitor Gap Panel */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-heading-3 font-semibold text-foreground">Local Competitor Comparison</h2>
+            <h2 className="text-heading-3 font-semibold text-foreground">Who&apos;s winning the patients you&apos;re missing</h2>
             <p className="mt-1 mb-6 text-body-small text-muted-foreground">
-              How you match up against the highest-ranking practices in {business.city}.
+              A side-by-side look at you against the practice currently ranking ahead of you in {business.city}.
             </p>
 
             <div className="space-y-1">
@@ -281,6 +283,12 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                 </div>
               ))}
             </div>
+
+            {competitors.length === 0 && (
+              <p className="mt-4 text-body-small text-muted-foreground">
+                We couldn&apos;t pull a verified competitor list for {business.city} this time — everything else in this report is still based on your real data.
+              </p>
+            )}
           </div>
         </div>
 
@@ -291,9 +299,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
               <IconCalendarCheck className="h-5 w-5" />
             </span>
-            <h3 className="text-body font-bold text-foreground">15-Min Online Video Audit</h3>
+            <h3 className="text-body font-bold text-foreground">Talk it through, 15 minutes on video</h3>
             <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              A live screen share with our dental strategist to review exactly how competitors are outranking you.
+              We&apos;ll screen-share this report together and show you exactly what a patient sees when they search for a dentist near you — no pitch, just the facts.
             </p>
 
             {bookingSubmitted ? (
@@ -337,9 +345,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
               <IconMapPin className="h-5 w-5" />
             </span>
-            <h3 className="text-body font-bold text-foreground">Request In-Person Visit</h3>
+            <h3 className="text-body font-bold text-foreground">Or we'll come to you</h3>
             <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              Have a local consultant walk your team through this report at your practice.
+              A local consultant visits your practice and walks your whole team through the findings in person.
             </p>
 
             {visitSubmitted ? (

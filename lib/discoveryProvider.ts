@@ -1,5 +1,5 @@
-import { normalizeName } from "./normalization";
-import { searchDataForSeoMaps } from "./dataforseo";
+import { normalizeName, normalizeDomain } from "./normalization";
+import { searchDataForSeoMaps, countryCodeToName } from "./dataforseo";
 
 export interface DiscoveredBusinessItem {
   googlePlaceId?: string;
@@ -110,12 +110,15 @@ export function getTestProviderBusinesses(
  */
 export async function discoverBusinesses(params: {
   city: string;
+  country?: string;
+  state?: string;
   category?: string;
   limit?: number;
   dataProvider?: string;
 }): Promise<DiscoveredBusinessItem[]> {
   const limit = Math.min(params.limit || 5, 5);
   const category = params.category || "Dental Clinic";
+  const country = params.country || "US";
   const isLiveMode = process.env.DATA_MODE === "live";
 
   // 1. DataForSEO Provider
@@ -124,6 +127,8 @@ export async function discoverBusinesses(params: {
       const dfsResult = await searchDataForSeoMaps({
         keyword: category,
         city: params.city,
+        country,
+        state: params.state,
         limit,
       });
 
@@ -137,7 +142,7 @@ export async function discoverBusinesses(params: {
           website: siteUrl,
           address: item.address || params.city,
           city: params.city,
-          country: "US",
+          country,
           phone: item.phone,
           category,
           rating: item.rating,
@@ -163,8 +168,9 @@ export async function discoverBusinesses(params: {
       throw new Error("GOOGLE_PLACES_API_KEY is not configured in environment");
     }
     try {
+      const locationQuery = [params.city, params.state, countryCodeToName(country)].filter(Boolean).join(", ");
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-        `${category} in ${params.city}`
+        `${category} in ${locationQuery}`
       )}&key=${googleApiKey}`;
 
       const res = await fetch(url);
@@ -189,7 +195,7 @@ export async function discoverBusinesses(params: {
             website,
             address,
             city: params.city,
-            country: "US",
+            country,
             category,
             rating: typeof item.rating === "number" ? item.rating : 4.5,
             reviewCount: typeof item.user_ratings_total === "number" ? item.user_ratings_total : 30,
@@ -215,4 +221,72 @@ export async function discoverBusinesses(params: {
 
   // Fallback to test provider ONLY in test mode
   return getTestProviderBusinesses(params.city, category, limit);
+}
+
+export interface RealCompetitor {
+  name: string;
+  website?: string;
+  rank: number;
+  mapScore: number;
+}
+
+/**
+ * Looks up real nearby competitors via DataForSEO for use in an audit report.
+ * Returns [] (never fabricated placeholder names) when live data isn't
+ * available or the lookup fails — callers must treat an empty list as
+ * "no verified competitor data," not fill it in with invented businesses.
+ */
+export async function findRealCompetitors(params: {
+  businessName: string;
+  website: string;
+  city: string;
+  state?: string;
+  country?: string;
+  category?: string;
+  limit?: number;
+}): Promise<RealCompetitor[]> {
+  const isLiveMode = process.env.DATA_MODE === "live";
+  if (!isLiveMode || !process.env.DATAFORSEO_LOGIN) return [];
+
+  const limit = params.limit || 3;
+  const excludeDomain = normalizeDomain(params.website);
+  const excludeName = normalizeName(params.businessName);
+
+  try {
+    const dfsResult = await searchDataForSeoMaps({
+      keyword: params.category || "Dental Clinic",
+      city: params.city,
+      country: params.country,
+      state: params.state,
+      // Fetch extra results so filtering out the target business still leaves enough.
+      limit: limit + 5,
+    });
+
+    const seenDomains = new Set<string>();
+    const competitors: RealCompetitor[] = [];
+
+    for (const item of dfsResult.items) {
+      const itemDomain = normalizeDomain(item.domain || item.website || "");
+      const itemName = normalizeName(item.title);
+
+      if (itemDomain && itemDomain === excludeDomain) continue;
+      if (!itemDomain && itemName === excludeName) continue;
+      if (itemDomain && seenDomains.has(itemDomain)) continue;
+      if (itemDomain) seenDomains.add(itemDomain);
+
+      competitors.push({
+        name: item.title,
+        website: item.website || (item.domain ? `https://${item.domain}` : undefined),
+        rank: item.rank_group || competitors.length + 1,
+        mapScore: typeof item.rating === "number" ? item.rating : 4.5,
+      });
+
+      if (competitors.length >= limit) break;
+    }
+
+    return competitors;
+  } catch (err) {
+    console.error("[Competitors] DataForSEO competitor lookup failed:", err);
+    return [];
+  }
 }

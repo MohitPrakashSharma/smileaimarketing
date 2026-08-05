@@ -97,7 +97,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     let yPos = pageHeight - 65;
 
     // Eyebrow label
-    page1.drawText("LOCAL GROWTH AUDIT FOR DENTAL PRACTICES", {
+    page1.drawText("YOUR PRACTICE GROWTH AUDIT, EXPLAINED SIMPLY", {
       x: 36,
       y: yPos,
       size: 8.5,
@@ -107,7 +107,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     // Headline (2 Lines, second line with Dental Teal highlight box)
     yPos -= 32;
-    page1.drawText("Strong Patient Demand.", {
+    page1.drawText("Patients are searching for you.", {
       x: 36,
       y: yPos,
       size: 24,
@@ -126,7 +126,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDentalTeal,
     });
 
-    page1.drawText("Patient Loss Gap Flagged.", {
+    page1.drawText("Here's who's finding them first.", {
       x: 42,
       y: yPos,
       size: 22,
@@ -136,7 +136,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     // Editorial supporting statement (Georgia / Helvetica Oblique style)
     yPos -= 32;
-    const summaryLines = wrapText(data.summaryText || "We evaluated your practice search presence, website performance, and patient conversion signals to identify key growth opportunities.", 90);
+    const summaryLines = wrapText(data.summaryText || "We looked at your online presence the same way a prospective patient would — your search visibility, your website, and how easy you are to book with — to find out where you're winning and where you're not.", 90);
     for (const sLine of summaryLines.slice(0, 2)) {
       page1.drawText(sLine, {
         x: 36,
@@ -229,7 +229,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     yPos = scoreBoxY - 25;
 
     // Verified Findings Section
-    page1.drawText("KEY VERIFIED AUDIT FINDINGS", {
+    page1.drawText("WHAT WE FOUND, IN PLAIN TERMS", {
       x: 36,
       y: yPos,
       size: 11,
@@ -294,7 +294,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDeepNavy,
     });
 
-    page1.drawText("LOCAL MARKET COMPETITOR COMPARISON", {
+    page1.drawText("HOW YOU COMPARE TO A NEARBY PRACTICE", {
       x: 48,
       y: yPos - 20,
       size: 8.5,
@@ -302,9 +302,9 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDentalTeal,
     });
 
-    const compLeader = data.competitors[0]?.name || "Market Leader (Local #1)";
-    const compRank = data.competitors[0]?.rank ? `#${data.competitors[0].rank}` : "Rank #1";
-    const compRating = data.competitors[0]?.mapScore ? `${data.competitors[0].mapScore} / 5.0` : "Data unavailable";
+    const compLeader = data.competitors[0]?.name || "No verified competitor data this run";
+    const compRank = data.competitors[0]?.rank ? `#${data.competitors[0].rank}` : "—";
+    const compRating = data.competitors[0]?.mapScore ? `${data.competitors[0].mapScore} / 5.0` : "—";
 
     // Table Header
     page1.drawText("PRACTICE NAME", { x: 48, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
@@ -313,7 +313,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     // Target Row
     page1.drawText(`${data.businessName} (YOU)`, { x: 48, y: yPos - 58, size: 9.5, font: fontBold, color: cWhite });
-    page1.drawText("Audit Target Practice", { x: 280, y: yPos - 58, size: 9, font: fontRegular, color: cDentalTeal });
+    page1.drawText("Your practice", { x: 280, y: yPos - 58, size: 9, font: fontRegular, color: cDentalTeal });
     page1.drawText("Verified Signals", { x: 420, y: yPos - 58, size: 9, font: fontRegular, color: cWhite });
 
     // Competitor Row
@@ -324,7 +324,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     yPos -= 115;
 
     // Sources Line
-    page1.drawText("Sources: Google Places, DataForSEO, direct website checks and verified audit data.", {
+    page1.drawText("Where this comes from: Google Places, DataForSEO, and a direct check of your live website.", {
       x: 36,
       y: yPos,
       size: 7.5,
@@ -371,7 +371,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cWhite,
     });
 
-    page2.drawText("ACTION PLAN", {
+    page2.drawText("YOUR NEXT STEPS", {
       x: pageWidth - 110,
       y: pageHeight - 21,
       size: 8.5,
@@ -381,7 +381,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     let y2 = pageHeight - 65;
 
-    page2.drawText("What to fix first", {
+    page2.drawText("Three fixes, in order of impact", {
       x: 36,
       y: y2,
       size: 20,
@@ -395,21 +395,21 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     const recs = [
       {
         num: "01",
-        title: "Optimize Mobile Patient Conversion Flow",
-        detail: "Embed instant tap-to-call buttons and direct 2-click appointment scheduling on mobile viewports to prevent drop-off.",
-        signal: "Signal: High Mobile Traffic Bounce Rate",
+        title: "Make it effortless to book on a phone",
+        detail: "Add a tap-to-call button and a 2-step booking form patients can find without scrolling or searching.",
+        signal: "Why it matters: patients on their phone won't hunt for a way to reach you.",
       },
       {
         num: "02",
-        title: "Capture Top 3 Local Maps Visibility",
-        detail: "Synchronize local practice citations across Google, Apple Maps, and Bing to enter the high-converting top 3 map pack.",
-        signal: "Signal: Competitor Map Pack Lead",
+        title: "Get into the top 3 on Google Maps",
+        detail: "Match your name, address, and phone number everywhere online, and complete every field on your Google Business Profile.",
+        signal: "Why it matters: nearly all local clicks go to the top 3 — everyone else fights for scraps.",
       },
       {
         num: "03",
-        title: "Automate Patient Review Acceleration",
-        detail: "Implement automated post-appointment SMS requests to consistently generate 5-star Google reviews.",
-        signal: "Signal: Review Frequency Gap",
+        title: "Put your reviews on autopilot",
+        detail: "A short text after every visit asking happy patients for a review — no one has to remember to ask.",
+        signal: "Why it matters: patients compare review counts before anything else.",
       },
     ];
 
@@ -480,7 +480,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     y2 -= 35;
 
     // Compact Opportunity Summary Section
-    page2.drawText("PRACTICE GROWTH OPPORTUNITY AREAS", {
+    page2.drawText("WHERE THE GROWTH IS WAITING", {
       x: 36,
       y: y2,
       size: 10,
@@ -490,9 +490,9 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     y2 -= 10;
     const oppCards = [
-      { title: "Website Opportunity", desc: "Mobile UX & Call-To-Action Optimization" },
-      { title: "Local Visibility", desc: "Google Map Pack & Search Rank Dominance" },
-      { title: "Trust & Reviews", desc: "Automated Reputation & Patient Proof" },
+      { title: "Your website", desc: "Make it fast and easy to book on mobile" },
+      { title: "Google Maps", desc: "Move into the top 3 nearby search results" },
+      { title: "Reviews", desc: "Build the trust patients look for first" },
     ];
 
     const oppWidth = (pageWidth - 72 - 20) / 3;
@@ -536,7 +536,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDeepNavy,
     });
 
-    page2.drawText("View Your Full Audit & Choose a Meeting", {
+    page2.drawText("Let's walk through it together", {
       x: 52,
       y: y2 - 25,
       size: 14,
@@ -544,7 +544,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cWhite,
     });
 
-    page2.drawText("Choose an online video review or request an in-person clinic visit with our specialist.", {
+    page2.drawText("No pressure, no sales pitch — just a straight conversation about what's fixable and what it's worth.", {
       x: 52,
       y: y2 - 42,
       size: 9,
@@ -552,7 +552,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cSoftMint,
     });
 
-    page2.drawText("• Online Option: Review findings online in 15 minutes", {
+    page2.drawText("• 15 minutes on video: we'll screen-share and show you exactly what patients see", {
       x: 52,
       y: y2 - 60,
       size: 8.5,
@@ -560,7 +560,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cWhite,
     });
 
-    page2.drawText("• In-Person Option: Request a clinic visit", {
+    page2.drawText("• Or in person: we'll come to the practice and walk your team through it", {
       x: 52,
       y: y2 - 74,
       size: 8.5,
@@ -568,7 +568,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cWhite,
     });
 
-    page2.drawText(`Interactive Report URL: ${reportUrl}`, {
+    page2.drawText(`See your full report online: ${reportUrl}`, {
       x: 52,
       y: y2 - 96,
       size: 8.5,

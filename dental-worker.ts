@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { prisma } from "./lib/prisma";
 import { Prisma } from "@prisma/client";
-import { discoverBusinesses } from "./lib/discoveryProvider";
+import { discoverBusinesses, findRealCompetitors } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
 import { analyzeWebsite } from "./lib/websiteAnalyzer";
 import { computeAuditScores } from "./lib/auditScorer";
@@ -23,7 +23,7 @@ const discoveryWorker = new Worker(
   "discovery-queue",
   async (job: Job) => {
     console.log(`[Discovery Worker] Processing job ${job.id} (${job.name})`);
-    const { campaignId, city, category, maxBusinesses, dataProvider } = job.data;
+    const { campaignId, city, country, state, category, maxBusinesses, dataProvider } = job.data;
 
     // Update campaign status
     if (campaignId) {
@@ -35,6 +35,8 @@ const discoveryWorker = new Worker(
 
     const discoveredItems = await discoverBusinesses({
       city,
+      country,
+      state,
       category,
       limit: maxBusinesses || 5,
       dataProvider: dataProvider || (process.env.DATA_MODE === "live" ? "GOOGLE_PLACES" : "TEST_PROVIDER"),
@@ -180,6 +182,17 @@ const analysisWorker = new Worker(
     // Run real credential-free website check
     const signals = await analyzeWebsite(business.website);
 
+    // Real competitor lookup — never fabricated names
+    const realCompetitors = await findRealCompetitors({
+      businessName: business.name,
+      website: business.website,
+      city: business.city,
+      state: business.state || undefined,
+      country: business.country,
+      category: business.category,
+      limit: 3,
+    });
+
     // Calculate deterministic scores
     const scoreOutput = computeAuditScores({
       businessName: business.name,
@@ -188,6 +201,7 @@ const analysisWorker = new Worker(
       signals,
       rating: business.rating || 4.5,
       reviewCount: business.reviewCount || 45,
+      realCompetitors,
     });
 
     // Generate OpenAI summary if key available

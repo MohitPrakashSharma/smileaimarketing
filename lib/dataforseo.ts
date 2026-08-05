@@ -1,5 +1,18 @@
 import { getDataForSeoAuthHeader } from "./env.server";
 
+const COUNTRY_CODE_TO_NAME: Record<string, string> = {
+  US: "United States",
+  CA: "Canada",
+  UK: "United Kingdom",
+  GB: "United Kingdom",
+  AU: "Australia",
+};
+
+export function countryCodeToName(code?: string): string {
+  if (!code) return "United States";
+  return COUNTRY_CODE_TO_NAME[code.toUpperCase()] || code;
+}
+
 export interface DataForSeoMapResult {
   task_id: string;
   cost: number;
@@ -20,16 +33,21 @@ export interface DataForSeoMapResult {
 export async function searchDataForSeoMaps(params: {
   keyword: string;
   city: string;
+  country?: string;
+  state?: string;
   limit?: number;
 }): Promise<DataForSeoMapResult> {
   const authHeader = getDataForSeoAuthHeader(); // Base64 generated at runtime
   const baseUrl = process.env.DATAFORSEO_BASE_URL || "https://api.dataforseo.com";
   const url = `${baseUrl}/v3/serp/google/maps/live/advanced`;
 
+  const countryName = countryCodeToName(params.country);
+  const locationParts = [params.city, params.state, countryName].filter(Boolean);
+
   const payload = [
     {
       keyword: `${params.keyword} in ${params.city}`,
-      location_name: `${params.city},United States`,
+      location_name: locationParts.join(","),
       language_code: "en",
       depth: Math.min(params.limit || 5, 10),
     },
