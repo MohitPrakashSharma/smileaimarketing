@@ -35,6 +35,7 @@ export async function GET(
         providerSource: true,
         rating: true,
         reviewCount: true,
+        googlePlaceId: true,
         lastCheckedAt: true,
         createdAt: true,
         campaign: { select: { id: true, name: true } },

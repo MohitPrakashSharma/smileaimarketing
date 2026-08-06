@@ -14,6 +14,7 @@ type Finding = {
   score: number;
   title: string;
   detail: string;
+  findings: Record<string, unknown>;
 };
 
 type Competitor = {
@@ -24,6 +25,7 @@ type Competitor = {
 
 type AuditData = {
   business: { name: string; website: string; city: string; opportunityScore: number };
+  summary: string | null;
   scorecard: {
     localVisibility: number;
     websiteQuality: number;
@@ -159,12 +161,43 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
     );
   }
 
-  const { business, scorecard, findings, competitors } = data;
+  const { business, summary, scorecard, findings, competitors } = data;
 
+  // Only genuine weak points — a 75/100 isn't "broken," so it has no business
+  // in a "what to fix first" list just because it's the lowest of a strong set.
   const priorityFindings = [...findings]
-    .filter((f) => f.category !== "COMPETITOR_GAP")
+    .filter((f) => f.category !== "COMPETITOR_GAP" && f.score < 60)
     .sort((a, b) => a.score - b.score)
     .slice(0, 3);
+
+  const localVisibility = findings.find((f) => f.category === "LOCAL_VISIBILITY");
+  const reputation = findings.find((f) => f.category === "REPUTATION");
+  const competitorGap = findings.find((f) => f.category === "COMPETITOR_GAP");
+  const lvFacts = localVisibility?.findings || {};
+  const repFacts = reputation?.findings || {};
+  const cgFacts = competitorGap?.findings || {};
+  const verified = Boolean(lvFacts.verified);
+  const ownRank = lvFacts.ownRank as number | null | undefined;
+  const rating = repFacts.rating as number | undefined;
+  const reviewCount = repFacts.reviewCount as number | undefined;
+  const reviewGap = cgFacts.reviewGap as number | undefined;
+
+  // One clear, factual sentence on what the SEO gap actually is — built only
+  // from real, already-verified fields, never a guess.
+  let seoGapText: string;
+  if (!verified) {
+    seoGapText = `We couldn't verify ${business.name}'s live Google Maps position this time, so the local visibility score above is an estimate based on review volume rather than a confirmed rank.`;
+  } else if (ownRank != null && ownRank <= 3) {
+    seoGapText = `${business.name} already ranks #${ownRank} in Google's local results for "dentist in ${business.city}" — that's the top 3, where almost all the clicks go. The gap isn't visibility, it's holding that position as nearby practices add reviews.`;
+  } else if (ownRank != null) {
+    seoGapText = `${business.name} ranks #${ownRank} in Google's local results for "dentist in ${business.city}." The gap: only the top 3 results get meaningful click-through, so everything below that is splitting what's left${reviewGap ? `, and the practices ahead average ${reviewGap} more reviews` : ""}.`;
+  } else {
+    seoGapText = `${business.name} did not appear in Google's local map results for "dentist in ${business.city}" at all when we checked — not ranked low, genuinely absent from the results a nearby patient sees. ${
+      reviewCount != null && rating != null
+        ? `That's despite having ${reviewCount} reviews at ${rating}★ — the reputation is there, the visibility isn't.`
+        : ""
+    }`;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-16 text-foreground">
@@ -202,16 +235,37 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       <main className="mx-auto mt-10 grid max-w-[1200px] gap-8 px-6 sm:px-8 lg:grid-cols-[63%_37%]">
         {/* Left Column */}
         <div className="space-y-8">
+          {/* Growth Summary — the real, plain-English synthesis of this audit */}
+          {summary && (
+            <div className="rounded-2xl border border-primary/20 bg-accent-soft p-6 shadow-sm">
+              <h2 className="text-heading-3 font-semibold text-foreground">Your growth summary</h2>
+              <p className="mt-3 text-body leading-relaxed text-foreground">{summary}</p>
+            </div>
+          )}
+
+          {/* Your SEO gap, explained in one factual paragraph */}
+          {localVisibility && (
+            <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+              <h2 className="text-heading-3 font-semibold text-foreground">Your local search (SEO) gap, explained</h2>
+              <p className="mt-3 text-body-small leading-relaxed text-muted-foreground">{seoGapText}</p>
+              {rating != null && reviewCount != null && (
+                <p className="mt-3 text-body-small leading-relaxed text-muted-foreground">
+                  For reference, your Google reviews: <span className="font-bold text-foreground">{reviewCount} reviews at {rating}★</span>.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Score breakdown */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="text-heading-3 font-semibold text-foreground">How your practice scores today</h2>
             <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
               {[
-                { label: "Local Maps", value: scorecard.localVisibility, max: 30 },
-                { label: "Web Quality", value: scorecard.websiteQuality, max: 20 },
-                { label: "Conversion", value: scorecard.conversionExperience, max: 20 },
-                { label: "Reviews", value: scorecard.reviewsReputation, max: 15 },
-                { label: "Competitor Gap", value: scorecard.competitorGap, max: 15 },
+                { label: "Local Maps", value: scorecard.localVisibility, max: 100 },
+                { label: "Web Quality", value: scorecard.websiteQuality, max: 100 },
+                { label: "Conversion", value: scorecard.conversionExperience, max: 100 },
+                { label: "Reviews", value: scorecard.reviewsReputation, max: 100 },
+                { label: "Competitor Gap", value: scorecard.competitorGap, max: 100 },
               ].map((item) => (
                 <div key={item.label} className="rounded-xl border border-border bg-background p-3">
                   <span className="mb-1 block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
@@ -229,31 +283,41 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
           {/* Key Findings */}
           <div className="space-y-4">
             <h2 className="px-1 text-heading-3 font-semibold text-foreground">What we found, in plain terms</h2>
-            {priorityFindings.map((item, idx) => (
-              <div key={item.category} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
-                  {idx + 1}
-                </span>
-                <div className="space-y-1">
-                  <h3 className="text-body font-bold text-foreground">{item.title}</h3>
-                  <p className="text-body-small leading-relaxed text-muted-foreground">{item.detail}</p>
-                </div>
+            {priorityFindings.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                <p className="text-body-small leading-relaxed text-muted-foreground">
+                  Nothing here scored low enough to call a real weak point — every category above is holding up. The findings below are for context, not fixes.
+                </p>
               </div>
-            ))}
+            ) : (
+              priorityFindings.map((item, idx) => (
+                <div key={item.category} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
+                    {idx + 1}
+                  </span>
+                  <div className="space-y-1">
+                    <h3 className="text-body font-bold text-foreground">{item.title}</h3>
+                    <p className="text-body-small leading-relaxed text-muted-foreground">{item.detail}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Recommended Actions */}
-          <div className="rounded-2xl border border-border bg-surface-muted/30 p-6">
-            <h2 className="text-heading-3 font-semibold text-foreground">What to fix first</h2>
-            <ol className="mt-4 space-y-3">
-              {priorityFindings.map((item) => (
-                <li key={item.category} className="flex items-start gap-3 text-body-small text-foreground">
-                  <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <span>{ACTION_LABELS[item.category] || item.title}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          {priorityFindings.length > 0 && (
+            <div className="rounded-2xl border border-border bg-surface-muted/30 p-6">
+              <h2 className="text-heading-3 font-semibold text-foreground">What to fix first</h2>
+              <ol className="mt-4 space-y-3">
+                {priorityFindings.map((item) => (
+                  <li key={item.category} className="flex items-start gap-3 text-body-small text-foreground">
+                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <span>{ACTION_LABELS[item.category] || item.title}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {/* Competitor Gap Panel */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">

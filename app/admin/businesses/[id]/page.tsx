@@ -38,6 +38,7 @@ type BusinessDetail = {
   providerSource: string | null;
   rating: number | null;
   reviewCount: number | null;
+  googlePlaceId: string | null;
   lastCheckedAt: string | null;
   createdAt: string;
   campaign: { id: string; name: string } | null;
@@ -318,7 +319,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
       )}
 
       {/* Business information */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-2xl border border-border bg-surface p-4">
           <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Category</span>
           <span className="mt-1 block text-body-small font-bold text-foreground">{business.category}</span>
@@ -326,6 +327,27 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
         <div className="rounded-2xl border border-border bg-surface p-4">
           <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Phone</span>
           <span className="mt-1 block text-body-small font-bold text-foreground">{business.phone || "—"}</span>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Address</span>
+          <span className="mt-1 block text-body-small font-bold text-foreground">{business.address || "—"}</span>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Google Reviews</span>
+          <span className="mt-1 block text-body-small font-bold text-foreground">
+            {business.rating != null ? `${business.rating.toFixed(1)} ★` : "—"}
+            {business.reviewCount != null && <span className="font-normal text-muted-foreground"> ({business.reviewCount})</span>}
+          </span>
+          {business.googlePlaceId && (
+            <a
+              href={`https://www.google.com/maps/place/?q=place_id:${business.googlePlaceId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 block text-metadata font-bold text-primary hover:underline"
+            >
+              View on Google Maps &rarr;
+            </a>
+          )}
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
           <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">DATA SOURCE</span>
@@ -499,6 +521,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                   <div>
                     <p className="font-semibold text-foreground">{c.firstName} {c.lastName}</p>
                     <p className="text-metadata text-muted-foreground">{c.role || "Principal Dentist"} • {c.email}</p>
+                    {c.phone && <p className="text-metadata text-muted-foreground">{c.phone}</p>}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sourceInfo.classes}`}>
                     {sourceInfo.label}

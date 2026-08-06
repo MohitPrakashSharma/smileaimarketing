@@ -45,6 +45,9 @@ export async function GET(
         score: r.score,
         title: typeof details.title === "string" ? details.title : r.category,
         detail: typeof details.description === "string" ? details.description : "No description provided.",
+        // Raw real facts behind the score (rating, review count, verified rank, etc.) —
+        // lets the report state the exact SEO gap instead of just a number.
+        findings: (r.findingsJson as Record<string, unknown> | null) || {},
       };
     });
 
@@ -61,6 +64,10 @@ export async function GET(
         city: audit.business.city,
         opportunityScore: audit.score,
       },
+      // The real, AI-written (or honest deterministic fallback) plain-English
+      // synthesis of this specific audit — was computed at audit time but
+      // never actually sent to the report page until now.
+      summary: audit.summaryText,
       scorecard,
       findings,
       competitors,
