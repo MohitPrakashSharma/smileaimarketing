@@ -74,8 +74,11 @@ export async function GET(request: Request) {
       {
         key: "dataforseo",
         name: "DataForSEO API",
-        status: process.env.DATAFORSEO_API_KEY ? "READY" : "MOCKED",
-        details: process.env.DATAFORSEO_API_KEY ? "Credentials active" : "Key missing • Using deterministic fallback calculations",
+        status: process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD ? "READY" : "MOCKED",
+        details:
+          process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD
+            ? "Credentials active"
+            : "Login/password missing • Using deterministic fallback calculations",
       },
       {
         key: "apollo",
@@ -93,7 +96,7 @@ export async function GET(request: Request) {
         key: "email",
         name: "Email Transport",
         status: process.env.EMAIL_SEND_MODE === "live" ? "READY" : "TEST_MODE",
-        details: `Mode: ${process.env.EMAIL_SEND_MODE || "test"} • Test Recipient: ${process.env.EMAIL_TEST_RECIPIENTS || "office@getfoundguru.com"}`,
+        details: `Mode: ${process.env.EMAIL_SEND_MODE || "test"} • Test Recipient: ${process.env.EMAIL_TEST_RECIPIENTS || "hello@smileaimarketing.com"}`,
       },
       {
         key: "calendar",
