@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         data: {
           businessId: business.id,
           status: "PENDING",
-          score: 75,
+          score: 0,
         },
       });
     } else {

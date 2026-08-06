@@ -62,6 +62,7 @@ export async function POST(
             email: apolloRes.email,
             phone: apolloRes.phone || null,
             role: apolloRes.role || "Principal Dentist",
+            source: "APOLLO",
           },
         });
       } else {
@@ -83,6 +84,7 @@ export async function POST(
             email: siteContact.email,
             phone: siteContact.phone || null,
             role: guessContactRole(siteContact.email),
+            source: "WEBSITE",
           },
         });
       }

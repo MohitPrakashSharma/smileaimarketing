@@ -52,27 +52,16 @@ function BusinessesList() {
     setLoadingId(businessId);
     setError("");
     try {
-      const res = await fetch(`/api/admin/businesses/${businessId}/audit`, { method: "POST" });
+      const res = await fetch(`/api/admin/audits/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Audit execution failed");
       await fetchBusinesses();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to trigger audit");
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const handleStartOutreach = async (businessId: string) => {
-    setLoadingId(businessId);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/businesses/${businessId}/outreach`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to start outreach sequence");
-      await fetchBusinesses();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to trigger outreach");
     } finally {
       setLoadingId(null);
     }
@@ -84,6 +73,9 @@ function BusinessesList() {
       )
     : businesses;
 
+  // The pipeline (discovery -> contact enrichment -> audit -> PDF -> outreach)
+  // runs automatically end to end. "Run Audit" here is a manual retry for a
+  // stuck job, not a required step — everything else is just a status link.
   const renderPrimaryAction = (b: Business) => {
     if (b.status === "DISCOVERED") {
       return (
@@ -93,17 +85,6 @@ function BusinessesList() {
           className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {loadingId === b.id ? "Auditing..." : "Run Audit"}
-        </button>
-      );
-    }
-    if (b.status === "AUDITED" || b.status === "OUTREACH_PENDING") {
-      return (
-        <button
-          onClick={() => handleStartOutreach(b.id)}
-          disabled={loadingId !== null}
-          className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
-        >
-          {loadingId === b.id ? "Queuing..." : "Approve Outreach"}
         </button>
       );
     }
@@ -178,8 +159,7 @@ function BusinessesList() {
                   <ActionMenu
                     items={[
                       { label: "View Practice", onClick: () => (window.location.href = `/admin/businesses/${b.id}`) },
-                      { label: "Run Audit", onClick: () => handleRunAudit(b.id) },
-                      { label: "Approve Outreach", onClick: () => handleStartOutreach(b.id) },
+                      { label: "Retry Audit", onClick: () => handleRunAudit(b.id) },
                     ]}
                   />
                 </div>
@@ -229,8 +209,7 @@ function BusinessesList() {
                           <ActionMenu
                             items={[
                               { label: "View Practice Detail", onClick: () => (window.location.href = `/admin/businesses/${b.id}`) },
-                              { label: "Run / Rerun Audit", onClick: () => handleRunAudit(b.id) },
-                              { label: "Approve Email Outreach", onClick: () => handleStartOutreach(b.id) },
+                              { label: "Retry Audit", onClick: () => handleRunAudit(b.id) },
                             ]}
                           />
                         </div>

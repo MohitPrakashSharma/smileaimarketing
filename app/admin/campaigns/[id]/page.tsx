@@ -41,7 +41,15 @@ interface CampaignDetail {
     outreachDailyLimit: number;
     testMode: boolean;
   };
-  counts: { discovered: number; audited: number; contacted: number; converted: number };
+  counts: {
+    discovered: number;
+    contactsFound: number;
+    audited: number;
+    pdfReady: number;
+    outreachSent: number;
+    replied: number;
+    converted: number;
+  };
   businesses: Business[];
 }
 
@@ -145,16 +153,62 @@ export default function AdminCampaignDetailPage({ params }: { params: Promise<{ 
     );
   };
 
-  const workflowSteps = [
-    { stepNumber: 1, name: "Discovery", status: campaign.status === "DISCOVERING" ? "RUNNING" : counts.discovered > 0 ? "COMPLETED" : "PENDING", completedCount: counts.discovered, failedCount: 0, nextAction: "Run Discovery", triggerAction: () => handleCampaignAction("start") },
-    { stepNumber: 2, name: "Business Verification", status: counts.discovered > 0 ? "COMPLETED" : "PENDING", completedCount: counts.discovered, failedCount: 0, nextAction: "Verify Practices", triggerAction: () => setActionMessage("Verified practices.") },
-    { stepNumber: 3, name: "Audit", status: counts.audited > 0 ? "COMPLETED" : "PENDING", completedCount: counts.audited, failedCount: 0, nextAction: "Run Audits", triggerAction: () => setActionMessage("Audit pipeline triggered.") },
-    { stepNumber: 4, name: "Contact Enrichment", status: counts.contacted > 0 ? "COMPLETED" : "PENDING", completedCount: counts.contacted, failedCount: 0, nextAction: "Enrich Contacts", triggerAction: () => setActionMessage("Contacts enriched.") },
-    { stepNumber: 5, name: "Report / PDF", status: counts.audited > 0 ? "COMPLETED" : "PENDING", completedCount: counts.audited, failedCount: 0, nextAction: "Generate PDFs", triggerAction: () => setActionMessage("PDFs generated.") },
-    { stepNumber: 6, name: "Email Approval", status: counts.contacted > 0 ? "AWAITING" : "PENDING", completedCount: counts.contacted, failedCount: 0, nextAction: "Approve Email", triggerAction: () => setActionMessage("Outreach approved.") },
-    { stepNumber: 7, name: "Engagement", status: counts.contacted > 0 ? "RUNNING" : "PENDING", completedCount: counts.contacted, failedCount: 0, nextAction: "Track Views", triggerAction: () => setActionMessage("Tracking active.") },
-    { stepNumber: 8, name: "Meeting", status: counts.converted > 0 ? "COMPLETED" : "PENDING", completedCount: counts.converted, failedCount: 0, nextAction: "Approve Visits", triggerAction: () => setActionMessage("Visits scheduled.") },
-    { stepNumber: 9, name: "Client Outcome", status: counts.converted > 0 ? "COMPLETED" : "RUNNING", completedCount: counts.converted, failedCount: 0, nextAction: "Record Outcome", triggerAction: () => setActionMessage("Outcomes recorded.") },
+  // Every node reflects real counts from the database — nothing here is a
+  // manual trigger. The whole thing runs automatically once "Start Campaign"
+  // kicks off discovery: enrichment, audit, PDF, and outreach all follow
+  // with no approval step in between.
+  const isDiscovering = campaign.status === "DISCOVERING";
+  type NodeState = "done" | "running" | "pending";
+  const pipelineNodes: { icon: string; name: string; sub: string; count: number; state: NodeState }[] = [
+    {
+      icon: "🔍",
+      name: "Discovery",
+      sub: `Google/DataForSEO in ${campaign.city}`,
+      count: counts.discovered,
+      state: isDiscovering ? "running" : counts.discovered > 0 ? "done" : "pending",
+    },
+    {
+      icon: "📇",
+      name: "Contact Enrichment",
+      sub: "Apollo, then practice website",
+      count: counts.contactsFound,
+      state: counts.contactsFound > 0 ? "done" : counts.discovered > 0 ? "running" : "pending",
+    },
+    {
+      icon: "📊",
+      name: "Audit",
+      sub: "Real website check + DataForSEO rank + AI",
+      count: counts.audited,
+      state: counts.audited > 0 ? "done" : counts.discovered > 0 ? "running" : "pending",
+    },
+    {
+      icon: "📄",
+      name: "PDF Report",
+      sub: "Auto-generated per practice",
+      count: counts.pdfReady,
+      state: counts.pdfReady > 0 ? "done" : counts.audited > 0 ? "running" : "pending",
+    },
+    {
+      icon: "✉️",
+      name: "AI Outreach Email",
+      sub: "Short, AI-written — sent automatically",
+      count: counts.outreachSent,
+      state: counts.outreachSent > 0 ? "done" : counts.audited > 0 ? "running" : "pending",
+    },
+    {
+      icon: "💬",
+      name: "Reply / Meeting",
+      sub: "Waiting on the practice",
+      count: counts.replied,
+      state: counts.replied > 0 ? "done" : counts.outreachSent > 0 ? "running" : "pending",
+    },
+    {
+      icon: "🏆",
+      name: "Won",
+      sub: "Converted to a client",
+      count: counts.converted,
+      state: counts.converted > 0 ? "done" : "pending",
+    },
   ];
 
   return (
@@ -193,30 +247,46 @@ export default function AdminCampaignDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* Visual Workflow Steps Grid */}
-      <AdminCard title="Funnel Command Workflow">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {workflowSteps.map((step) => (
-            <div key={step.stepNumber} className="flex flex-col justify-between rounded-lg border border-border/80 bg-background p-3">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-extrabold text-primary">
-                    {step.stepNumber}
-                  </span>
-                  <StatusBadge status={step.status} />
-                </div>
-                <h3 className="mt-2 text-xs font-bold text-foreground">{step.name}</h3>
-                <p className="mt-1 text-[11px] text-muted-foreground">Done: {step.completedCount} | Failed: {step.failedCount}</p>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2">
-                <button
-                  onClick={step.triggerAction}
-                  className="rounded-md bg-surface-muted px-2.5 py-1 text-[10px] font-bold text-foreground hover:bg-primary/15 hover:text-primary transition-colors"
+      {/* Automation Pipeline — live counts only, nothing here is a manual trigger */}
+      <AdminCard
+        header={
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Automation Pipeline</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Runs end to end with no manual approval once discovery starts.
+            </p>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-0 overflow-x-auto pb-1 sm:flex-row sm:items-stretch">
+          {pipelineNodes.map((node, i) => (
+            <div key={node.name} className="flex flex-1 sm:min-w-[140px] sm:items-center">
+              <div
+                className={`relative flex flex-1 flex-col items-center gap-1 rounded-xl border p-3 text-center transition-colors ${
+                  node.state === "done"
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : node.state === "running"
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : "border-border bg-background"
+                }`}
+              >
+                {node.state === "running" && (
+                  <span className="absolute right-2 top-2 h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                )}
+                <span className="text-lg leading-none">{node.icon}</span>
+                <span
+                  className={`text-base font-extrabold ${
+                    node.state === "done" ? "text-emerald-400" : node.state === "running" ? "text-amber-400" : "text-muted-foreground"
+                  }`}
                 >
-                  {step.nextAction}
-                </button>
+                  {node.count}
+                </span>
+                <span className="text-[11px] font-bold text-foreground">{node.name}</span>
+                <span className="text-[10px] text-muted-foreground">{node.sub}</span>
               </div>
+              {i < pipelineNodes.length - 1 && (
+                <div className="hidden h-px w-3 shrink-0 self-center bg-border sm:block" />
+              )}
             </div>
           ))}
         </div>

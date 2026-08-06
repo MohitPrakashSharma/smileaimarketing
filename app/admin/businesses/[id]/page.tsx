@@ -5,7 +5,7 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { IconMenuDots } from "@/components/icons";
 
-type AuditResultRow = { category: string; score: number; detailsJson: unknown };
+type AuditResultRow = { category: string; score: number; findingsJson: Record<string, unknown>; detailsJson: unknown };
 type Audit = {
   id: string;
   publicToken: string;
@@ -19,7 +19,7 @@ type Audit = {
   results: AuditResultRow[];
   competitorGaps: { name: string; rank: number; mapScore: number | null }[];
 };
-type Contact = { id: string; firstName: string; lastName: string; email: string; phone: string | null; role: string | null };
+type Contact = { id: string; firstName: string; lastName: string; email: string; phone: string | null; role: string | null; source: string };
 type Appointment = { id: string; type: string; status: string; scheduledTime: string; address: string | null; preferredWindow: string | null };
 type SalesActivity = { id: string; type: string; content: string; createdAt: string; user: { name: string } };
 
@@ -53,6 +53,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   CONVERSION: "Conversion",
   REPUTATION: "Reviews & Reputation",
   COMPETITOR_GAP: "Competitor Gap",
+};
+
+const CONTACT_SOURCE_LABELS: Record<string, { label: string; classes: string }> = {
+  APOLLO: { label: "Apollo Verified", classes: "bg-emerald-500/10 text-emerald-400" },
+  WEBSITE: { label: "Found on Website", classes: "bg-sky-500/10 text-sky-400" },
+  SELF_SERVE: { label: "Self-Submitted", classes: "bg-sky-500/10 text-sky-400" },
+  MANUAL: { label: "Manually Added", classes: "bg-amber-500/10 text-amber-400" },
 };
 
 export default function AdminBusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -150,7 +157,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to add contact");
-      setActionMessage("Decision maker contact added successfully!");
+      setActionMessage("Contact added — outreach will queue automatically if an audit is already complete.");
       setShowContactModal(false);
       setFirstName("");
       setLastName("");
@@ -177,6 +184,41 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
 
   const latestAudit = business.audits[0];
 
+  // Read-only automation pipeline status — every node reflects real pipeline
+  // state already on the record, nothing here triggers anything manually.
+  const contact = business.contacts[0];
+  const outreachSent = business.salesActivities.some((a) => a.type === "EMAIL") || business.status === "OUTREACH_ACTIVE" || business.status === "CONVERTED";
+  const engaged = business.appointments.length > 0 || business.status === "CONVERTED";
+
+  const pipelineNodes: { label: string; state: "done" | "pending" | "blocked"; detail: string }[] = [
+    { label: "Discovered", state: "done", detail: business.providerSource === "GOOGLE_PLACES" ? "Google Places" : business.providerSource === "DATAFORSEO" ? "DataForSEO" : business.providerSource === "SELF_SERVE" ? "Self-submitted" : business.providerSource === "TEST_PROVIDER" ? "Test fixture" : "Direct" },
+    {
+      label: "Contact Found",
+      state: contact ? "done" : "blocked",
+      detail: contact ? (CONTACT_SOURCE_LABELS[contact.source]?.label || contact.source) : "Apollo & website both came up empty",
+    },
+    {
+      label: "Audited",
+      state: latestAudit?.status === "COMPLETED" ? "done" : latestAudit ? "pending" : "pending",
+      detail: latestAudit?.status === "COMPLETED" ? `Score ${latestAudit.score}/100 (AI + DataForSEO)` : latestAudit ? "Running..." : "Queued on discovery",
+    },
+    {
+      label: "PDF Ready",
+      state: latestAudit?.pdfStatus === "READY" ? "done" : "pending",
+      detail: latestAudit?.pdfStatus === "READY" ? "Report generated" : latestAudit?.pdfStatus.replace(/_/g, " ") || "Not started",
+    },
+    {
+      label: "Outreach Sent",
+      state: outreachSent ? "done" : contact && latestAudit?.status === "COMPLETED" ? "pending" : "blocked",
+      detail: outreachSent ? "Sent automatically — no approval needed" : !contact ? "Waiting on a contact" : latestAudit?.status !== "COMPLETED" ? "Waiting on audit" : "Queuing...",
+    },
+    {
+      label: "Replied / Meeting",
+      state: engaged ? "done" : "pending",
+      detail: engaged ? `${business.appointments.length} scheduled` : "No reply yet",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Header & Operational Actions */}
@@ -200,12 +242,8 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
           </p>
         </div>
 
-        {/* Single Primary Action + 3-Dot Dropdown for Secondary Actions */}
+        {/* 3-Dot Dropdown for secondary / override actions — the pipeline below runs automatically */}
         <div className="flex items-center gap-2">
-          <Button onClick={() => setShowContactModal(true)}>
-            + Add Contact
-          </Button>
-
           <div className="relative" ref={actionMenuRef}>
             <button
               onClick={() => setActionMenuOpen((v) => !v)}
@@ -301,6 +339,41 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {/* Automation Pipeline — read only, reflects real state, nothing here is manually triggered */}
+      <div className="rounded-2xl border border-border bg-surface p-6">
+        <div className="border-b border-border pb-4">
+          <h2 className="text-body font-bold text-foreground">Automation Pipeline</h2>
+          <p className="mt-0.5 text-metadata text-muted-foreground">
+            Runs end to end with no manual approval: Google/Apollo/website enrichment, DataForSEO + AI audit, PDF report, and outreach email all happen automatically once this practice is discovered.
+          </p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-0 sm:flex-row sm:items-stretch sm:gap-0">
+          {pipelineNodes.map((node, i) => (
+            <div key={node.label} className="flex flex-1 sm:items-center">
+              <div className="flex flex-1 flex-col items-start gap-1 rounded-xl border border-border bg-background p-3 sm:items-center sm:text-center">
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold ${
+                    node.state === "done"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : node.state === "blocked"
+                        ? "bg-rose-500/15 text-rose-400"
+                        : "animate-pulse bg-amber-500/15 text-amber-400"
+                  }`}
+                >
+                  {node.state === "done" ? "✓" : node.state === "blocked" ? "!" : i + 1}
+                </span>
+                <span className="text-xs font-bold text-foreground">{node.label}</span>
+                <span className="text-[11px] text-muted-foreground">{node.detail}</span>
+              </div>
+              {i < pipelineNodes.length - 1 && (
+                <div className="hidden h-px w-4 shrink-0 self-center bg-border sm:block" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Audit status & scores */}
       <div className="rounded-2xl border border-border bg-surface p-6">
         <div className="flex items-center justify-between border-b border-border pb-4">
@@ -362,6 +435,43 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                 </div>
               ))}
             </div>
+
+            {(() => {
+              const localResult = latestAudit.results.find((r) => r.category === "LOCAL_VISIBILITY");
+              const verified = Boolean(localResult?.findingsJson?.verified);
+              const ownRank = localResult?.findingsJson?.ownRank as number | null | undefined;
+              if (!localResult) return null;
+              return (
+                <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
+                  <div>
+                    <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
+                      Google Local Pack Position (from last audit)
+                    </span>
+                    <p className="mt-1 text-body-small text-foreground">
+                      {verified
+                        ? ownRank != null
+                          ? `Ranked #${ownRank} in ${business.city}`
+                          : `Checked — did not appear in the top local results for ${business.city}`
+                        : `Not verified against a live lookup at audit time — score is an estimate.`}
+                    </p>
+                  </div>
+                  {latestAudit.competitorGaps.length > 0 && (
+                    <div>
+                      <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
+                        Competitors Outranking Them
+                      </span>
+                      <ul className="mt-1 space-y-1">
+                        {latestAudit.competitorGaps.map((c) => (
+                          <li key={c.name} className="text-body-small text-foreground">
+                            #{c.rank} {c.name}{c.mapScore != null ? ` — ${c.mapScore}★` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
@@ -382,17 +492,20 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
             <p className="mt-4 text-body-small text-muted-foreground">No decision maker contact captured yet.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {business.contacts.map((c) => (
+              {business.contacts.map((c) => {
+                const sourceInfo = CONTACT_SOURCE_LABELS[c.source] || CONTACT_SOURCE_LABELS.MANUAL;
+                return (
                 <li key={c.id} className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-semibold text-foreground">{c.firstName} {c.lastName}</p>
                     <p className="text-metadata text-muted-foreground">{c.role || "Principal Dentist"} • {c.email}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                    VERIFIED
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sourceInfo.classes}`}>
+                    {sourceInfo.label}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

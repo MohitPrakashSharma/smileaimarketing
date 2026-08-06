@@ -129,16 +129,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-40 hidden border-b border-border bg-surface/95 backdrop-blur-md lg:block">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-4 px-6">
           
-          {/* ZONE 1: LEFT (Logo + TEST MODE Badge) */}
+          {/* ZONE 1: LEFT (Logo) */}
           <div className="flex shrink-0 items-center gap-3">
             <Link href="/admin" className="text-base font-extrabold tracking-tight text-foreground transition-opacity hover:opacity-90">
               Smile AI<span className="text-primary">.</span>
             </Link>
-
-            <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-400">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-              <span>TEST MODE</span>
-            </div>
           </div>
 
           {/* ZONE 2: CENTER (Primary Navigation + More Dropdown) */}
@@ -316,9 +311,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-2">
           <h1 className="text-body font-bold text-foreground">{pageTitle}</h1>
-          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400">
-            TEST MODE
-          </span>
         </div>
         <div className="flex items-center gap-2">
           {showCampaignAction && (

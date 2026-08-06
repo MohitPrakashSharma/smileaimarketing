@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         email,
         role,
         phone,
+        source: "SELF_SERVE",
       },
     });
 

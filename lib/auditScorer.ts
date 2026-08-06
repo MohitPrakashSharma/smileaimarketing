@@ -31,18 +31,40 @@ export function computeAuditScores(params: {
 }): AuditScoringOutput {
   const { businessName, city, signals, rating = 4.5, reviewCount = 45 } = params;
 
-  // 1. Website Quality (max 100)
-  let websiteScore = 50;
-  if (signals.reachable) websiteScore += 20;
-  if (signals.isHttps) websiteScore += 10;
-  if (signals.responseTimeMs < 2000) websiteScore += 10;
-  if (signals.hasViewportMeta) websiteScore += 10;
+  // 1. Website Quality (max 100) — a site we couldn't load gets a real 0,
+  // not a partial-credit baseline. No signal was actually observed, so none is claimed.
+  let websiteScore: number;
+  let websiteDescription: string;
+  let websiteRecommendation: string;
+
+  if (!signals.reachable) {
+    websiteScore = 0;
+    const issue = signals.error || (signals.httpStatus ? `Website responded with HTTP ${signals.httpStatus}` : "Website could not be reached");
+    websiteDescription = `We tried to load ${businessName}'s website just now and it failed: ${issue}. Every patient searching for you online right now is hitting the exact same wall — this isn't a slow-load problem, it's a nobody-can-get-in problem.`;
+    websiteRecommendation = `Fix this first, before anything else in this report — get the website reachable again. Nothing downstream (ads, email, Google listing clicks) can convert a visitor to a site that won't load.`;
+  } else {
+    websiteScore = 60;
+    if (signals.isHttps) websiteScore += 15;
+    if (signals.responseTimeMs < 2000) websiteScore += 15;
+    if (signals.hasViewportMeta) websiteScore += 10;
+
+    websiteDescription = signals.isHttps && signals.responseTimeMs < 2000
+      ? `Your website loads quickly (${signals.responseTimeMs}ms) and uses a secure connection, so patients aren't scared off before they even see your services.`
+      : !signals.isHttps
+        ? `Your website loaded in ${signals.responseTimeMs}ms but isn't using a secure (HTTPS) connection — browsers flag this directly to visitors before they see anything else.`
+        : `Your website takes ${signals.responseTimeMs}ms to load on a phone. Most people give up after three seconds and simply call the next practice on the list — every slow load is a patient you may never hear from.`;
+    websiteRecommendation = signals.isHttps
+      ? "Keep new photos and pages compressed so your load time stays under 1.5 seconds as the site grows."
+      : "Turn on a secure connection (HTTPS) as soon as possible — browsers actively warn visitors away from sites without one, and it's usually a same-day fix.";
+  }
 
   const websiteDetails: CategoryScoreResult = {
     category: "WEBSITE_QUALITY",
     score: Math.min(100, websiteScore),
     findingsJson: {
       reachable: signals.reachable,
+      error: signals.error || null,
+      httpStatus: signals.httpStatus ?? null,
       ssl: signals.isHttps,
       responseTimeMs: signals.responseTimeMs,
       mobileViewport: signals.hasViewportMeta,
@@ -50,35 +72,44 @@ export function computeAuditScores(params: {
     },
     detailsJson: {
       title: "How fast and trustworthy your website feels",
-      description: signals.isHttps && signals.responseTimeMs < 2000
-        ? `Your website loads quickly (${signals.responseTimeMs}ms) and uses a secure connection, so patients aren't scared off before they even see your services.`
-        : `Your website takes ${signals.responseTimeMs}ms to load on a phone. Most people give up after three seconds and simply call the next practice on the list — every slow load is a patient you may never hear from.`,
-      recommendation: signals.isHttps
-        ? "Keep new photos and pages compressed so your load time stays under 1.5 seconds as the site grows."
-        : "Turn on a secure connection (HTTPS) as soon as possible — browsers actively warn visitors away from sites without one, and it's usually a same-day fix.",
+      description: websiteDescription,
+      recommendation: websiteRecommendation,
     },
   };
 
-  // 2. Conversion Experience (max 100)
-  let conversionScore = 40;
-  if (signals.hasClickToCall) conversionScore += 20;
-  if (signals.hasBookingCta) conversionScore += 20;
-  if (signals.hasContactForm) conversionScore += 20;
+  // 2. Conversion Experience (max 100) — can't observe a booking flow on a
+  // page that never loaded, so this is 0 rather than a guessed baseline.
+  let conversionScore: number;
+  let conversionDescription: string;
+
+  if (!signals.reachable) {
+    conversionScore = 0;
+    conversionDescription = `We couldn't evaluate the booking experience because the website itself didn't load (${signals.error || "unreachable"}). There's no click-to-call, booking button, or contact form to find if the page never opens.`;
+  } else {
+    conversionScore = 40;
+    if (signals.hasClickToCall) conversionScore += 20;
+    if (signals.hasBookingCta) conversionScore += 20;
+    if (signals.hasContactForm) conversionScore += 20;
+    conversionDescription = signals.hasBookingCta && signals.hasClickToCall
+      ? "A visitor can call your office or request an appointment in one tap — you're not losing people at the finish line."
+      : "A patient has to hunt for your phone number or a way to book. On a phone screen, that's often all it takes for someone to leave and call a competitor instead.";
+  }
 
   const conversionDetails: CategoryScoreResult = {
     category: "CONVERSION",
     score: Math.min(100, conversionScore),
     findingsJson: {
+      reachable: signals.reachable,
       clickToCall: signals.hasClickToCall,
       bookingCta: signals.hasBookingCta,
       contactForm: signals.hasContactForm,
     },
     detailsJson: {
       title: "How easy it is for a patient to actually book",
-      description: signals.hasBookingCta && signals.hasClickToCall
-        ? "A visitor can call your office or request an appointment in one tap — you're not losing people at the finish line."
-        : "A patient has to hunt for your phone number or a way to book. On a phone screen, that's often all it takes for someone to leave and call a competitor instead.",
-      recommendation: "Add an always-visible 'Call Now' button and a simple two-step booking form patients can use without leaving the page.",
+      description: conversionDescription,
+      recommendation: signals.reachable
+        ? "Add an always-visible 'Call Now' button and a simple two-step booking form patients can use without leaving the page."
+        : "Once the website is back up, make sure a 'Call Now' button and a simple booking form are visible without scrolling.",
     },
   };
 

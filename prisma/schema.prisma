@@ -176,6 +176,7 @@ model Contact {
   email          String
   phone          String?
   role           String?
+  source         String          @default("MANUAL") // "APOLLO" | "WEBSITE" | "MANUAL" | "SELF_SERVE" — where this contact was actually found
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   emailMessages  EmailMessage[]

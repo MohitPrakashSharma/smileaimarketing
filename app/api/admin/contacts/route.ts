@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { initiateAutomaticOutreach } from "@/lib/outreach";
 
 export async function POST(request: Request) {
   try {
@@ -23,8 +24,15 @@ export async function POST(request: Request) {
         lastName,
         email,
         role: role || "Principal Dentist",
+        source: "MANUAL",
       },
     });
+
+    // The audit may already be done and waiting on exactly this — no
+    // separate "approve outreach" click needed once a real contact exists.
+    await initiateAutomaticOutreach({ businessId, contactId: contact.id }).catch((err) =>
+      console.error("Auto-outreach after manual contact add failed:", err)
+    );
 
     return NextResponse.json({ contact }, { status: 201 });
   } catch (error) {

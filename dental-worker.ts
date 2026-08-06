@@ -14,6 +14,7 @@ import { analysisQueue, pdfQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
 import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "./lib/websiteContactExtractor";
 import { generateAuditSummaryWithOpenAI } from "./lib/openai";
+import { initiateAutomaticOutreach } from "./lib/outreach";
 import { env } from "./lib/env.server";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -108,6 +109,7 @@ const discoveryWorker = new Worker(
             email: apolloRes.email,
             phone: apolloRes.phone || item.phone || null,
             role: apolloRes.role || "Principal Dentist",
+            source: "APOLLO",
           },
         });
         contactId = contact.id;
@@ -126,6 +128,7 @@ const discoveryWorker = new Worker(
               email: siteContact.email,
               phone: siteContact.phone || item.phone || null,
               role: guessContactRole(siteContact.email),
+              source: "WEBSITE",
             },
           });
           contactId = contact.id;
@@ -182,7 +185,7 @@ const analysisWorker = new Worker(
   "analysis-queue",
   async (job: Job) => {
     console.log(`[Analysis Worker] Processing job ${job.id} (${job.name})`);
-    const { businessId, auditId } = job.data;
+    const { businessId, auditId, contactId } = job.data;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -234,8 +237,11 @@ const analysisWorker = new Worker(
       marketChecked: localMarket.checked,
     });
 
-    // Generate OpenAI summary if key available
+    // Generate OpenAI summary if key available — pass the exact website
+    // failure through so the AI leads with it instead of glossing over a 0 score.
     let finalSummary = scoreOutput.summaryText;
+    let aiEmailSubject: string | undefined;
+    let aiEmailOpening: string | undefined;
     try {
       const aiSummaryRes = await generateAuditSummaryWithOpenAI({
         businessName: business.name,
@@ -244,10 +250,13 @@ const analysisWorker = new Worker(
         overallScore: scoreOutput.opportunityScore,
         results: scoreOutput.categoryScores.map((c) => ({ category: c.category, score: c.score })),
         competitors: scoreOutput.competitors,
+        websiteIssue: signals.reachable ? undefined : signals.error,
       });
       if (aiSummaryRes.summary) {
         finalSummary = aiSummaryRes.summary;
       }
+      aiEmailSubject = aiSummaryRes.emailSubject;
+      aiEmailOpening = aiSummaryRes.emailOpening;
     } catch (err) {
       console.warn("[Analysis Worker] OpenAI summary generation skipped:", err);
     }
@@ -328,6 +337,24 @@ const analysisWorker = new Worker(
       },
       { jobId: `pdf_${completedAudit.id}` }
     );
+
+    // Fully automatic outreach — no admin approval step. A no-op (with a
+    // logged reason) when there's genuinely no verified contact yet.
+    try {
+      const outreachResult = await initiateAutomaticOutreach({
+        businessId,
+        contactId,
+        aiSubject: aiEmailSubject,
+        aiOpening: aiEmailOpening,
+      });
+      if (outreachResult.queued) {
+        console.log(`[Analysis Worker] Outreach auto-queued for business ${businessId} (message ${outreachResult.emailMessageId}).`);
+      } else {
+        console.log(`[Analysis Worker] Outreach not queued for business ${businessId}: ${outreachResult.reason}`);
+      }
+    } catch (err) {
+      console.error(`[Analysis Worker] Auto-outreach failed for business ${businessId}:`, err);
+    }
 
     console.log(`[Analysis Worker] Completed audit ${targetAuditId}. Score: ${scoreOutput.opportunityScore}/100.`);
   },
