@@ -3,7 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { enrichBusinessContact } from "@/lib/apollo";
 import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "@/lib/websiteContactExtractor";
+import { initiateAutomaticOutreach } from "@/lib/outreach";
 
+/**
+ * Manual "send outreach now" trigger — tries a fresh Apollo/website lookup if
+ * no contact exists yet, then hands off to the same automatic-send path the
+ * pipeline itself uses (real queue, no separate approval step).
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -16,35 +22,9 @@ export async function POST(
 
     const { id } = await params;
 
-    const business = await prisma.business.findUnique({
-      where: { id },
-      include: {
-        contacts: true,
-        campaign: true,
-      },
-    });
-
+    const business = await prisma.business.findUnique({ where: { id }, include: { contacts: true } });
     if (!business) {
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
-    }
-
-    // Ensure we have a campaign associated
-    let campaignId = business.campaignId;
-    if (!campaignId) {
-      // Create fallback campaign
-      const defaultCampaign = await prisma.campaign.create({
-        data: {
-          name: `${business.city} Inbound Leads`,
-          city: business.city,
-          category: business.category,
-          status: "ACTIVE",
-        },
-      });
-      campaignId = defaultCampaign.id;
-      await prisma.business.update({
-        where: { id: business.id },
-        data: { campaignId },
-      });
     }
 
     // A real, verified contact is required — never invent one. Try a fresh
@@ -90,65 +70,14 @@ export async function POST(
       }
     }
 
-    // Create EmailSequence if not exists for the campaign
-    let sequence = await prisma.emailSequence.findFirst({
-      where: { campaignId: campaignId! },
-    });
-
-    if (!sequence) {
-      sequence = await prisma.emailSequence.create({
-        data: {
-          campaignId: campaignId!,
-          name: "Dental Clinic Google Maps Reactivation",
-        },
-      });
+    const result = await initiateAutomaticOutreach({ businessId: business.id, contactId: contact.id });
+    if (!result.queued) {
+      return NextResponse.json({ error: result.reason || "Could not queue outreach" }, { status: 422 });
     }
-
-    // Create EmailStep if not exists
-    let step = await prisma.emailStep.findFirst({
-      where: { sequenceId: sequence.id },
-    });
-
-    if (!step) {
-      step = await prisma.emailStep.create({
-        data: {
-          sequenceId: sequence.id,
-          stepDay: 0,
-          subject: "Patient visibility opportunity gap for {{clinicName}}",
-          bodyTemplate:
-            "Hi {{contactName}},\n\nWe ran a free growth audit on {{clinicName}}'s online visibility in {{city}} — the kind of thing a prospective patient sees before they ever call you.\n\nA few nearby practices are currently ahead of you in Google search and maps. Nothing in the report is guesswork — it's built from what's actually visible online today, and it's yours to keep either way.",
-        },
-      });
-    }
-
-    // Queue Email Message
-    await prisma.emailMessage.create({
-      data: {
-        contactId: contact.id,
-        stepId: step.id,
-        status: "QUEUED",
-      },
-    });
-
-    // Update business status
-    await prisma.business.update({
-      where: { id: business.id },
-      data: { status: "OUTREACH_ACTIVE" },
-    });
-
-    // Log Activity
-    await prisma.salesActivity.create({
-      data: {
-        businessId: business.id,
-        userId: admin.id,
-        type: "EMAIL",
-        content: `Outbound marketing email sequence initiated. First message queued for ${contact.email}.`,
-      },
-    });
 
     return NextResponse.json({
       success: true,
-      message: "Outreach initiated and first sequence email queued.",
+      message: `Outreach sent to ${contact.email} — no approval step needed.`,
     }, { status: 200 });
   } catch (error) {
     console.error("Admin outreach trigger error:", error);
