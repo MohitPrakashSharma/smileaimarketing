@@ -23,9 +23,18 @@ type Competitor = {
   mapScore: number | null;
 };
 
+type Narrative = {
+  headline: { line1: string; line2: string };
+  dek: string;
+  stats: Array<{ value: string; label: string; caption: string }>;
+  fixCards: Array<{ title: string; detail: string; impact: string }>;
+  quietLeaks: Array<{ title: string; detail: string }>;
+};
+
 type AuditData = {
   business: { name: string; website: string; city: string; opportunityScore: number };
   summary: string | null;
+  narrative: Narrative;
   scorecard: {
     localVisibility: number;
     websiteQuality: number;
@@ -35,14 +44,6 @@ type AuditData = {
   };
   findings: Finding[];
   competitors: Competitor[];
-};
-
-const ACTION_LABELS: Record<string, string> = {
-  LOCAL_VISIBILITY: "Get your practice into Google's top 3 nearby results",
-  WEBSITE_QUALITY: "Make your website faster and easier to trust",
-  CONVERSION: "Make it a one-tap process for patients to book",
-  REPUTATION: "Put your patient reviews on autopilot",
-  COMPETITOR_GAP: "Close the gap with the practices ahead of you",
 };
 
 export default function AuditReportClient({ publicToken }: { publicToken: string }) {

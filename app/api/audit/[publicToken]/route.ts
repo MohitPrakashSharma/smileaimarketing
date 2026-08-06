@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { buildAuditNarrative } from "@/lib/auditNarrative";
 
 export async function GET(
   request: Request,
@@ -57,6 +58,18 @@ export async function GET(
       mapScore: c.mapScore,
     }));
 
+    const narrative = buildAuditNarrative({
+      businessName: audit.business.name,
+      city: audit.business.city,
+      category: audit.business.category,
+      findings: audit.results.map((r) => ({
+        category: r.category,
+        score: r.score,
+        findingsJson: (r.findingsJson as Record<string, unknown>) || {},
+      })),
+      competitors,
+    });
+
     return NextResponse.json({
       business: {
         name: audit.business.name,
@@ -68,6 +81,7 @@ export async function GET(
       // synthesis of this specific audit — was computed at audit time but
       // never actually sent to the report page until now.
       summary: audit.summaryText,
+      narrative,
       scorecard,
       findings,
       competitors,

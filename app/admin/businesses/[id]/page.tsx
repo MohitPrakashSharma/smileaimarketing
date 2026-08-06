@@ -48,6 +48,14 @@ type BusinessDetail = {
   audits: Audit[];
 };
 
+type Narrative = {
+  headline: { line1: string; line2: string };
+  dek: string;
+  stats: Array<{ value: string; label: string; caption: string }>;
+  fixCards: Array<{ title: string; detail: string; impact: string }>;
+  quietLeaks: Array<{ title: string; detail: string }>;
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   LOCAL_VISIBILITY: "Local Visibility",
   WEBSITE_QUALITY: "Website Quality",
@@ -66,6 +74,7 @@ const CONTACT_SOURCE_LABELS: Record<string, { label: string; classes: string }> 
 export default function AdminBusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [business, setBusiness] = useState<BusinessDetail | null>(null);
+  const [narrative, setNarrative] = useState<Narrative | null>(null);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
@@ -95,6 +104,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load business");
       setBusiness(json.business);
+      setNarrative(json.narrative || null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load business");
     }
@@ -396,6 +406,56 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {/* Personalized pitch — non-technical, ready to say on a call. Built from
+          the same real findings as the audit, just translated out of raw scores. */}
+      {narrative && (
+        <div className="rounded-2xl border border-primary/20 bg-accent-soft p-6">
+          <span className="text-metadata font-bold uppercase tracking-wider text-primary">Personalized Strategy For This Practice</span>
+          <h2 className="mt-1 text-heading-3 font-bold text-foreground">
+            {narrative.headline.line1} {narrative.headline.line2}
+          </h2>
+          <p className="mt-2 text-body-small leading-relaxed text-foreground">{narrative.dek}</p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {narrative.stats.map((s) => (
+              <div key={s.label} className="rounded-xl border border-border bg-surface p-3 text-center">
+                <span className="block text-heading-3 font-bold text-primary">{s.value}</span>
+                <span className="mt-0.5 block text-metadata font-semibold text-foreground">{s.label}</span>
+                <span className="block text-[10px] text-muted-foreground">{s.caption}</span>
+              </div>
+            ))}
+          </div>
+
+          {narrative.fixCards.length > 0 && (
+            <div className="mt-5">
+              <span className="text-metadata font-semibold uppercase tracking-wider text-muted-foreground">What to lead with</span>
+              <ul className="mt-2 space-y-2">
+                {narrative.fixCards.map((f, i) => (
+                  <li key={f.title} className="rounded-xl border border-border bg-surface p-3">
+                    <p className="text-body-small font-bold text-foreground">{i + 1}. {f.title}</p>
+                    <p className="mt-0.5 text-metadata text-muted-foreground">{f.detail}</p>
+                    <p className="mt-1 text-metadata font-bold text-primary">{f.impact}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {narrative.quietLeaks.length > 0 && (
+            <div className="mt-4">
+              <span className="text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Also worth mentioning</span>
+              <ul className="mt-2 space-y-1.5">
+                {narrative.quietLeaks.map((q) => (
+                  <li key={q.title} className="text-body-small text-foreground">
+                    <span className="font-bold">{q.title}.</span> <span className="text-muted-foreground">{q.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Audit status & scores */}
       <div className="rounded-2xl border border-border bg-surface p-6">
         <div className="flex items-center justify-between border-b border-border pb-4">
@@ -449,14 +509,29 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {latestAudit.results.map((r) => (
-                <div key={r.category} className="rounded-xl border border-border bg-background p-3 text-center">
-                  <span className="block text-metadata text-muted-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
-                  <span className="mt-1 block font-bold text-primary">{r.score}</span>
-                </div>
-              ))}
-            </div>
+            <details className="mt-5 border-t border-border pt-4">
+              <summary className="cursor-pointer text-metadata font-bold uppercase tracking-wider text-muted-foreground hover:text-primary">
+                Show raw audit data (category scores, verified facts, API sources)
+              </summary>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {latestAudit.results.map((r) => (
+                  <div key={r.category} className="rounded-xl border border-border bg-background p-3 text-center">
+                    <span className="block text-metadata text-muted-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
+                    <span className="mt-1 block font-bold text-primary">{r.score}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {latestAudit.results.map((r) => (
+                  <div key={r.category} className="rounded-xl border border-border bg-background p-3">
+                    <span className="block text-metadata font-bold text-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
+                    <code className="mt-1 block break-all text-[10px] text-muted-foreground">{JSON.stringify(r.findingsJson)}</code>
+                  </div>
+                ))}
+              </div>
+            </details>
 
             {(() => {
               const localResult = latestAudit.results.find((r) => r.category === "LOCAL_VISIBILITY");
