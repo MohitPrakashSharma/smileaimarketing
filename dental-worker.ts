@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { prisma } from "./lib/prisma";
 import { Prisma } from "@prisma/client";
-import { discoverBusinesses, findRealCompetitors } from "./lib/discoveryProvider";
+import { discoverBusinesses, findLocalMarketPosition } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
 import { analyzeWebsite } from "./lib/websiteAnalyzer";
 import { computeAuditScores } from "./lib/auditScorer";
@@ -12,6 +12,7 @@ import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
 import { analysisQueue, pdfQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
+import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "./lib/websiteContactExtractor";
 import { generateAuditSummaryWithOpenAI } from "./lib/openai";
 import { env } from "./lib/env.server";
 
@@ -94,7 +95,7 @@ const discoveryWorker = new Worker(
         },
       });
 
-      // Enrich real contact via Apollo
+      // 1. Try Apollo (verified decision-maker, best when it hits)
       const apolloRes = await enrichBusinessContact(business.website);
       let contactId: string | undefined = undefined;
 
@@ -111,7 +112,32 @@ const discoveryWorker = new Worker(
         });
         contactId = contact.id;
       } else {
-        console.log(`[Discovery Worker] Apollo returned no verified contact for ${business.name}. Contact pending manual add.`);
+        // 2. Apollo has nothing (common for small independent practices) —
+        // fall back to what the practice's own website publishes.
+        console.log(`[Discovery Worker] Apollo returned no verified contact for ${business.name}. Checking website directly.`);
+        const siteContact = await extractWebsiteContact(business.website);
+
+        if (siteContact.found && siteContact.email && isUsableContactEmail(siteContact.email)) {
+          const contact = await prisma.contact.create({
+            data: {
+              businessId: business.id,
+              firstName: "Practice",
+              lastName: "Team",
+              email: siteContact.email,
+              phone: siteContact.phone || item.phone || null,
+              role: guessContactRole(siteContact.email),
+            },
+          });
+          contactId = contact.id;
+
+          if (!business.address && siteContact.address) {
+            await prisma.business.update({ where: { id: business.id }, data: { address: siteContact.address } });
+          }
+
+          console.log(`[Discovery Worker] Found contact for ${business.name} directly on their website: ${siteContact.email}`);
+        } else {
+          console.log(`[Discovery Worker] No usable contact found for ${business.name} via Apollo or website. Contact pending manual add.`);
+        }
       }
 
       // Create initial Audit record
@@ -184,8 +210,8 @@ const analysisWorker = new Worker(
     // Run real credential-free website check
     const signals = await analyzeWebsite(business.website);
 
-    // Real competitor lookup — never fabricated names
-    const realCompetitors = await findRealCompetitors({
+    // Real competitor list + the business's own local-pack rank — never fabricated
+    const localMarket = await findLocalMarketPosition({
       businessName: business.name,
       website: business.website,
       city: business.city,
@@ -203,7 +229,9 @@ const analysisWorker = new Worker(
       signals,
       rating: business.rating || 4.5,
       reviewCount: business.reviewCount || 45,
-      realCompetitors,
+      realCompetitors: localMarket.competitors,
+      ownRank: localMarket.ownRank,
+      marketChecked: localMarket.checked,
     });
 
     // Generate OpenAI summary if key available

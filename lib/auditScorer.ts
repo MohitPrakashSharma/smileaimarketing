@@ -26,6 +26,8 @@ export function computeAuditScores(params: {
   rating?: number;
   reviewCount?: number;
   realCompetitors?: Array<{ name: string; website?: string; rank: number; mapScore: number }>;
+  ownRank?: number;
+  marketChecked?: boolean;
 }): AuditScoringOutput {
   const { businessName, city, signals, rating = 4.5, reviewCount = 45 } = params;
 
@@ -80,15 +82,40 @@ export function computeAuditScores(params: {
     },
   };
 
-  // 3. Local Visibility (max 100)
-  const localScore = reviewCount > 50 ? 75 : 45;
+  // 3. Local Visibility (max 100) — uses the business's real local-pack rank
+  // when we were able to check it; falls back to an honestly-labelled
+  // estimate (never a fabricated rank) when no live lookup was available.
+  const { ownRank, marketChecked = false } = params;
+
+  let localScore: number;
+  let localDescription: string;
+
+  if (marketChecked && ownRank !== undefined) {
+    if (ownRank <= 3) {
+      localScore = 90;
+      localDescription = `Good news: when someone nearby searches "dentist in ${city}," ${businessName} shows up at position #${ownRank} — right in the top 3, where almost all the clicks go.`;
+    } else if (ownRank <= 10) {
+      localScore = 55;
+      localDescription = `${businessName} currently ranks #${ownRank} when someone nearby searches "dentist in ${city}." That's visible, but the top 3 gets almost all the clicks — everyone below it is splitting what's left.`;
+    } else {
+      localScore = 35;
+      localDescription = `${businessName} ranks #${ownRank} for "dentist in ${city}" — deep enough that most patients scrolling past the first few results simply won't find you.`;
+    }
+  } else if (marketChecked) {
+    localScore = 25;
+    localDescription = `We checked the top local results for "dentist in ${city}" and ${businessName} didn't appear at all — which means most nearby patients are finding someone else first.`;
+  } else {
+    localScore = reviewCount > 50 ? 65 : 45;
+    localDescription = `We couldn't pull a live Google ranking for ${businessName} this time, so this score is an estimate based on your review count rather than a verified position.`;
+  }
+
   const localDetails: CategoryScoreResult = {
     category: "LOCAL_VISIBILITY",
     score: localScore,
-    findingsJson: { city, rankEstimate: 7, category: "Dental Practice" },
+    findingsJson: { city, ownRank: ownRank ?? null, verified: marketChecked },
     detailsJson: {
       title: "Where you show up when patients search nearby",
-      description: `When someone nearby searches "dentist in ${city}," ${businessName} isn't showing up in the top 3 results Google shows first — and that top 3 is where almost all the clicks go. Everyone below it is competing for what's left.`,
+      description: localDescription,
       recommendation: "Make sure your practice's name, address, and phone number match exactly everywhere they appear online, and fill out every section of your Google Business Profile — this is the single biggest lever for moving up.",
     },
   };
@@ -138,7 +165,7 @@ export function computeAuditScores(params: {
   // Opportunity score represents practice growth potential (100 - average audit score, clamped)
   const opportunityScore = Math.max(35, Math.min(95, 100 - Math.round(rawAvg * 0.4)));
 
-  // Never fabricated: real lookups only (see lib/discoveryProvider.ts#findRealCompetitors).
+  // Never fabricated: real lookups only (see lib/discoveryProvider.ts#findLocalMarketPosition).
   // When none are available, this stays empty rather than inventing business names.
   const competitors = params.realCompetitors || [];
 

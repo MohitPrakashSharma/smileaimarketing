@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { enrichBusinessContact } from "@/lib/apollo";
+import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "@/lib/websiteContactExtractor";
 
 export async function POST(
   request: Request,
@@ -47,29 +48,44 @@ export async function POST(
     }
 
     // A real, verified contact is required — never invent one. Try a fresh
-    // Apollo lookup if discovery didn't find a contact the first time.
+    // Apollo lookup, then fall back to the practice's own website, before
+    // giving up (common for small independent practices Apollo doesn't cover).
     let contact = business.contacts[0];
     if (!contact) {
       const apolloRes = await enrichBusinessContact(business.website);
-      if (!apolloRes.found || !apolloRes.email) {
-        return NextResponse.json(
-          {
-            error:
-              "No verified contact found for this practice yet (Apollo lookup returned nothing). Add a contact manually before starting outreach — we don't send to invented addresses.",
+      if (apolloRes.found && apolloRes.email) {
+        contact = await prisma.contact.create({
+          data: {
+            businessId: business.id,
+            firstName: apolloRes.firstName || "Practice",
+            lastName: apolloRes.lastName || "Lead",
+            email: apolloRes.email,
+            phone: apolloRes.phone || null,
+            role: apolloRes.role || "Principal Dentist",
           },
-          { status: 422 }
-        );
+        });
+      } else {
+        const siteContact = await extractWebsiteContact(business.website);
+        if (!siteContact.found || !siteContact.email || !isUsableContactEmail(siteContact.email)) {
+          return NextResponse.json(
+            {
+              error:
+                "No verified contact found for this practice yet — Apollo and their own website both came up empty. Add a contact manually before starting outreach; we don't send to invented addresses.",
+            },
+            { status: 422 }
+          );
+        }
+        contact = await prisma.contact.create({
+          data: {
+            businessId: business.id,
+            firstName: "Practice",
+            lastName: "Team",
+            email: siteContact.email,
+            phone: siteContact.phone || null,
+            role: guessContactRole(siteContact.email),
+          },
+        });
       }
-      contact = await prisma.contact.create({
-        data: {
-          businessId: business.id,
-          firstName: apolloRes.firstName || "Practice",
-          lastName: apolloRes.lastName || "Lead",
-          email: apolloRes.email,
-          phone: apolloRes.phone || null,
-          role: apolloRes.role || "Principal Dentist",
-        },
-      });
     }
 
     // Create EmailSequence if not exists for the campaign
