@@ -332,8 +332,10 @@ const analysisWorker = new Worker(
           score: c.score,
           title: c.detailsJson.title,
           detail: c.detailsJson.description,
+          findingsJson: c.findingsJson,
         })),
         competitors: scoreOutput.competitors,
+        category: business.category,
       },
       { jobId: `pdf_${completedAudit.id}` }
     );

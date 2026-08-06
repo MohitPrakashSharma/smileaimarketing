@@ -409,7 +409,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
       {/* Personalized pitch — non-technical, ready to say on a call. Built from
           the same real findings as the audit, just translated out of raw scores. */}
       {narrative && (
-        <div className="rounded-2xl border border-primary/20 bg-accent-soft p-6">
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
           <span className="text-metadata font-bold uppercase tracking-wider text-primary">Personalized Strategy For This Practice</span>
           <h2 className="mt-1 text-heading-3 font-bold text-foreground">
             {narrative.headline.line1} {narrative.headline.line2}
