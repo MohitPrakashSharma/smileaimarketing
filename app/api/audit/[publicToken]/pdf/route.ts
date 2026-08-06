@@ -36,6 +36,7 @@ export async function GET(
           score: r.score,
           title: typeof details.title === "string" ? details.title : r.category,
           detail: typeof details.description === "string" ? details.description : "Audit finding",
+          findingsJson: (r.findingsJson as Record<string, unknown> | null) || {},
         };
       });
 
@@ -50,6 +51,7 @@ export async function GET(
         publicToken: audit.publicToken,
         businessName: audit.business.name,
         city: audit.business.city,
+        category: audit.business.category,
         website: audit.business.website,
         opportunityScore: audit.score,
         summaryText: audit.summaryText || `${audit.business.name} Audit Report`,
