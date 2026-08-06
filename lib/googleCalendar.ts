@@ -1,3 +1,6 @@
+import { env } from "./env.server";
+import { getValidGoogleAccessToken } from "./googleOAuth";
+
 export interface CreateMeetEventParams {
   appointmentId: string;
   summary: string;
@@ -8,72 +11,73 @@ export interface CreateMeetEventParams {
 }
 
 export interface CreateMeetEventResult {
-  eventId: string;
-  meetUrl: string;
+  eventId?: string;
+  meetUrl?: string;
   status: "CONFIRMED" | "PENDING_OAUTH";
 }
 
 export async function createGoogleMeetEvent(
   params: CreateMeetEventParams
 ): Promise<CreateMeetEventResult> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+  const accessToken = await getValidGoogleAccessToken();
 
-  const endTime = new Date(params.startTime.getTime() + (params.durationMinutes || 15) * 60 * 1000);
-
-  if (clientId && clientSecret) {
-    try {
-      // If OAuth tokens exist, create event via Google Calendar API REST
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`;
-      const eventPayload = {
-        summary: params.summary,
-        description: params.description,
-        start: { dateTime: params.startTime.toISOString() },
-        end: { dateTime: endTime.toISOString() },
-        attendees: [{ email: params.attendeeEmail }],
-        conferenceData: {
-          createRequest: {
-            requestId: `req_${params.appointmentId}_${Date.now()}`,
-            conferenceSolutionKey: { type: "hangoutsMeet" },
-          },
-        },
-      };
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventPayload),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const meetUrl = json.conferenceData?.entryPoints?.find(
-          (ep: { entryPointType: string; uri: string }) => ep.entryPointType === "video"
-        )?.uri;
-
-        if (meetUrl) {
-          return {
-            eventId: json.id || `evt_${params.appointmentId}`,
-            meetUrl,
-            status: "CONFIRMED",
-          };
-        }
-      }
-    } catch (err) {
-      console.warn("[Google Calendar] API call failed, generating dynamic slot:", err);
-    }
+  // Nobody has connected a Google account yet — be honest about that rather
+  // than generate a URL that looks real but isn't. The booking still
+  // succeeds; it just goes to the internal "requested" queue for an admin
+  // to confirm a real link manually until this is connected.
+  if (!accessToken) {
+    return { status: "PENDING_OAUTH" };
   }
 
-  // Dynamic fallback URL generated uniquely per appointment ID (No static hardcoded url)
-  const uniqueMeetCode = params.appointmentId.replace(/[^a-z0-9]/g, "").slice(0, 10);
-  const dynamicUrl = `https://meet.google.com/smile-${uniqueMeetCode.slice(0, 3)}-${uniqueMeetCode.slice(3, 7)}`;
+  const calendarId = env.GOOGLE_CALENDAR_ID;
+  const endTime = new Date(params.startTime.getTime() + (params.durationMinutes || 15) * 60 * 1000);
 
-  return {
-    eventId: `evt_${params.appointmentId}`,
-    meetUrl: dynamicUrl,
-    status: "PENDING_OAUTH",
-  };
+  try {
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`;
+    const eventPayload = {
+      summary: params.summary,
+      description: params.description,
+      start: { dateTime: params.startTime.toISOString() },
+      end: { dateTime: endTime.toISOString() },
+      attendees: [{ email: params.attendeeEmail }],
+      conferenceData: {
+        createRequest: {
+          requestId: `req_${params.appointmentId}_${Date.now()}`,
+          conferenceSolutionKey: { type: "hangoutsMeet" },
+        },
+      },
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventPayload),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      const meetUrl = json.conferenceData?.entryPoints?.find(
+        (ep: { entryPointType: string; uri: string }) => ep.entryPointType === "video"
+      )?.uri;
+
+      if (meetUrl) {
+        return {
+          eventId: json.id,
+          meetUrl,
+          status: "CONFIRMED",
+        };
+      }
+    } else {
+      console.error("[Google Calendar] API call failed:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("[Google Calendar] API call threw:", err);
+  }
+
+  // The connected account's token was valid, but the API call itself failed
+  // (permissions, quota, etc.) — still don't fabricate a link.
+  return { status: "PENDING_OAUTH" };
 }

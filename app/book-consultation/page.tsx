@@ -12,13 +12,16 @@ import Button from "@/components/ui/Button";
 function BookConsultationForm() {
   const searchParams = useSearchParams();
   const isInPerson = searchParams.get("type") === "in-person";
+  const publicToken = searchParams.get("publicToken");
   const router = useRouter();
 
-  const [clinicName, setClinicName] = useState("");
+  // Cold-start fields — only needed when there's no existing audit to attach this booking to.
   const [website, setWebsite] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("");
+
+  // Scheduling fields — needed either way, this is the whole point of the page.
   const [scheduledTime, setScheduledTime] = useState("");
   const [address, setAddress] = useState("");
   const [preferredWindow, setPreferredWindow] = useState("");
@@ -26,6 +29,23 @@ function BookConsultationForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const submitting = useRef(false);
+
+  const submitScheduling = async (token: string) => {
+    const bookRes = await fetch(
+      isInPerson ? `/api/audit/${token}/request-visit` : `/api/audit/${token}/book-meeting`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          isInPerson ? { address, preferredWindow, notes } : { scheduledTime, notes }
+        ),
+      }
+    );
+    const bookData = await bookRes.json();
+    if (!bookRes.ok) {
+      throw new Error(bookData.error || "Failed to finalize your request.");
+    }
+  };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +55,23 @@ function BookConsultationForm() {
     setError("");
 
     try {
+      // Fast path: this visitor already has an audit (came from their report or an email CTA) —
+      // nothing to re-collect, just schedule.
+      if (publicToken) {
+        await submitScheduling(publicToken);
+        router.push("/thank-you");
+        return;
+      }
+
+      // Cold start: no existing audit, so we create one from the minimum needed to identify the practice.
       let formattedUrl = website.trim();
       if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
         formattedUrl = `https://${formattedUrl}`;
       }
+      const derivedClinicName = website
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .split(/[./]/)[0];
 
       const triggerRes = await fetch("/api/audit/inbound-trigger", {
         method: "POST",
@@ -46,7 +79,7 @@ function BookConsultationForm() {
         body: JSON.stringify({
           website: formattedUrl,
           city: city.trim() || "Inbound Search",
-          clinicName: clinicName.trim() || "My Dental Practice",
+          clinicName: derivedClinicName || "My Dental Practice",
         }),
       });
 
@@ -78,24 +111,7 @@ function BookConsultationForm() {
         throw new Error(unlockData.error || "Failed to process lead contact.");
       }
 
-      const { publicToken } = unlockData;
-
-      const bookRes = await fetch(
-        isInPerson ? `/api/audit/${publicToken}/request-visit` : `/api/audit/${publicToken}/book-meeting`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            isInPerson ? { address, preferredWindow, notes } : { scheduledTime, notes }
-          ),
-        }
-      );
-
-      const bookData = await bookRes.json();
-      if (!bookRes.ok) {
-        throw new Error(bookData.error || "Failed to finalize your request.");
-      }
-
+      await submitScheduling(unlockData.publicToken);
       router.push("/thank-you");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred while booking.");
@@ -105,7 +121,7 @@ function BookConsultationForm() {
   };
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8">
+    <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8">
       <div className="space-y-3 text-center">
         <Eyebrow>{isInPerson ? "In-Person Visit" : "Online Consultation"}</Eyebrow>
         <h1 className="text-heading-1 font-semibold text-foreground">
@@ -125,69 +141,58 @@ function BookConsultationForm() {
       )}
 
       <form onSubmit={handleBooking} className="mt-8 space-y-4" noValidate>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id="clinic-name" label="Clinic Name" required optionalLabel={false}>
-            <Input
-              id="clinic-name"
-              type="text"
-              required
-              autoComplete="organization"
-              placeholder="e.g. Bright Smiles"
-              value={clinicName}
-              onChange={(e) => setClinicName(e.target.value)}
-            />
-          </FormField>
-          <FormField id="website" label="Clinic Website" required optionalLabel={false}>
-            <Input
-              id="website"
-              type="text"
-              required
-              inputMode="url"
-              autoComplete="url"
-              placeholder="e.g. website.com"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-            />
-          </FormField>
-        </div>
+        {!publicToken && (
+          <>
+            <FormField id="website" label="Clinic Website" required optionalLabel={false}>
+              <Input
+                id="website"
+                type="text"
+                required
+                inputMode="url"
+                autoComplete="url"
+                placeholder="e.g. website.com"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </FormField>
 
-        <FormField id="city" label="City" required optionalLabel={false}>
-          <Input
-            id="city"
-            type="text"
-            required
-            autoComplete="address-level2"
-            placeholder="e.g. Chicago"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-          />
-        </FormField>
+            <FormField id="city" label="City" required optionalLabel={false}>
+              <Input
+                id="city"
+                type="text"
+                required
+                autoComplete="address-level2"
+                placeholder="e.g. Chicago"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </FormField>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id="full-name" label="Your Full Name" required optionalLabel={false}>
-            <Input
-              id="full-name"
-              type="text"
-              required
-              autoComplete="name"
-              placeholder="e.g. Dr. John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </FormField>
-          <FormField id="email" label="Professional Email" required optionalLabel={false}>
-            <Input
-              id="email"
-              type="email"
-              required
-              inputMode="email"
-              autoComplete="email"
-              placeholder="e.g. owner@website.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </FormField>
-        </div>
+            <FormField id="full-name" label="Your Name" required optionalLabel={false}>
+              <Input
+                id="full-name"
+                type="text"
+                required
+                autoComplete="name"
+                placeholder="e.g. Dr. John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </FormField>
+            <FormField id="email" label="Email" required optionalLabel={false}>
+              <Input
+                id="email"
+                type="email"
+                required
+                inputMode="email"
+                autoComplete="email"
+                placeholder="e.g. owner@website.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </FormField>
+          </>
+        )}
 
         {isInPerson ? (
           <>
@@ -225,17 +230,17 @@ function BookConsultationForm() {
           </FormField>
         )}
 
-        <FormField id="notes" label="Notes">
+        <FormField id="notes" label="Notes (optional)">
           <Textarea
             id="notes"
-            rows={3}
-            placeholder="What's your biggest current patient acquisition bottleneck?"
+            rows={2}
+            placeholder="Anything we should know before we talk?"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
         </FormField>
 
-        <Button type="submit" fullWidth loading={loading} disabled={loading}>
+        <Button type="submit" fullWidth loading={loading} disabled={loading} className="!h-12">
           {isInPerson ? "Request Visit" : "Confirm Booking"}
         </Button>
       </form>
@@ -252,7 +257,7 @@ export default function BookConsultationPage() {
         </Link>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-6 py-12 sm:py-16">
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-16">
         <Suspense
           fallback={
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />

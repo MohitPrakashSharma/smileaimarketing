@@ -14,6 +14,7 @@ type Finding = {
   score: number;
   title: string;
   detail: string;
+  findings: Record<string, unknown>;
 };
 
 type Competitor = {
@@ -22,8 +23,18 @@ type Competitor = {
   mapScore: number | null;
 };
 
+type Narrative = {
+  headline: { line1: string; line2: string };
+  dek: string;
+  stats: Array<{ value: string; label: string; caption: string }>;
+  fixCards: Array<{ title: string; detail: string; impact: string }>;
+  quietLeaks: Array<{ title: string; detail: string }>;
+};
+
 type AuditData = {
   business: { name: string; website: string; city: string; opportunityScore: number };
+  summary: string | null;
+  narrative: Narrative;
   scorecard: {
     localVisibility: number;
     websiteQuality: number;
@@ -33,14 +44,6 @@ type AuditData = {
   };
   findings: Finding[];
   competitors: Competitor[];
-};
-
-const ACTION_LABELS: Record<string, string> = {
-  LOCAL_VISIBILITY: "Get your practice into Google's top 3 nearby results",
-  WEBSITE_QUALITY: "Make your website faster and easier to trust",
-  CONVERSION: "Make it a one-tap process for patients to book",
-  REPUTATION: "Put your patient reviews on autopilot",
-  COMPETITOR_GAP: "Close the gap with the practices ahead of you",
 };
 
 export default function AuditReportClient({ publicToken }: { publicToken: string }) {
@@ -159,42 +162,30 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
     );
   }
 
-  const { business, scorecard, findings, competitors } = data;
-
-  const priorityFindings = [...findings]
-    .filter((f) => f.category !== "COMPETITOR_GAP")
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3);
+  const { business, summary, narrative, scorecard, competitors } = data;
 
   return (
     <div className="min-h-screen bg-background pb-16 text-foreground">
-      {/* Header Banner */}
-      <header className="border-b border-border bg-surface py-6 shadow-sm">
-        <div className="mx-auto flex max-w-[1200px] flex-col gap-4 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div>
-            <Eyebrow>Your practice growth audit, explained simply</Eyebrow>
-            <h1 className="mt-2 text-heading-1 font-semibold text-foreground">{business.name}</h1>
-            <p className="text-body-small text-muted-foreground">
-              {business.website} &bull; {business.city}
-            </p>
-          </div>
+      {/* Header Banner — bold, two-line headline with a highlighted second line */}
+      <header className="border-b border-border bg-surface py-8 shadow-sm">
+        <div className="mx-auto max-w-[1200px] px-6 sm:px-8">
+          <Eyebrow>For {business.name} — {business.city}</Eyebrow>
+          <h1 className="mt-3 text-display font-extrabold leading-[1.05] tracking-tight text-foreground">
+            {narrative.headline.line1}
+            <br />
+            <span className="inline-block rounded-lg bg-primary px-2 text-primary-foreground">{narrative.headline.line2}</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-body italic leading-relaxed text-muted-foreground">{narrative.dek}</p>
 
-          <div className="animate-scale-in flex items-center gap-4 rounded-2xl border border-border bg-surface-muted/40 px-5 py-4">
-            <div className="text-center">
-              <span className="block text-metadata font-bold uppercase tracking-wider text-muted-foreground">
-                Opportunity Score
-              </span>
-              <span className="text-display font-bold text-primary">
-                {business.opportunityScore}
-                <span className="text-body-small font-normal text-muted-foreground">/100</span>
-              </span>
-            </div>
-            <div className="h-8 w-px bg-border" />
-            <p className="max-w-[140px] text-body-small font-medium leading-tight text-muted-foreground">
-              {business.opportunityScore >= 70
-                ? "You're in a strong position — a few refinements will widen the lead."
-                : "Nearby practices are picking up patients that could be yours."}
-            </p>
+          {/* By the numbers */}
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {narrative.stats.map((s) => (
+              <div key={s.label} className="rounded-2xl border border-border bg-background p-4">
+                <span className="block text-heading-2 font-extrabold text-primary">{s.value}</span>
+                <span className="mt-1 block text-metadata font-bold uppercase tracking-wider text-foreground">{s.label}</span>
+                <span className="block text-[11px] text-muted-foreground">{s.caption}</span>
+              </div>
+            ))}
           </div>
         </div>
       </header>
@@ -202,16 +193,70 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       <main className="mx-auto mt-10 grid max-w-[1200px] gap-8 px-6 sm:px-8 lg:grid-cols-[63%_37%]">
         {/* Left Column */}
         <div className="space-y-8">
-          {/* Score breakdown */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-heading-3 font-semibold text-foreground">How your practice scores today</h2>
+          {/* Growth Summary — the real, plain-English synthesis of this audit */}
+          {summary && (
+            <div className="rounded-2xl border border-primary/20 bg-accent-soft p-6 shadow-sm">
+              <h2 className="text-heading-3 font-semibold text-foreground">Your growth summary</h2>
+              <p className="mt-3 text-body leading-relaxed text-foreground">{summary}</p>
+              <div className="mt-4 flex items-center gap-4 border-t border-primary/10 pt-4">
+                <span className="text-metadata font-bold uppercase tracking-wider text-muted-foreground">Opportunity Score</span>
+                <span className="text-heading-2 font-extrabold text-primary">
+                  {business.opportunityScore}<span className="text-body-small font-normal text-muted-foreground">/100</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Fixes — only real, verified issues, each with a plain-language impact range */}
+          <div className="space-y-4">
+            <h2 className="px-1 text-heading-3 font-semibold text-foreground">What to fix, in order of impact</h2>
+            {narrative.fixCards.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                <p className="text-body-small leading-relaxed text-muted-foreground">
+                  Nothing here scored low enough to call a real weak point — every category is holding up well.
+                </p>
+              </div>
+            ) : (
+              narrative.fixCards.map((item, idx) => (
+                <div key={item.title} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
+                    {idx + 1}
+                  </span>
+                  <div className="space-y-1.5">
+                    <h3 className="text-body font-bold text-foreground">{item.title}</h3>
+                    <p className="text-body-small leading-relaxed text-muted-foreground">{item.detail}</p>
+                    <p className="text-metadata font-bold text-primary">{item.impact}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Quiet leaks — secondary issues worth knowing about */}
+          {narrative.quietLeaks.length > 0 && (
+            <div className="rounded-2xl border border-border bg-surface-muted/30 p-6">
+              <h2 className="text-heading-3 font-semibold text-foreground">A couple more things we noticed</h2>
+              <div className="mt-4 space-y-3">
+                {narrative.quietLeaks.map((q) => (
+                  <div key={q.title} className="border-l-2 border-primary/40 pl-4">
+                    <p className="text-body-small font-bold text-foreground">{q.title}</p>
+                    <p className="mt-0.5 text-body-small text-muted-foreground">{q.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full scorecard — tucked away since the fixes above already say what matters */}
+          <details className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <summary className="cursor-pointer text-heading-3 font-semibold text-foreground">See the full scorecard</summary>
             <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
               {[
-                { label: "Local Maps", value: scorecard.localVisibility, max: 30 },
-                { label: "Web Quality", value: scorecard.websiteQuality, max: 20 },
-                { label: "Conversion", value: scorecard.conversionExperience, max: 20 },
-                { label: "Reviews", value: scorecard.reviewsReputation, max: 15 },
-                { label: "Competitor Gap", value: scorecard.competitorGap, max: 15 },
+                { label: "Local Maps", value: scorecard.localVisibility, max: 100 },
+                { label: "Web Quality", value: scorecard.websiteQuality, max: 100 },
+                { label: "Conversion", value: scorecard.conversionExperience, max: 100 },
+                { label: "Reviews", value: scorecard.reviewsReputation, max: 100 },
+                { label: "Competitor Gap", value: scorecard.competitorGap, max: 100 },
               ].map((item) => (
                 <div key={item.label} className="rounded-xl border border-border bg-background p-3">
                   <span className="mb-1 block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
@@ -224,36 +269,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Key Findings */}
-          <div className="space-y-4">
-            <h2 className="px-1 text-heading-3 font-semibold text-foreground">What we found, in plain terms</h2>
-            {priorityFindings.map((item, idx) => (
-              <div key={item.category} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
-                  {idx + 1}
-                </span>
-                <div className="space-y-1">
-                  <h3 className="text-body font-bold text-foreground">{item.title}</h3>
-                  <p className="text-body-small leading-relaxed text-muted-foreground">{item.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Recommended Actions */}
-          <div className="rounded-2xl border border-border bg-surface-muted/30 p-6">
-            <h2 className="text-heading-3 font-semibold text-foreground">What to fix first</h2>
-            <ol className="mt-4 space-y-3">
-              {priorityFindings.map((item) => (
-                <li key={item.category} className="flex items-start gap-3 text-body-small text-foreground">
-                  <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <span>{ACTION_LABELS[item.category] || item.title}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          </details>
 
           {/* Competitor Gap Panel */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">

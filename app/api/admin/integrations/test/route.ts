@@ -164,14 +164,17 @@ export async function POST(request: Request) {
       const meetRes = await createGoogleMeetEvent({
         appointmentId: `health_test_${Date.now()}`,
         summary: "Smile AI Integration Check",
-        description: "Verification of dynamic conference generation",
-        startTime: new Date(),
-        attendeeEmail: "office@getfoundguru.com",
+        description: "Verification of real calendar event creation",
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow, so it doesn't look like a missed meeting
+        attendeeEmail: env.EMAIL_TEST_RECIPIENTS.split(",")[0].trim(),
       });
       return NextResponse.json({
-        status: "CONNECTED",
+        status: meetRes.status === "CONFIRMED" ? "CONNECTED" : "NOT_CONFIGURED",
         latencyMs: Date.now() - startTime,
-        details: `Dynamic Meet URL generated: ${meetRes.meetUrl}`,
+        details:
+          meetRes.status === "CONFIRMED"
+            ? `Real Google Calendar event created: ${meetRes.meetUrl}`
+            : "No Google account connected yet — go to /admin/integrations and connect Google Calendar first.",
         timestamp: new Date().toISOString(),
       });
     }

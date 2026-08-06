@@ -105,6 +105,22 @@ export function getTestProviderBusinesses(
   return pool.slice(0, Math.min(limit, pool.length));
 }
 
+/** Looks up a place's real website via Place Details — never guessed from its name. */
+async function getGooglePlaceWebsite(placeId: string, apiKey: string): Promise<string | undefined> {
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(
+      placeId
+    )}&fields=website&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return undefined;
+    const data = await res.json();
+    return typeof data.result?.website === "string" ? data.result.website : undefined;
+  } catch (err) {
+    console.error("[Discovery] Google Place Details lookup failed:", err);
+    return undefined;
+  }
+}
+
 /**
  * Main discovery service entry point. Strict DATA_MODE checks.
  */
@@ -139,25 +155,37 @@ export async function discoverBusinesses(params: {
         limit,
       });
 
-      const items: DiscoveredBusinessItem[] = dfsResult.items.slice(0, limit).map((item) => {
-        const rawWebsite = item.website || (item.domain ? `https://${item.domain}` : `https://${normalizeName(item.title).replace(/\s+/g, "")}.com`);
-        const domainClean = item.domain || rawWebsite.replace(/^https?:\/\//, "").split("/")[0];
-        const siteUrl = rawWebsite.startsWith("http") ? rawWebsite : `https://${domainClean}`;
-        return {
-          googlePlaceId: item.place_id,
-          name: item.title,
-          website: siteUrl,
-          address: item.address || params.city,
-          city: params.city,
-          country,
-          phone: item.phone,
-          category,
-          rating: item.rating,
-          reviewCount: item.reviews_count,
-          providerSource: "DATAFORSEO",
-          rawProviderRef: { taskId: dfsResult.task_id, cost: dfsResult.cost },
-        };
-      });
+      const items: DiscoveredBusinessItem[] = dfsResult.items
+        .slice(0, limit)
+        .filter((item) => {
+          // Never guess a domain from the business name — if DataForSEO
+          // didn't index a real site for this listing, skip it rather than
+          // fabricate a URL that may not even belong to them.
+          const hasRealSite = Boolean(item.website || item.domain);
+          if (!hasRealSite) {
+            console.warn(`[Discovery] Skipping "${item.title}" — DataForSEO has no website on file for it.`);
+          }
+          return hasRealSite;
+        })
+        .map((item) => {
+          const rawWebsite = item.website || `https://${item.domain}`;
+          const domainClean = item.domain || rawWebsite.replace(/^https?:\/\//, "").split("/")[0];
+          const siteUrl = rawWebsite.startsWith("http") ? rawWebsite : `https://${domainClean}`;
+          return {
+            googlePlaceId: item.place_id,
+            name: item.title,
+            website: siteUrl,
+            address: item.address || params.city,
+            city: params.city,
+            country,
+            phone: item.phone,
+            category,
+            rating: item.rating,
+            reviewCount: item.reviews_count,
+            providerSource: "DATAFORSEO",
+            rawProviderRef: { taskId: dfsResult.task_id, cost: dfsResult.cost },
+          };
+        });
 
       if (items.length > 0) return items;
     } catch (err) {
@@ -191,26 +219,41 @@ export async function discoverBusinesses(params: {
       }
 
       if (data.results && Array.isArray(data.results)) {
-        const items: DiscoveredBusinessItem[] = data.results.slice(0, limit).map((item: Record<string, unknown>) => {
-          const placeId = typeof item.place_id === "string" ? item.place_id : undefined;
-          const name = typeof item.name === "string" ? item.name : "Dental Practice";
-          const website = typeof item.website === "string" ? item.website : `https://${normalizeName(name).replace(/\s+/g, "")}.com`;
-          const address = typeof item.formatted_address === "string" ? item.formatted_address : params.city;
-          return {
-            googlePlaceId: placeId,
-            name,
-            website,
-            address,
-            city: params.city,
-            country,
-            category,
-            rating: typeof item.rating === "number" ? item.rating : 4.5,
-            reviewCount: typeof item.user_ratings_total === "number" ? item.user_ratings_total : 30,
-            providerSource: "GOOGLE_PLACES",
-            rawProviderRef: { placeId },
-          };
-        });
+        // Text Search never includes `website` — it's a Place Details-only
+        // field. Look each candidate up rather than guessing a domain from
+        // the business name (a guess like "southbramptondentalcentre.com"
+        // may not even resolve, and would misrepresent a real business).
+        const candidates = data.results.slice(0, limit) as Record<string, unknown>[];
+        const resolved = await Promise.all(
+          candidates.map(async (item) => {
+            const placeId = typeof item.place_id === "string" ? item.place_id : undefined;
+            const name = typeof item.name === "string" ? item.name : "Dental Practice";
+            const address = typeof item.formatted_address === "string" ? item.formatted_address : params.city;
+            const website = placeId ? await getGooglePlaceWebsite(placeId, googleApiKey) : undefined;
 
+            if (!website) {
+              console.warn(`[Discovery] Skipping "${name}" — Google Places has no website on file for it.`);
+              return null;
+            }
+
+            const result: DiscoveredBusinessItem = {
+              googlePlaceId: placeId,
+              name,
+              website,
+              address,
+              city: params.city,
+              country,
+              category,
+              rating: typeof item.rating === "number" ? item.rating : 4.5,
+              reviewCount: typeof item.user_ratings_total === "number" ? item.user_ratings_total : 30,
+              providerSource: "GOOGLE_PLACES",
+              rawProviderRef: { placeId },
+            };
+            return result;
+          })
+        );
+
+        const items = resolved.filter((r): r is DiscoveredBusinessItem => r !== null);
         if (items.length > 0) return items;
       }
     } catch (err) {
@@ -237,13 +280,22 @@ export interface RealCompetitor {
   mapScore: number;
 }
 
+export interface LocalMarketLookup {
+  competitors: RealCompetitor[];
+  /** The audited business's own rank_group in the same local pack search, if it appeared at all. */
+  ownRank?: number;
+  /** True only when a live search actually ran and returned results — lets callers distinguish "we checked, you're unranked" from "we couldn't check." */
+  checked: boolean;
+}
+
 /**
- * Looks up real nearby competitors via DataForSEO for use in an audit report.
- * Returns [] (never fabricated placeholder names) when live data isn't
- * available or the lookup fails — callers must treat an empty list as
- * "no verified competitor data," not fill it in with invented businesses.
+ * Looks up real nearby competitors — and the audited business's own local
+ * search rank — via a single DataForSEO maps query, for use in an audit
+ * report. Never fabricates placeholder names or a guessed rank: an empty
+ * competitor list or missing ownRank means "no verified data," not "assume
+ * something typical."
  */
-export async function findRealCompetitors(params: {
+export async function findLocalMarketPosition(params: {
   businessName: string;
   website: string;
   city: string;
@@ -251,9 +303,9 @@ export async function findRealCompetitors(params: {
   country?: string;
   category?: string;
   limit?: number;
-}): Promise<RealCompetitor[]> {
+}): Promise<LocalMarketLookup> {
   const isLiveMode = process.env.DATA_MODE === "live";
-  if (!isLiveMode || !process.env.DATAFORSEO_LOGIN) return [];
+  if (!isLiveMode || !process.env.DATAFORSEO_LOGIN) return { competitors: [], checked: false };
 
   const limit = params.limit || 3;
   const excludeDomain = normalizeDomain(params.website);
@@ -271,29 +323,33 @@ export async function findRealCompetitors(params: {
 
     const seenDomains = new Set<string>();
     const competitors: RealCompetitor[] = [];
+    let ownRank: number | undefined;
 
     for (const item of dfsResult.items) {
       const itemDomain = normalizeDomain(item.domain || item.website || "");
       const itemName = normalizeName(item.title);
+      const isTarget = (itemDomain && itemDomain === excludeDomain) || (!itemDomain && itemName === excludeName);
 
-      if (itemDomain && itemDomain === excludeDomain) continue;
-      if (!itemDomain && itemName === excludeName) continue;
+      if (isTarget) {
+        if (typeof item.rank_group === "number") ownRank = item.rank_group;
+        continue;
+      }
       if (itemDomain && seenDomains.has(itemDomain)) continue;
       if (itemDomain) seenDomains.add(itemDomain);
 
-      competitors.push({
-        name: item.title,
-        website: item.website || (item.domain ? `https://${item.domain}` : undefined),
-        rank: item.rank_group || competitors.length + 1,
-        mapScore: typeof item.rating === "number" ? item.rating : 4.5,
-      });
-
-      if (competitors.length >= limit) break;
+      if (competitors.length < limit) {
+        competitors.push({
+          name: item.title,
+          website: item.website || (item.domain ? `https://${item.domain}` : undefined),
+          rank: item.rank_group || competitors.length + 1,
+          mapScore: typeof item.rating === "number" ? item.rating : 4.5,
+        });
+      }
     }
 
-    return competitors;
+    return { competitors, ownRank, checked: true };
   } catch (err) {
-    console.error("[Competitors] DataForSEO competitor lookup failed:", err);
-    return [];
+    console.error("[Local Market] DataForSEO lookup failed:", err);
+    return { competitors: [], checked: false };
   }
 }

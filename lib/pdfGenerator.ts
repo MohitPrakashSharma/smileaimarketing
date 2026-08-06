@@ -34,6 +34,10 @@ function wrapText(text: string, maxChars: number): string[] {
   return lines;
 }
 
+function fmtScore(score: number | undefined): string {
+  return score !== undefined ? `${score}/100` : "N/A";
+}
+
 export async function generateLightAuditPdf(data: AuditPdfData): Promise<string> {
   // Update PDF status to GENERATING
   await prisma.audit.update({
@@ -195,12 +199,14 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cMutedText,
     });
 
-    // Compact Score Sub-cards (Right Grid)
+    // Compact Score Sub-cards (Right Grid) — pulled from the real computed
+    // category scores, never derived/guessed from the overall score.
+    const findScore = (category: string) => data.findings.find((f) => f.category === category)?.score;
     const metrics = [
-      { label: "LOCAL VISIBILITY", value: `${Math.round(data.opportunityScore * 0.85)}/100` },
-      { label: "WEBSITE EXPERIENCE", value: `${Math.round(data.opportunityScore * 0.9)}/100` },
-      { label: "REVIEW POSITION", value: "Verified" },
-      { label: "COMPETITOR GAP", value: `${Math.max(12, 100 - data.opportunityScore)}% Gap` },
+      { label: "LOCAL VISIBILITY", value: fmtScore(findScore("LOCAL_VISIBILITY")) },
+      { label: "WEBSITE EXPERIENCE", value: fmtScore(findScore("WEBSITE_QUALITY")) },
+      { label: "REVIEWS & REPUTATION", value: fmtScore(findScore("REPUTATION")) },
+      { label: "COMPETITOR GAP", value: fmtScore(findScore("COMPETITOR_GAP")) },
     ];
 
     const gridX = 205;

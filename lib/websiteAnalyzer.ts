@@ -1,6 +1,8 @@
 export interface WebsiteSignals {
   reachable: boolean;
   httpStatus?: number;
+  /** Exact, human-readable reason the site couldn't be loaded — set only when reachable is false. Never guessed. */
+  error?: string;
   isHttps: boolean;
   responseTimeMs: number;
   hasViewportMeta: boolean;
@@ -43,6 +45,7 @@ export async function analyzeWebsite(targetUrl: string): Promise<WebsiteSignals>
       return {
         reachable: false,
         httpStatus: res.status,
+        error: `Website responded with HTTP ${res.status} — the page didn't load successfully`,
         isHttps,
         responseTimeMs,
         hasViewportMeta: false,
@@ -102,11 +105,29 @@ export async function analyzeWebsite(targetUrl: string): Promise<WebsiteSignals>
       hasVisiblePhone,
       checkedAt: new Date().toISOString(),
     };
-  } catch {
+  } catch (err) {
     clearTimeout(timeoutId);
     const responseTimeMs = Date.now() - startTime;
+
+    // Distinguish the real cause when Node/undici exposes it, rather than a generic "couldn't load."
+    let error = "Website could not be reached";
+    if (err instanceof Error) {
+      if (err.name === "AbortError") {
+        error = "Website timed out — no response after 6 seconds";
+      } else {
+        const code = (err as { cause?: { code?: string } }).cause?.code;
+        if (code === "ENOTFOUND") error = "Domain does not resolve — this website address doesn't exist";
+        else if (code === "ECONNREFUSED") error = "Connection refused by the server";
+        else if (code === "ECONNRESET") error = "Connection was reset by the server mid-request";
+        else if (code === "CERT_HAS_EXPIRED") error = "SSL certificate has expired";
+        else if (code?.startsWith("ERR_TLS") || code?.includes("CERT")) error = "SSL/TLS certificate error";
+        else error = code ? `Website could not be reached (${code})` : `Website could not be reached (${err.message})`;
+      }
+    }
+
     return {
       reachable: false,
+      error,
       isHttps,
       responseTimeMs,
       hasViewportMeta: false,

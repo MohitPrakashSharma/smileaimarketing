@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { normalizeDomain, normalizeName } from "@/lib/normalize";
 import { checkWebsite } from "@/lib/websiteCheck.server";
+import { analysisQueue } from "@/lib/queue";
 
 const inboundSchema = z.object({
   website: z.string().url(),
@@ -70,7 +71,17 @@ export async function POST(request: Request) {
     });
 
     // Real, credential-free preliminary check — actually fetches the site.
+    // (Just for the instant on-page feedback; the full real audit runs next.)
     const websiteCheck = await checkWebsite(website);
+
+    // Hand off to the same real analysis pipeline campaigns use (website
+    // check + DataForSEO local rank + AI summary) — this used to leave the
+    // audit stuck at PENDING forever with only the preliminary check above.
+    await analysisQueue.add(
+      "analyze-business",
+      { auditId: audit.id, businessId: business.id },
+      { jobId: `analysis_${audit.id}` }
+    );
 
     return NextResponse.json({
       pendingAuditId: audit.id,

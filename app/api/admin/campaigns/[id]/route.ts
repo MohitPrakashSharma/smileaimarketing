@@ -19,8 +19,9 @@ export async function GET(
       include: {
         businesses: {
           include: {
-            contacts: { select: { id: true } },
-            audits: { select: { id: true, status: true } },
+            contacts: { select: { id: true, emailMessages: { select: { status: true } } } },
+            audits: { select: { id: true, status: true, pdfStatus: true } },
+            appointments: { select: { id: true } },
           },
           orderBy: { createdAt: "desc" },
         },
@@ -42,11 +43,20 @@ export async function GET(
       providerSource: b.providerSource,
     }));
 
+    const sentStatuses = new Set(["QUEUED", "SENT", "DELIVERED", "OPENED", "CLICKED", "REPLIED"]);
+    const allMessages = campaign.businesses.flatMap((b) => b.contacts.flatMap((c) => c.emailMessages));
+
     const counts = {
       discovered: businesses.length,
+      contactsFound: campaign.businesses.filter((b) => b.contacts.length > 0).length,
       audited: campaign.businesses.filter((b) => b.audits.some((a) => a.status === "COMPLETED")).length,
-      contacted: campaign.businesses.filter((b) => b.contacts.length > 0).length,
+      pdfReady: campaign.businesses.filter((b) => b.audits.some((a) => a.pdfStatus === "READY")).length,
+      outreachSent: campaign.businesses.filter((b) => b.contacts.some((c) => c.emailMessages.some((m) => sentStatuses.has(m.status)))).length,
+      replied: campaign.businesses.filter((b) => b.appointments.length > 0 || b.contacts.some((c) => c.emailMessages.some((m) => m.status === "REPLIED"))).length,
       converted: campaign.businesses.filter((b) => b.status === "CONVERTED").length,
+      // Kept for callers still reading the old shape.
+      contacted: campaign.businesses.filter((b) => b.contacts.length > 0).length,
+      totalMessagesQueuedOrSent: allMessages.length,
     };
 
     return NextResponse.json({

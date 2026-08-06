@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { prisma } from "./lib/prisma";
 import { Prisma } from "@prisma/client";
-import { discoverBusinesses, findRealCompetitors } from "./lib/discoveryProvider";
+import { discoverBusinesses, findLocalMarketPosition } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
 import { analyzeWebsite } from "./lib/websiteAnalyzer";
 import { computeAuditScores } from "./lib/auditScorer";
@@ -12,7 +12,9 @@ import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
 import { analysisQueue, pdfQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
+import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "./lib/websiteContactExtractor";
 import { generateAuditSummaryWithOpenAI } from "./lib/openai";
+import { initiateAutomaticOutreach } from "./lib/outreach";
 import { env } from "./lib/env.server";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -94,7 +96,7 @@ const discoveryWorker = new Worker(
         },
       });
 
-      // Enrich real contact via Apollo
+      // 1. Try Apollo (verified decision-maker, best when it hits)
       const apolloRes = await enrichBusinessContact(business.website);
       let contactId: string | undefined = undefined;
 
@@ -107,11 +109,38 @@ const discoveryWorker = new Worker(
             email: apolloRes.email,
             phone: apolloRes.phone || item.phone || null,
             role: apolloRes.role || "Principal Dentist",
+            source: "APOLLO",
           },
         });
         contactId = contact.id;
       } else {
-        console.log(`[Discovery Worker] Apollo returned no verified contact for ${business.name}. Contact pending manual add.`);
+        // 2. Apollo has nothing (common for small independent practices) —
+        // fall back to what the practice's own website publishes.
+        console.log(`[Discovery Worker] Apollo returned no verified contact for ${business.name}. Checking website directly.`);
+        const siteContact = await extractWebsiteContact(business.website);
+
+        if (siteContact.found && siteContact.email && isUsableContactEmail(siteContact.email)) {
+          const contact = await prisma.contact.create({
+            data: {
+              businessId: business.id,
+              firstName: "Practice",
+              lastName: "Team",
+              email: siteContact.email,
+              phone: siteContact.phone || item.phone || null,
+              role: guessContactRole(siteContact.email),
+              source: "WEBSITE",
+            },
+          });
+          contactId = contact.id;
+
+          if (!business.address && siteContact.address) {
+            await prisma.business.update({ where: { id: business.id }, data: { address: siteContact.address } });
+          }
+
+          console.log(`[Discovery Worker] Found contact for ${business.name} directly on their website: ${siteContact.email}`);
+        } else {
+          console.log(`[Discovery Worker] No usable contact found for ${business.name} via Apollo or website. Contact pending manual add.`);
+        }
       }
 
       // Create initial Audit record
@@ -156,7 +185,7 @@ const analysisWorker = new Worker(
   "analysis-queue",
   async (job: Job) => {
     console.log(`[Analysis Worker] Processing job ${job.id} (${job.name})`);
-    const { businessId, auditId } = job.data;
+    const { businessId, auditId, contactId } = job.data;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -184,8 +213,8 @@ const analysisWorker = new Worker(
     // Run real credential-free website check
     const signals = await analyzeWebsite(business.website);
 
-    // Real competitor lookup — never fabricated names
-    const realCompetitors = await findRealCompetitors({
+    // Real competitor list + the business's own local-pack rank — never fabricated
+    const localMarket = await findLocalMarketPosition({
       businessName: business.name,
       website: business.website,
       city: business.city,
@@ -203,11 +232,16 @@ const analysisWorker = new Worker(
       signals,
       rating: business.rating || 4.5,
       reviewCount: business.reviewCount || 45,
-      realCompetitors,
+      realCompetitors: localMarket.competitors,
+      ownRank: localMarket.ownRank,
+      marketChecked: localMarket.checked,
     });
 
-    // Generate OpenAI summary if key available
+    // Generate OpenAI summary if key available — pass the exact website
+    // failure through so the AI leads with it instead of glossing over a 0 score.
     let finalSummary = scoreOutput.summaryText;
+    let aiEmailSubject: string | undefined;
+    let aiEmailOpening: string | undefined;
     try {
       const aiSummaryRes = await generateAuditSummaryWithOpenAI({
         businessName: business.name,
@@ -216,10 +250,13 @@ const analysisWorker = new Worker(
         overallScore: scoreOutput.opportunityScore,
         results: scoreOutput.categoryScores.map((c) => ({ category: c.category, score: c.score })),
         competitors: scoreOutput.competitors,
+        websiteIssue: signals.reachable ? undefined : signals.error,
       });
       if (aiSummaryRes.summary) {
         finalSummary = aiSummaryRes.summary;
       }
+      aiEmailSubject = aiSummaryRes.emailSubject;
+      aiEmailOpening = aiSummaryRes.emailOpening;
     } catch (err) {
       console.warn("[Analysis Worker] OpenAI summary generation skipped:", err);
     }
@@ -295,11 +332,31 @@ const analysisWorker = new Worker(
           score: c.score,
           title: c.detailsJson.title,
           detail: c.detailsJson.description,
+          findingsJson: c.findingsJson,
         })),
         competitors: scoreOutput.competitors,
+        category: business.category,
       },
       { jobId: `pdf_${completedAudit.id}` }
     );
+
+    // Fully automatic outreach — no admin approval step. A no-op (with a
+    // logged reason) when there's genuinely no verified contact yet.
+    try {
+      const outreachResult = await initiateAutomaticOutreach({
+        businessId,
+        contactId,
+        aiSubject: aiEmailSubject,
+        aiOpening: aiEmailOpening,
+      });
+      if (outreachResult.queued) {
+        console.log(`[Analysis Worker] Outreach auto-queued for business ${businessId} (message ${outreachResult.emailMessageId}).`);
+      } else {
+        console.log(`[Analysis Worker] Outreach not queued for business ${businessId}: ${outreachResult.reason}`);
+      }
+    } catch (err) {
+      console.error(`[Analysis Worker] Auto-outreach failed for business ${businessId}:`, err);
+    }
 
     console.log(`[Analysis Worker] Completed audit ${targetAuditId}. Score: ${scoreOutput.opportunityScore}/100.`);
   },

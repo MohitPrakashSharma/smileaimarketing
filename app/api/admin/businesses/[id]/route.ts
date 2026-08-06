@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
+import { buildAuditNarrative } from "@/lib/auditNarrative";
 
 export async function GET(
   request: Request,
@@ -35,6 +36,7 @@ export async function GET(
         providerSource: true,
         rating: true,
         reviewCount: true,
+        googlePlaceId: true,
         lastCheckedAt: true,
         createdAt: true,
         campaign: { select: { id: true, name: true } },
@@ -52,7 +54,24 @@ export async function GET(
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ business });
+    // Pitch-ready, non-technical narrative for whoever's calling this practice —
+    // built only from real findingsJson already computed at audit time.
+    const latestAudit = business.audits[0];
+    const narrative = latestAudit
+      ? buildAuditNarrative({
+          businessName: business.name,
+          city: business.city,
+          category: business.category,
+          findings: latestAudit.results.map((r) => ({
+            category: r.category,
+            score: r.score,
+            findingsJson: (r.findingsJson as Record<string, unknown>) || {},
+          })),
+          competitors: latestAudit.competitorGaps,
+        })
+      : null;
+
+    return NextResponse.json({ business, narrative });
   } catch (error) {
     console.error("Admin business detail GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

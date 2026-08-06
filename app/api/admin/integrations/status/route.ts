@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import IORedis from "ioredis";
 import { discoveryQueue, analysisQueue, pdfQueue, outreachQueue } from "@/lib/queue";
+import { integrationStatus } from "@/lib/env.server";
 
 export async function GET(request: Request) {
   try {
@@ -27,6 +28,15 @@ export async function GET(request: Request) {
       dbConnected = true;
     } catch (err) {
       console.error("DB check error:", err);
+    }
+
+    // 1b. Google Calendar connection (separate from whether the OAuth app itself is configured)
+    let connectedGoogleAccount: string | null = null;
+    try {
+      const token = await prisma.googleCalendarToken.findUnique({ where: { id: "default" } });
+      connectedGoogleAccount = token?.googleAccountEmail || (token ? "connected" : null);
+    } catch (err) {
+      console.error("Google Calendar token check error:", err);
     }
 
     // 2. Redis & Queue Status
@@ -68,14 +78,17 @@ export async function GET(request: Request) {
       {
         key: "google_places",
         name: "Google Places API",
-        status: process.env.GOOGLE_PLACES_API_KEY ? "READY" : "MOCKED",
-        details: process.env.GOOGLE_PLACES_API_KEY ? "API key mounted • Real place discovery active" : "Key missing • Falling back to TEST_PROVIDER",
+        status: integrationStatus.googlePlaces ? "READY" : "MOCKED",
+        details: integrationStatus.googlePlaces ? "API key mounted • Real place discovery active" : "Key missing • Falling back to TEST_PROVIDER",
       },
       {
         key: "dataforseo",
         name: "DataForSEO API",
-        status: process.env.DATAFORSEO_API_KEY ? "READY" : "MOCKED",
-        details: process.env.DATAFORSEO_API_KEY ? "Credentials active" : "Key missing • Using deterministic fallback calculations",
+        status: process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD ? "READY" : "MOCKED",
+        details:
+          process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD
+            ? "Credentials active"
+            : "Login/password missing • Using deterministic fallback calculations",
       },
       {
         key: "apollo",
@@ -93,13 +106,17 @@ export async function GET(request: Request) {
         key: "email",
         name: "Email Transport",
         status: process.env.EMAIL_SEND_MODE === "live" ? "READY" : "TEST_MODE",
-        details: `Mode: ${process.env.EMAIL_SEND_MODE || "test"} • Test Recipient: ${process.env.EMAIL_TEST_RECIPIENTS || "office@getfoundguru.com"}`,
+        details: `Mode: ${process.env.EMAIL_SEND_MODE || "test"} • Test Recipient: ${process.env.EMAIL_TEST_RECIPIENTS || "hello@smileaimarketing.com"}`,
       },
       {
         key: "calendar",
         name: "Google Calendar & Meet",
-        status: process.env.GOOGLE_CALENDAR_ID ? "READY" : "MOCKED",
-        details: process.env.GOOGLE_CALENDAR_ID ? "Calendar API active" : "Not configured • Using internal booking requested queue",
+        status: connectedGoogleAccount ? "READY" : integrationStatus.googleCalendar ? "PENDING" : "MOCKED",
+        details: connectedGoogleAccount
+          ? `Connected as ${connectedGoogleAccount} • Real Meet links are created on booking`
+          : integrationStatus.googleCalendar
+            ? 'OAuth client configured — click "Connect Google Calendar" below to authorize an account before real Meet links can be created'
+            : "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI missing • Using internal booking requested queue",
       },
     ];
 
