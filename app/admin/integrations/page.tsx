@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { AdminCard } from "@/components/admin/AdminCard";
@@ -16,9 +17,32 @@ interface IntegrationItem {
 const GROUPS = [
   { title: "Core Infrastructure", keys: ["postgres", "redis", "worker"] },
   { title: "Lead & Enrichment Data", keys: ["google_places", "dataforseo", "apollo"] },
-  { title: "Communication & AI", keys: ["email", "google_calendar", "openai"] },
+  { title: "Communication & AI", keys: ["email", "calendar", "openai"] },
   { title: "Document & PDF Storage", keys: ["pdf_storage"] },
 ];
+
+function GoogleCalendarCallbackBanner() {
+  const searchParams = useSearchParams();
+  const result = searchParams.get("google_calendar");
+  const message = searchParams.get("message");
+
+  if (!result) return null;
+
+  return (
+    <div
+      role="alert"
+      className={`rounded-xl border p-3.5 text-xs font-semibold ${
+        result === "connected"
+          ? "border-primary/20 bg-primary/10 text-primary"
+          : "border-danger/20 bg-danger/10 text-danger"
+      }`}
+    >
+      {result === "connected"
+        ? "Google Calendar connected — real Meet links will now be created for online consultations."
+        : `Couldn't connect Google Calendar: ${message || "Unknown error."}`}
+    </div>
+  );
+}
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
@@ -99,6 +123,10 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
+      <Suspense fallback={null}>
+        <GoogleCalendarCallbackBanner />
+      </Suspense>
+
       {/* Grouped Status Sections */}
       <div className="space-y-5">
         {GROUPS.map((group) => {
@@ -114,6 +142,7 @@ export default function IntegrationsPage() {
                   const lastResult = testResults[item.key];
                   const currentStatus = lastResult?.status || item.status;
                   const currentDetails = lastResult?.details || item.details;
+                  const isCalendarNotConnected = item.key === "calendar" && currentStatus !== "READY" && currentStatus !== "CONNECTED";
 
                   return (
                     <div key={item.key} className="flex flex-col gap-2.5 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -130,7 +159,15 @@ export default function IntegrationsPage() {
                         )}
                       </div>
 
-                      <div className="shrink-0">
+                      <div className="flex shrink-0 items-center gap-2">
+                        {isCalendarNotConnected && (
+                          <a
+                            href="/api/auth/google/connect"
+                            className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
+                          >
+                            Connect Google Calendar
+                          </a>
+                        )}
                         <Button
                           variant="outline"
                           className="!h-8 !px-3 !text-xs"

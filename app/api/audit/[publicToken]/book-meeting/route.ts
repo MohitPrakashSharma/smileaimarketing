@@ -89,10 +89,19 @@ export async function POST(
       attendeeEmail: contact.email,
     });
 
+    if (meetResult.status === "CONFIRMED") {
+      await prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { googleEventId: meetResult.eventId, meetLink: meetResult.meetUrl },
+      });
+    }
+
     return NextResponse.json({
       appointmentId: appointment.id,
       status: appointment.status,
-      joinUrl: meetResult.meetUrl,
+      // Only ever a real, working link — never a placeholder that looks real.
+      // When null, the confirmation copy should say a link is coming by email/admin, not show a broken one.
+      joinUrl: meetResult.status === "CONFIRMED" ? meetResult.meetUrl : null,
     }, { status: 200 });
   } catch (error) {
     console.error("Book meeting error:", error);

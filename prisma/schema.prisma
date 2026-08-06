@@ -77,6 +77,7 @@ model User {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   activities    SalesActivity[]
+  googleCalendarTokens GoogleCalendarToken[]
 
   @@index([email])
 }
@@ -356,4 +357,19 @@ model ConsentRecord {
   timestamp      DateTime @default(now())
 
   @@index([contactId])
+}
+
+// One shared Google account connected for Calendar/Meet — not per-admin-user.
+// A single row, upserted at id "default" each time someone (re)connects.
+model GoogleCalendarToken {
+  id                 String   @id @default("default")
+  googleAccountEmail String?
+  accessToken        String
+  refreshToken       String
+  expiresAt          DateTime
+  scope              String
+  connectedByUserId  String?
+  connectedByUser    User?    @relation(fields: [connectedByUserId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
