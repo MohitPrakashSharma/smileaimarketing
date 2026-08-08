@@ -111,6 +111,10 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   const handleOnlineBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingLoading) return;
+    if (!meetingTime || Number.isNaN(new Date(meetingTime).getTime())) {
+      setBookingError("Please pick a date and time");
+      return;
+    }
     setBookingLoading(true);
     setBookingError("");
 
@@ -118,7 +122,10 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       const res = await fetch(`/api/audit/${publicToken}/book-meeting`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduledTime: meetingTime, notes: meetingNotes }),
+        // meetingTime comes from a datetime-local input ("2026-08-08T23:56") —
+        // no seconds or timezone, which fails the API's z.string().datetime()
+        // validation. Convert to a real ISO string (UTC) before sending.
+        body: JSON.stringify({ scheduledTime: new Date(meetingTime).toISOString(), notes: meetingNotes }),
       });
       if (!res.ok) {
         const errJson = await res.json();

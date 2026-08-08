@@ -37,7 +37,11 @@ function BookConsultationForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          isInPerson ? { address, preferredWindow, notes } : { scheduledTime, notes }
+          isInPerson
+            ? { address, preferredWindow, notes }
+            // scheduledTime comes from a datetime-local input — no seconds or
+            // timezone, which fails the API's z.string().datetime() validation.
+            : { scheduledTime: new Date(scheduledTime).toISOString(), notes }
         ),
       }
     );
@@ -50,6 +54,10 @@ function BookConsultationForm() {
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting.current) return;
+    if (!isInPerson && (!scheduledTime || Number.isNaN(new Date(scheduledTime).getTime()))) {
+      setError("Please pick a date and time");
+      return;
+    }
     submitting.current = true;
     setLoading(true);
     setError("");
