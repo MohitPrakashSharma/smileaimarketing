@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: smileaimarketing-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - smileaimarketing_postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: smileaimarketing-redis
+    restart: unless-stopped
+    volumes:
+      - smileaimarketing_redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smileaimarketing-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy-network
+    volumes:
+      - smileaimarketing_reports:/app/public/reports
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy-network"
+
+      - "traefik.http.routers.smileaimarketing.rule=Host(`smileaimarketing.com`)"
+      - "traefik.http.routers.smileaimarketing.entrypoints=websecure"
+      - "traefik.http.routers.smileaimarketing.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.smileaimarketing.service=smileaimarketing"
+
+      - "traefik.http.routers.smileaimarketing-www.rule=Host(`www.smileaimarketing.com`)"
+      - "traefik.http.routers.smileaimarketing-www.entrypoints=websecure"
+      - "traefik.http.routers.smileaimarketing-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.smileaimarketing-www.service=smileaimarketing"
+      - "traefik.http.routers.smileaimarketing-www.middlewares=smileaimarketing-www-redirect"
+
+      - "traefik.http.middlewares.smileaimarketing-www-redirect.redirectregex.regex=^https://www\\.smileaimarketing\\.com/(.*)"
+      - "traefik.http.middlewares.smileaimarketing-www-redirect.redirectregex.replacement=https://smileaimarketing.com/$${1}"
+      - "traefik.http.middlewares.smileaimarketing-www-redirect.redirectregex.permanent=true"
+
+      - "traefik.http.services.smileaimarketing.loadbalancer.server.port=3000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: smileaimarketing-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - smileaimarketing_reports:/app/public/reports
+
+networks:
+  internal:
+    name: smileaimarketing-internal
+  proxy-network:
+    external: true
+
+volumes:
+  smileaimarketing_postgres_data:
+  smileaimarketing_redis_data:
+  smileaimarketing_reports:

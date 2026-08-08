@@ -1,0 +1,31 @@
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache openssl
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY prisma ./prisma
+RUN npx prisma generate
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+RUN apk add --no-cache openssl
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 worker
+
+COPY --from=deps --chown=worker:nodejs /app/node_modules ./node_modules
+COPY --from=deps --chown=worker:nodejs /app/prisma ./prisma
+COPY --chown=worker:nodejs package.json ./
+COPY --chown=worker:nodejs dental-worker.ts ./
+COPY --chown=worker:nodejs lib ./lib
+COPY --chown=worker:nodejs tsconfig.json ./
+
+# Shared with the web container via a named volume so worker-generated
+# audit PDFs (lib/pdfGenerator.ts writes to public/reports) are servable.
+RUN mkdir -p /app/public/reports && chown -R worker:nodejs /app/public
+
+USER worker
+
+CMD ["npx", "tsx", "dental-worker.ts"]
