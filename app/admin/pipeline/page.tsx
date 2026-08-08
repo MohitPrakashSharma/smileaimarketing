@@ -22,6 +22,7 @@ const STAGES = [
   { label: "Discovered", value: "DISCOVERED", color: "text-muted-foreground" },
   { label: "Verified", value: "VERIFIED", color: "text-indigo-400" },
   { label: "Audited", value: "AUDITED", color: "text-sky-400" },
+  { label: "Pending Approval", value: "OUTREACH_PENDING", color: "text-orange-400" },
   { label: "Contacted", value: "OUTREACH_ACTIVE", color: "text-amber-400" },
   { label: "Engaged", value: "ENGAGED", color: "text-emerald-400" },
   { label: "Meeting Requested", value: "MEETING_REQUESTED", color: "text-indigo-400" },
@@ -85,7 +86,8 @@ export default function AdminPipelinePage() {
     if (b.status === "DISCOVERED") return "Verify Practice";
     if (b.status === "VERIFIED") return "Run Audit";
     if (b.status === "AUDITED") return "Find Contact";
-    if (b.status === "OUTREACH_ACTIVE") return "Review Email";
+    if (b.status === "OUTREACH_PENDING") return "Review & Approve Email";
+    if (b.status === "OUTREACH_ACTIVE") return "Awaiting Reply";
     if (b.status === "ENGAGED" || b.status === "MEETING_REQUESTED") return "Schedule Visit";
     if (b.status === "CONVERTED") return "Onboard Practice";
     return "Re-engage Lead";

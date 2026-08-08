@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       where: body.approveAll
         ? { status: "QUEUED" }
         : { status: "QUEUED", id: { in: messageIds || [] } },
-      select: { id: true },
+      select: { id: true, contact: { select: { businessId: true } } },
     });
 
     for (const message of queued) {
@@ -26,6 +26,14 @@ export async function POST(request: Request) {
         { emailMessageId: message.id },
         { jobId: `outreach_${message.id}` }
       );
+    }
+
+    const businessIds = [...new Set(queued.map((m) => m.contact.businessId))];
+    if (businessIds.length > 0) {
+      await prisma.business.updateMany({
+        where: { id: { in: businessIds }, status: "OUTREACH_PENDING" },
+        data: { status: "OUTREACH_ACTIVE" },
+      });
     }
 
     return NextResponse.json({ success: true, count: queued.length });

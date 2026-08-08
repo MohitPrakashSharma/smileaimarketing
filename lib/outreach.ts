@@ -1,5 +1,4 @@
 import { prisma } from "./prisma";
-import { outreachQueue } from "./queue";
 
 export interface AutoOutreachParams {
   businessId: string;
@@ -22,10 +21,14 @@ const DEFAULT_BODY =
   "Hi {{contactName}},\n\nWe ran a free visibility audit on {{clinicName}} in {{city}} — nearby patients are searching for a dentist right now, and this shows exactly where you're winning that search and where you're not.\n\nTakes 60 seconds to look through:";
 
 /**
- * The single place that turns a real, verified contact into a queued-and-sent
- * outreach email — no admin approval step. Called automatically once an
+ * The single place that turns a real, verified contact into a drafted
+ * outreach email awaiting admin approval. Called automatically once an
  * audit completes (from the discovery/analysis pipeline) or the moment a
- * contact is found/added for a business that already has a completed audit.
+ * contact is found/added for a business that already has a completed audit
+ * — but only *drafts* the email (EmailMessage.status = QUEUED). Nothing is
+ * actually sent until an admin approves it from /admin/outreach, which is
+ * the only code path allowed to enqueue the real send
+ * (app/api/admin/outreach/approve/route.ts).
  *
  * Never invents a recipient: if no verified contact exists yet, this is a
  * no-op that reports why, exactly like the rest of the pipeline's "real data
@@ -97,13 +100,10 @@ export async function initiateAutomaticOutreach(params: AutoOutreachParams): Pro
     data: { contactId: contact.id, stepId: step.id, status: "QUEUED" },
   });
 
-  await outreachQueue.add(
-    "send-outreach-email",
-    { emailMessageId: message.id },
-    { jobId: `outreach_${message.id}` }
-  );
-
-  await prisma.business.update({ where: { id: business.id }, data: { status: "OUTREACH_ACTIVE" } });
+  // Drafted only — not enqueued for sending. An admin must approve it from
+  // /admin/outreach (app/api/admin/outreach/approve/route.ts) before this
+  // contact ever receives a real email.
+  await prisma.business.update({ where: { id: business.id }, data: { status: "OUTREACH_PENDING" } });
 
   // Attributed to whichever admin account exists — there's no separate
   // "system" actor in the schema, and this is just an activity-log note,
@@ -114,8 +114,11 @@ export async function initiateAutomaticOutreach(params: AutoOutreachParams): Pro
       data: {
         businessId: business.id,
         userId: systemUser.id,
-        type: "EMAIL",
-        content: `Outreach automatically queued for ${contact.email} by the pipeline — no manual approval required.`,
+        // NOTE, not EMAIL — app/admin/businesses/[id]/page.tsx treats any
+        // type:"EMAIL" activity as proof an email was actually sent. This
+        // is a draft awaiting approval, not a send yet.
+        type: "NOTE",
+        content: `Outreach drafted for ${contact.email} — awaiting admin approval before sending.`,
       },
     });
   }
