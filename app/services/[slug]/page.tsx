@@ -60,7 +60,7 @@ export default async function ServiceDetailPage({
     description: service.metaDescription,
     url: `${SITE_URL}/services/${service.slug}`,
     provider: { "@type": "Organization", name: "Smile AI Marketing" },
-    areaServed: "US",
+    areaServed: "CA",
   };
 
   const breadcrumbJsonLd = {

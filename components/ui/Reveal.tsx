@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useInView, useMotionValue, useTransform, animate, type Variants } from "motion/react";
 
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
 };
 
 export const revealItem = fadeUp;
@@ -23,9 +23,9 @@ export function Reveal({ children, delay = 0, className }: RevealProps) {
       className={className}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: "-40px" }}
       variants={fadeUp}
-      transition={{ delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
@@ -45,7 +45,7 @@ export function RevealGroup({ children, className, stagger = 0.12 }: RevealGroup
       className={className}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: "-40px" }}
       variants={{ hidden: {}, show: { transition: { staggerChildren: stagger } } }}
     >
       {children}

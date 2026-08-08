@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -49,9 +50,18 @@ export default function FinalCTA() {
   };
 
   return (
-    <section id="contact" className="border-t border-border bg-surface-muted/30">
-      <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
-        <Reveal className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-sm sm:py-14">
+    <section id="contact" className="relative overflow-hidden border-t border-border">
+      <Image
+        src="/images/dental-operatory-bright.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="object-cover"
+        quality={70}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-foreground/80 via-foreground/70 to-foreground/85" aria-hidden />
+      <div className="relative mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
+        <Reveal className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-xl sm:py-14">
           <h2 className="text-heading-1 font-semibold text-foreground">
             See where your next patient opportunities may be.
           </h2>
@@ -86,7 +96,7 @@ export default function FinalCTA() {
                   autoComplete="address-level2"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Chicago"
+                  placeholder="Toronto"
                   hasError={!!cityError}
                 />
               </FormField>

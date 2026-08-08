@@ -16,7 +16,7 @@ const ORGANIZATION_JSON_LD = {
     "Marketing agency helping dental clinics improve local visibility, generate qualified patient enquiries, and book more appointments.",
   url: "https://smileaimarketing.com",
   email: "hello@smileaimarketing.com",
-  areaServed: "US",
+  areaServed: "CA",
   knowsAbout: [
     "Dental marketing",
     "Local SEO",

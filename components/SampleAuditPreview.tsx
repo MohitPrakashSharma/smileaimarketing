@@ -77,7 +77,7 @@ export default function SampleAuditPreview() {
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-primary" />
                 <span className="text-body font-semibold text-foreground">Metro Dental Care</span>
-                <span className="text-metadata">— Chicago, IL</span>
+                <span className="text-metadata">— Toronto, ON</span>
               </div>
             </div>
             <span className="rounded-full border border-border bg-background px-2.5 py-1 font-label text-[10px] tracking-wider text-muted-foreground">

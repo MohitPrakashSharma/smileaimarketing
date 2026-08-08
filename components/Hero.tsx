@@ -87,14 +87,23 @@ export default function Hero() {
 
   return (
     <section id="top" className="relative overflow-hidden bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
-      <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[50%_50%] lg:gap-10">
+      {/* Ambient depth — brand-teal glow, decorative only */}
+      <div className="pointer-events-none absolute -top-24 right-0 h-[420px] w-[420px] rounded-full bg-primary/10 blur-[110px]" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-32 left-0 h-[360px] w-[360px] rounded-full bg-accent-soft blur-[110px]" aria-hidden />
+
+      <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[50%_50%] lg:gap-10">
 
         {/* Left Column: Headline and Form */}
         <div>
           <Reveal>
-            <span className="inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
-              A FREE GROWTH CHECKUP FOR YOUR PRACTICE
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-label text-xs tracking-wider text-muted-foreground">
+                <span aria-hidden>🍁</span> BUILT FOR CANADIAN DENTAL PRACTICES
+              </span>
+              <span className="inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
+                A FREE GROWTH CHECKUP
+              </span>
+            </div>
           </Reveal>
           <Reveal delay={0.06}>
             <h1 className="mt-5 font-sans text-display text-foreground">
@@ -103,7 +112,7 @@ export default function Hero() {
           </Reveal>
           <Reveal delay={0.12}>
             <p className="mt-6 max-w-xl text-body-large text-muted-foreground">
-              We review your Google visibility, website, reviews, local competitors and booking journey — then show you what deserves attention first.
+              A clear review of your Google visibility, website and local competition — with the priorities worth fixing first.
             </p>
           </Reveal>
 
@@ -142,7 +151,7 @@ export default function Hero() {
                     autoComplete="address-level2"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Chicago"
+                    placeholder="Toronto"
                     hasError={!!cityError}
                     aria-describedby={cityError ? "hero-city-error" : undefined}
                   />
@@ -185,7 +194,7 @@ export default function Hero() {
             <div className="flex items-center justify-between border-b border-border bg-background px-5 py-3.5">
               <div>
                 <p className="text-body-small font-bold text-foreground">Metro Dental Care</p>
-                <p className="text-metadata">Chicago, IL</p>
+                <p className="text-metadata">Toronto, ON</p>
               </div>
               <span className="rounded-full border border-border bg-surface px-2.5 py-1 font-label text-[10px] tracking-wider text-muted-foreground">
                 Sample data
@@ -240,7 +249,7 @@ export default function Hero() {
                   <p className="font-label text-xs tracking-wider">TOP OPPORTUNITY</p>
                 </div>
                 <p className="mt-2 text-body-small font-semibold text-foreground">
-                  &ldquo;Emergency Dentist Chicago&rdquo;
+                  &ldquo;Emergency Dentist Toronto&rdquo;
                 </p>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-metadata text-muted-foreground">
                   <span>Current position: <strong className="text-foreground">#11</strong></span>

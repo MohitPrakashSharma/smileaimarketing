@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { IconCheck, IconCalendarCheck, IconMapPin } from "@/components/icons";
 import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
 
@@ -32,21 +33,33 @@ export default function TrustAndConsultation() {
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
         <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
           {/* Trust points */}
-          <Reveal className="rounded-2xl border border-border bg-surface-muted/30 p-6 sm:p-8">
-            <h2 className="text-heading-2 font-semibold text-foreground">Clear findings. Human review.</h2>
-            <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
-              Data helps identify the opportunity. A conversation helps determine what actually makes sense for your practice.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {TRUST_POINTS.map((point) => (
-                <li key={point} className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                    <IconCheck className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-body-small font-medium text-foreground">{point}</span>
-                </li>
-              ))}
-            </ul>
+          <Reveal className="overflow-hidden rounded-2xl border border-border bg-surface-muted/30">
+            <div className="relative h-44 w-full sm:h-52">
+              <Image
+                src="/images/dental-operatory-calm.jpg"
+                alt="A modern dental treatment room — the kind of practice this review is built for"
+                fill
+                sizes="(min-width: 1024px) 40vw, 100vw"
+                className="object-cover"
+                quality={75}
+              />
+            </div>
+            <div className="p-6 sm:p-8">
+              <h2 className="text-heading-2 font-semibold text-foreground">Clear findings. Human review.</h2>
+              <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
+                Data helps identify the opportunity. A conversation helps determine what actually makes sense for your practice.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {TRUST_POINTS.map((point) => (
+                  <li key={point} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <IconCheck className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-body-small font-medium text-foreground">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </Reveal>
 
           {/* Consultation options */}

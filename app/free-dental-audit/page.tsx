@@ -273,7 +273,7 @@ function AuditWizardForm() {
                 type="text"
                 required
                 autoComplete="address-level2"
-                placeholder="e.g. Chicago"
+                placeholder="e.g. Toronto"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 hasError={!!cityError}
