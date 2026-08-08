@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
 import { IconCheck } from "@/components/icons";
+
+export const metadata: Metadata = {
+  title: "Thank You",
+  robots: { index: false, follow: false },
+};
 
 export default function ThankYouPage() {
   return (
