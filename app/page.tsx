@@ -1,11 +1,6 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import PatientJourney from "@/components/PatientJourney";
 import SampleAuditPreview from "@/components/SampleAuditPreview";
-import CompetitorComparison from "@/components/CompetitorComparison";
-import SearchOpportunities from "@/components/SearchOpportunities";
-import PriorityFixes from "@/components/PriorityFixes";
-import VisibilityPipeline from "@/components/VisibilityPipeline";
 import HowItWorks from "@/components/HowItWorks";
 import TrustAndConsultation from "@/components/TrustAndConsultation";
 import FAQ from "@/components/FAQ";
@@ -56,12 +51,7 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
-        <PatientJourney />
         <SampleAuditPreview />
-        <CompetitorComparison />
-        <SearchOpportunities />
-        <PriorityFixes />
-        <VisibilityPipeline />
         <HowItWorks />
         <TrustAndConsultation />
         <FAQ />
