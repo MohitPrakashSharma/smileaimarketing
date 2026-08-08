@@ -1,0 +1,3 @@
+-- Migration: Baseline reflecting current Prisma schema (no changes to DB)
+-- This file is intentionally empty because the existing database already matches the schema.
+-- It serves as a placeholder to satisfy Prisma Migrate's migration history.

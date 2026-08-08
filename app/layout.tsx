@@ -1,26 +1,18 @@
-import type { Metadata } from "next";
-import { Fraunces, Manrope, IBM_Plex_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: "variable",
-  style: ["normal", "italic"],
-  axes: ["opsz", "SOFT"],
-});
-
 const manrope = Manrope({
-  variable: "--font-body",
+  variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
 
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-label",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-});
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 const SITE_URL = "https://smileaimarketing.com";
 
@@ -70,9 +62,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${manrope.variable} ${plexMono.variable}`}
+      className={`${manrope.variable}`}
     >
-      <body className="min-h-full flex flex-col bg-paper text-ink antialiased">
+      <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
         {children}
       </body>
     </html>

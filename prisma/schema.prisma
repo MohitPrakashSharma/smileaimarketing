@@ -1,0 +1,376 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  SALES
+}
+
+enum CampaignStatus {
+  DRAFT
+  READY
+  DISCOVERING
+  PROCESSING
+  REVIEW_REQUIRED
+  READY_FOR_OUTREACH
+  ACTIVE
+  PAUSED
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum BusinessStatus {
+  DISCOVERED
+  QUALIFIED
+  AUDITING
+  AUDITED
+  OUTREACH_PENDING
+  OUTREACH_ACTIVE
+  CONVERTED
+  DISQUALIFIED
+}
+
+enum AuditStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  OPENED
+  CLICKED
+  REPLIED
+}
+
+enum AppointmentType {
+  ONLINE
+  IN_PERSON
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String
+  passwordHash  String
+  role          UserRole        @default(SALES)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  activities    SalesActivity[]
+  googleCalendarTokens GoogleCalendarToken[]
+
+  @@index([email])
+}
+
+model Campaign {
+  id          String         @id @default(uuid())
+  name        String
+  
+  // Step 1: Target market
+  country     String         @default("US")
+  state       String?
+  city        String
+  category    String
+
+  // Step 2: Lead criteria
+  maxBusinesses            Int     @default(10)
+  minReviewCount           Int?
+  websiteRequired          Boolean @default(true)
+  excludeChains            Boolean @default(false)
+  excludeExistingContacts  Boolean @default(false)
+
+  // Step 3: Audit configuration
+  keywords           String[] @default([])
+  competitorCount     Int     @default(3)
+  dataFreshnessDays   Int     @default(30)
+  dataProvider        String  @default("MOCK") // "MOCK" | "TEST_PROVIDER" | "GOOGLE_PLACES" | "DATAFORSEO"
+
+  // Step 4: Outreach configuration
+  outreachDailyLimit Int     @default(8)
+  testMode            Boolean @default(true)
+
+  status      CampaignStatus @default(DRAFT)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  businesses  Business[]
+  sequences   EmailSequence[]
+
+  @@index([status])
+  @@index([city])
+  @@index([createdAt])
+}
+
+model Business {
+  id               String          @id @default(uuid())
+  campaignId       String?
+  campaign         Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  name             String
+  normalizedName   String?         // lowercased, punctuation-stripped — used for fuzzy dedup
+  website          String
+  normalizedDomain String?         // lowercased host, no protocol/www/trailing slash — used for dedup
+  address          String?
+  city             String
+  state            String?
+  country          String          @default("US")
+  phone            String?
+  category         String
+  status           BusinessStatus  @default(DISCOVERED)
+  leadSource       String          @default("campaign_outreach") // "campaign_outreach" | "website_audit"
+  opportunityScore Int             @default(0)
+
+  // Discovery provider metadata
+  googlePlaceId    String?         @unique
+  latitude         Float?
+  longitude        Float?
+  rating           Float?
+  reviewCount      Int?
+  providerSource   String?         // "TEST_PROVIDER" | "GOOGLE_PLACES" | "DATAFORSEO" | "MANUAL" | "SEED"
+  rawProviderRef   Json?           // opaque provider payload — never exposed to the public frontend
+  firstDiscoveredAt DateTime?      @default(now())
+  lastCheckedAt    DateTime?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  contacts         Contact[]
+  audits           Audit[]
+  appointments     Appointment[]
+  salesActivities  SalesActivity[]
+  engagementEvents EngagementEvent[]
+
+  @@unique([website, city])
+  @@index([campaignId])
+  @@index([status])
+  @@index([city])
+  @@index([normalizedDomain])
+  @@index([createdAt])
+}
+
+model Contact {
+  id             String          @id @default(uuid())
+  businessId     String
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  role           String?
+  source         String          @default("MANUAL") // "APOLLO" | "WEBSITE" | "MANUAL" | "SELF_SERVE" — where this contact was actually found
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  emailMessages  EmailMessage[]
+  appointments   Appointment[]
+  consentRecords ConsentRecord[]
+
+  @@unique([businessId, email])
+  @@index([email])
+}
+
+model Audit {
+  id               String          @id @default(uuid())
+  businessId       String
+  business         Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  publicToken      String          @unique @default(uuid()) // Secure non-sequential URL token
+  status           AuditStatus     @default(PENDING)
+  score            Int             @default(0)
+  summaryText      String?         // Fact-based AI / deterministic audit summary
+  pdfStatus        String          @default("NOT_REQUESTED") // "NOT_REQUESTED" | "QUEUED" | "GENERATING" | "READY" | "FAILED"
+  pdfUrl           String?
+  pdfGeneratedAt   DateTime?
+  viewCount        Int             @default(0)
+  lastViewedAt     DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  results          AuditResult[]
+  competitorGaps   Competitor[]
+  engagementEvents EngagementEvent[]
+
+  @@index([businessId])
+  @@index([publicToken])
+  @@index([status])
+}
+
+model AuditResult {
+  id            String      @id @default(uuid())
+  auditId       String
+  audit         Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  category      String      // e.g., "LOCAL_VISIBILITY", "WEBSITE_QUALITY", "CONVERSION", "REPUTATION"
+  score         Int         // Category specific score
+  findingsJson  Json        // Structured facts e.g. { speed: 45, ssl: false }
+  detailsJson   Json?       // Copy and human recommendations
+  createdAt     DateTime    @default(now())
+
+  @@index([auditId])
+}
+
+model Competitor {
+  id            String      @id @default(uuid())
+  auditId       String
+  audit         Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  name          String
+  website       String?
+  rank          Int
+  mapScore      Int?
+  createdAt     DateTime    @default(now())
+
+  @@index([auditId])
+}
+
+model EmailSequence {
+  id          String       @id @default(uuid())
+  campaignId  String
+  campaign    Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name        String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  steps       EmailStep[]
+}
+
+model EmailStep {
+  id            String        @id @default(uuid())
+  sequenceId    String
+  sequence      EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  stepDay       Int           // Day offset e.g., 0, 3, 7, 12
+  subject       String
+  bodyTemplate  String        // Markdown or HTML template containing replacement variables
+  messages      EmailMessage[]
+}
+
+model EmailMessage {
+  id               String            @id @default(uuid())
+  contactId        String
+  contact          Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  stepId           String
+  step             EmailStep         @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  status           EmailStatus       @default(QUEUED)
+  scheduledTime    DateTime?         // When outreach is scheduled to be sent
+
+  messageId        String?           // External email service ID
+  sentAt           DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  events           EngagementEvent[]
+
+  @@index([contactId])
+  @@index([status])
+  @@index([scheduledTime])
+  @@index([messageId])
+}
+
+model EngagementEvent {
+  id             String        @id @default(uuid())
+  emailMessageId String?
+  emailMessage   EmailMessage? @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  businessId     String?
+  business       Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  auditId        String?
+  audit          Audit?        @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  eventType      String        // "campaign_created", "business_discovered", "audit_completed", "OPEN", "CLICK", "REPORT_VIEW", "PDF_DOWNLOAD", "BOOKING_REQUESTED"
+  linkClicked    String?
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime      @default(now())
+
+  @@index([emailMessageId])
+  @@index([businessId])
+  @@index([auditId])
+  @@index([eventType])
+}
+
+model Appointment {
+  id               String            @id @default(uuid())
+  businessId       String
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contactId        String
+  contact          Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type             AppointmentType
+  status           AppointmentStatus @default(REQUESTED)
+  scheduledTime    DateTime
+  durationMinutes  Int               @default(15)
+  address          String?           // For offline in-person visits
+  preferredWindow  String?           // Muted text for timing range
+  notes            String?
+  salesBriefingUrl String?           // URL link to generated PDF brief
+  googleEventId    String?
+  meetLink         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([businessId])
+  @@index([contactId])
+  @@index([scheduledTime])
+  @@index([status])
+}
+
+model SalesActivity {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // "NOTE", "CALL", "EMAIL", "MEETING"
+  content     String
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
+  @@index([userId])
+}
+
+model SuppressionRecord {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  domain    String?  // Exclude entire clinic domains if requested
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([domain])
+}
+
+model ConsentRecord {
+  id             String   @id @default(uuid())
+  contactId      String
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  ipAddress      String?
+  consentType    String   // e.g. "MARKETING_EMAIL", "COMMUNICATION"
+  consentGranted Boolean  @default(true)
+  timestamp      DateTime @default(now())
+
+  @@index([contactId])
+}
+
+// One shared Google account connected for Calendar/Meet — not per-admin-user.
+// A single row, upserted at id "default" each time someone (re)connects.
+model GoogleCalendarToken {
+  id                 String   @id @default("default")
+  googleAccountEmail String?
+  accessToken        String
+  refreshToken       String
+  expiresAt          DateTime
+  scope              String
+  connectedByUserId  String?
+  connectedByUser    User?    @relation(fields: [connectedByUserId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

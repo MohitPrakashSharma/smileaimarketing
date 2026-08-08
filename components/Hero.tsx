@@ -1,117 +1,237 @@
 "use client";
 
-import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
-import { IconSearch, IconMapPin, IconChat, IconCalendarCheck, IconTrendingUp } from "@/components/icons";
-import Eyebrow from "@/components/Eyebrow";
-
-const FLOW = [
-  { label: "Google Search", Icon: IconSearch },
-  { label: "Clinic Found", Icon: IconMapPin },
-  { label: "Patient Enquiry", Icon: IconChat },
-  { label: "Appointment Booked", Icon: IconCalendarCheck },
-];
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { IconMapPin, IconMonitor, IconStar, IconTrendingUp } from "@/components/icons";
+import FormField from "@/components/ui/FormField";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 export default function Hero() {
-  const reduceMotion = useReducedMotion();
+  const router = useRouter();
+
+  const [website, setWebsite] = useState("");
+  const [city, setCity] = useState("");
+
+  const [websiteError, setWebsiteError] = useState("");
+  const [cityError, setCityError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateInputs = () => {
+    let isValid = true;
+
+    const trimmedWeb = website.trim();
+    if (!trimmedWeb) {
+      setWebsiteError("Website is required");
+      isValid = false;
+    } else {
+      const domainPattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+      const urlPattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+      if (!domainPattern.test(trimmedWeb) && !urlPattern.test(trimmedWeb)) {
+        setWebsiteError("Please enter a valid practice website (e.g., dentalclinic.com)");
+        isValid = false;
+      } else {
+        setWebsiteError("");
+      }
+    }
+
+    const trimmedCity = city.trim();
+    if (!trimmedCity) {
+      setCityError("City is required");
+      isValid = false;
+    } else if (trimmedCity.length < 2) {
+      setCityError("Please enter a valid city name");
+      isValid = false;
+    } else {
+      setCityError("");
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!validateInputs()) return;
+
+    setIsSubmitting(true);
+
+    let normalizedWebsite = website.trim().toLowerCase();
+    if (!/^https?:\/\//i.test(normalizedWebsite)) {
+      normalizedWebsite = `https://${normalizedWebsite}`;
+    }
+
+    const params = new URLSearchParams({
+      website: normalizedWebsite,
+      city: city.trim(),
+    });
+
+    router.push(`/free-dental-audit?${params.toString()}`);
+  };
+
+  const handleScrollToSample = () => {
+    const sampleSection = document.getElementById("sample-audit");
+    if (sampleSection) {
+      sampleSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
-    <section id="top" className="pt-14 pb-16 sm:pt-20 sm:pb-24">
-      <div className="mx-auto grid max-w-[1200px] items-center gap-14 px-6 sm:px-8 lg:grid-cols-[55%_45%] lg:gap-10">
+    <section id="top" className="relative bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
+      <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[52%_48%] lg:gap-8">
+
+        {/* Left Column: Headline and Form */}
         <div>
-          <Eyebrow>Marketing built only for dental clinics</Eyebrow>
-          <h1 className="mt-5 font-display text-[2.6rem] leading-[1.08] font-medium text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-            More local patients.
-            <br />
-            <span className="text-teal-deep">Fewer empty chairs.</span>
+          <span className="animate-fade-in-up inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
+            A FREE GROWTH CHECK-UP FOR YOUR PRACTICE
+          </span>
+          <h1
+            className="animate-fade-in-up mt-5 font-sans text-display text-foreground"
+            style={{ animationDelay: "80ms" }}
+          >
+            Find out who your patients are calling instead of you.
           </h1>
-          <p className="mt-6 max-w-lg font-body text-lg leading-relaxed text-slate">
-            We help dental clinics improve their local visibility, generate
-            qualified patient enquiries, and turn more searches into booked
-            appointments.
+          <p
+            className="animate-fade-in-up mt-6 max-w-xl text-body-large text-muted-foreground"
+            style={{ animationDelay: "140ms" }}
+          >
+            We&apos;ll look at your Google visibility, your website, your reviews, and how easy it is to book with you — then tell you plainly what to fix first.
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-4">
-            <a
-              href="#contact"
-              className="rounded-full bg-teal px-8 py-4 font-body text-base font-semibold text-ink shadow-[0_14px_34px_-14px_rgba(14,170,155,0.55)] transition-colors hover:bg-teal-deep hover:text-white"
-            >
-              Get Your Free Growth Plan
-            </a>
-            <a
-              href="#how-it-works"
-              className="rounded-full border border-line bg-white px-8 py-4 font-body text-base font-semibold text-ink transition-colors hover:border-teal hover:text-teal-deep"
-            >
-              See How It Works
-            </a>
-          </div>
+          {/* Primary Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="animate-fade-in-up mt-8 max-w-xl space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-md"
+            style={{ animationDelay: "200ms" }}
+            noValidate
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
+                <Input
+                  id="hero-website"
+                  type="url"
+                  required
+                  disabled={isSubmitting}
+                  autoComplete="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  inputMode="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="clinic.com"
+                  hasError={!!websiteError}
+                  aria-describedby={websiteError ? "hero-website-error" : undefined}
+                />
+              </FormField>
 
-          <p className="mt-6 font-body text-[14.5px] text-slate">
-            Dental-only marketing <span className="mx-2 text-line" aria-hidden>·</span>
-            No long-term contracts <span className="mx-2 text-line" aria-hidden>·</span>
-            Human-reviewed campaigns
-          </p>
-        </div>
-
-        <div>
-          <div className="relative">
-            <div className="relative aspect-[6/5] overflow-hidden rounded-3xl shadow-[0_30px_60px_-25px_rgba(8,44,58,0.35)]">
-              <Image
-                src="/images/hero-search-analytics.jpg"
-                alt="Local search and traffic analytics reviewed on a tablet"
-                fill
-                priority
-                sizes="(min-width: 1024px) 45vw, 90vw"
-                className="object-cover"
-              />
+              <FormField id="hero-city" label="City" required optionalLabel={false} error={cityError}>
+                <Input
+                  id="hero-city"
+                  type="text"
+                  required
+                  disabled={isSubmitting}
+                  autoComplete="address-level2"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Chicago"
+                  hasError={!!cityError}
+                  aria-describedby={cityError ? "hero-city-error" : undefined}
+                />
+              </FormField>
             </div>
 
-            <motion.div
-              className="absolute -bottom-5 -left-4 flex items-center gap-2.5 rounded-xl border border-line bg-white py-3 pl-3.5 pr-4 shadow-[0_16px_32px_-12px_rgba(8,44,58,0.3)] sm:-left-6"
-              initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal/10 text-teal-deep">
-                <IconTrendingUp className="h-4 w-4" />
-              </span>
-              <p className="font-body text-[12.5px] font-medium leading-tight text-ink">
-                Search visibility
-                <br />
-                <span className="text-slate">tracked weekly</span>
-              </p>
-            </motion.div>
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+              <Button type="submit" loading={isSubmitting} fullWidth className="sm:flex-1">
+                {isSubmitting ? "Starting scan..." : "Audit My Practice"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={handleScrollToSample}>
+                View Sample Audit
+              </Button>
+            </div>
+          </form>
+
+          {/* Trust Microcopy */}
+          <ul
+            className="animate-fade-in-up mt-6 space-y-2 text-metadata text-muted-foreground"
+            style={{ animationDelay: "260ms" }}
+          >
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>No login or account access needed.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>Based on what patients can already see.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>Straight talk, not jargon.</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Right Column: Realistic Product Preview Mockup */}
+        <div
+          className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
+          style={{ animationDelay: "160ms" }}
+        >
+          {/* Header Bar */}
+          <div className="flex items-center justify-between border-b border-border bg-background px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-red-400" />
+              <span className="h-3 w-3 rounded-full bg-yellow-400" />
+              <span className="h-3 w-3 rounded-full bg-green-400" />
+              <span className="ml-2 font-mono text-xs text-muted-foreground">audit-preview-tool</span>
+            </div>
+            <span className="rounded bg-accent-soft px-2 py-0.5 font-label text-[10px] tracking-wider text-primary">
+              Sample audit preview
+            </span>
           </div>
 
-          <div className="relative mt-8 rounded-2xl border border-line bg-white px-5 py-5">
-            <div
-              aria-hidden
-              className="absolute left-[15%] right-[15%] top-[34px] h-px border-t border-dashed border-line"
-            />
-            <div className="relative flex items-start justify-between gap-1">
-              {FLOW.map((step, i) => (
-                <motion.div
-                  key={step.label}
-                  className="flex flex-1 flex-col items-center text-center"
-                  initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.15 + i * 0.12 }}
-                >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      i === FLOW.length - 1 ? "bg-coral/10 text-coral" : "bg-mist text-teal-deep"
-                    }`}
-                  >
-                    <step.Icon className="h-4.5 w-4.5" />
-                  </span>
-                  <p className="mt-2 font-body text-[11.5px] font-medium leading-tight text-ink">
-                    {step.label}
-                  </p>
-                </motion.div>
+          {/* Mock Dashboard Contents */}
+          <div className="space-y-6 p-6">
+            <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-body font-bold text-foreground">Metro Dental Care</p>
+                <p className="text-metadata">Sample report preview</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-metadata font-semibold uppercase text-muted-foreground">Opportunity</span>
+                <span className="rounded bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">
+                  HIGH
+                </span>
+              </div>
+            </div>
+
+            {/* Metrics List */}
+            <div className="space-y-4">
+              {[
+                { Icon: IconMapPin, label: "Local Visibility", caption: "Map-pack ranking indicator", value: "42/100", status: "Poor", tone: "text-rose-600" },
+                { Icon: IconMonitor, label: "Website Experience", caption: "Mobile speed & layout test", value: "61/100", status: "Average", tone: "text-amber-600" },
+                { Icon: IconStar, label: "Review Position", caption: "Local map ranking slot", value: "7th", status: "Buried", tone: "text-rose-600" },
+                { Icon: IconTrendingUp, label: "Competitors Ahead", caption: "Higher-ranked local practices", value: "3", status: "High Gap", tone: "text-rose-600" },
+              ].map((m) => (
+                <div key={m.label} className="flex items-center justify-between rounded-xl border border-border bg-background p-3.5">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
+                      <m.Icon className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <p className="text-body-small font-semibold text-foreground">{m.label}</p>
+                      <p className="text-metadata">{m.caption}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-body font-bold ${m.tone}`}>{m.value}</p>
+                    <p className={`text-metadata font-semibold uppercase ${m.tone}`}>{m.status}</p>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );

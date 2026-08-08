@@ -147,3 +147,68 @@ export function IconSearch({ className }: IconProps) {
     </Svg>
   );
 }
+
+export function IconGrid({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.2" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.2" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.2" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.2" />
+    </Svg>
+  );
+}
+
+export function IconSettings({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3.5v2M12 18.5v2M4.9 6.9l1.4 1.4M17.7 15.7l1.4 1.4M3.5 12h2M18.5 12h2M4.9 17.1l1.4-1.4M17.7 8.3l1.4-1.4" />
+    </Svg>
+  );
+}
+
+export function IconLogout({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M9 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h3" />
+      <path d="M14 8l4 4-4 4M18 12H9.5" />
+    </Svg>
+  );
+}
+
+export function IconMenuDots({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+export function IconChevronDown({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function IconFilter({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </Svg>
+  );
+}
+
+export function IconAlertTriangle({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </Svg>
+  );
+}

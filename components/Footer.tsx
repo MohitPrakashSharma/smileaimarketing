@@ -1,29 +1,64 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
+const SECTION_LINKS = [
+  { href: "#how-it-works", label: "How It Works" },
+  { href: "#sample-audit", label: "Sample Audit" },
+  { href: "#trust-consultation", label: "Consultation" },
+  { href: "#faq", label: "FAQ" },
+];
+
+const PAGE_LINKS = [
+  { href: "/services", label: "Services" },
+  { href: "/case-studies", label: "Case Studies" },
+  { href: "/privacy", label: "Privacy Policy" },
+];
+
 export default function Footer() {
+  const pathname = usePathname();
+  const onHomepage = pathname === "/";
+
+  const handleScrollToLink = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!onHomepage) return; // let it navigate to "/#section" normally
+    e.preventDefault();
+    const targetSection = document.querySelector(href);
+    if (targetSection) {
+      targetSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
-    <footer className="bg-ink text-white/60">
-      <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-between sm:px-8 sm:text-left">
-        <span className="font-label text-[13px] tracking-tight text-white/85">
+    <footer className="border-t border-border bg-surface text-muted-foreground">
+      <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-6 px-6 py-10 text-center sm:flex-row sm:justify-between sm:px-8 sm:text-left">
+        <span className="font-sans text-base font-bold text-foreground">
           Smile AI Marketing
         </span>
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <a href="#how-it-works" className="font-body text-[13.5px] transition-colors hover:text-white">
-            How it works
-          </a>
-          <a href="#services" className="font-body text-[13.5px] transition-colors hover:text-white">
-            Services
-          </a>
-          <a href="#reporting" className="font-body text-[13.5px] transition-colors hover:text-white">
-            Reporting
-          </a>
-          <a href="#faq" className="font-body text-[13.5px] transition-colors hover:text-white">
-            FAQ
-          </a>
-          <a href="#contact" className="font-body text-[13.5px] transition-colors hover:text-white">
-            Contact
-          </a>
+
+        <nav aria-label="Footer Navigation" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          {SECTION_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={onHomepage ? link.href : `/${link.href}`}
+              onClick={(e) => handleScrollToLink(e, link.href)}
+              className="text-body-small hover:text-foreground transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+          {PAGE_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-body-small hover:text-foreground transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
         </nav>
-        <p className="font-body text-[13px]">
-          © {new Date().getFullYear()} Smile AI Marketing
+
+        <p className="text-metadata">
+          © {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
         </p>
       </div>
     </footer>
