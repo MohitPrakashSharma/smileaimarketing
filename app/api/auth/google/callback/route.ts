@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { exchangeCodeAndStoreToken } from "@/lib/googleOAuth";
+import { env } from "@/lib/env.server";
 
 function readCookie(request: Request, name: string): string | undefined {
   const cookieHeader = request.headers.get("cookie") || "";
@@ -12,7 +13,10 @@ function readCookie(request: Request, name: string): string | undefined {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const redirectTo = (status: "connected" | "error", message?: string) => {
-    const target = new URL("/admin/integrations", url.origin);
+    // Use the configured public base URL rather than the request's own origin —
+    // behind the reverse proxy, request.url resolves to the container's
+    // internal bind address (0.0.0.0:3000), not the public host.
+    const target = new URL("/admin/integrations", env.APP_BASE_URL);
     target.searchParams.set("google_calendar", status);
     if (message) target.searchParams.set("message", message);
     const res = NextResponse.redirect(target);
