@@ -37,6 +37,17 @@
   --color-danger: #e11d48;
   --color-focus-ring: var(--color-primary);
 
+  /* Status vocabulary: calm, non-alarmist diagnostic language (never color alone) */
+  --color-status-healthy-fg: #0f766e;
+  --color-status-healthy-bg: #e9f7f4;
+  --color-status-healthy-border: #bfe6de;
+  --color-status-opportunity-fg: #b45309;
+  --color-status-opportunity-bg: #fdf3e3;
+  --color-status-opportunity-border: #f3ddb0;
+  --color-status-attention-fg: #b3441f;
+  --color-status-attention-bg: #fbf0e8;
+  --color-status-attention-border: #f0d3bf;
+
   /* Legacy variable mappings to prevent existing Tailwind utility breakages */
   --color-paper: var(--color-background);
   --color-mist: var(--color-surface-muted);
@@ -255,6 +266,23 @@ input, select, textarea {
 ::selection {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
+}
+
+/* 7b. Status badge utilities */
+@utility badge-healthy {
+  color: var(--color-status-healthy-fg);
+  background: var(--color-status-healthy-bg);
+  border-color: var(--color-status-healthy-border);
+}
+@utility badge-opportunity {
+  color: var(--color-status-opportunity-fg);
+  background: var(--color-status-opportunity-bg);
+  border-color: var(--color-status-opportunity-border);
+}
+@utility badge-attention {
+  color: var(--color-status-attention-fg);
+  background: var(--color-status-attention-bg);
+  border-color: var(--color-status-attention-border);
 }
 
 /* 8. Shared subtle animations */

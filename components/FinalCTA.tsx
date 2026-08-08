@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { Reveal } from "@/components/ui/Reveal";
 
 export default function FinalCTA() {
   const router = useRouter();
@@ -50,12 +51,12 @@ export default function FinalCTA() {
   return (
     <section id="contact" className="border-t border-border bg-surface-muted/30">
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
-        <div className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-sm sm:py-14">
+        <Reveal className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-sm sm:py-14">
           <h2 className="text-heading-1 font-semibold text-foreground">
-            See what&apos;s costing you new patients.
+            See where your next patient opportunities may be.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-body text-muted-foreground">
-            Just your website and city — we&apos;ll do the digging and hand you a clear, plain-English report.
+            Enter your practice website and location and we&apos;ll prepare a clear, plain-English review.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4 text-left" noValidate>
@@ -91,10 +92,10 @@ export default function FinalCTA() {
               </FormField>
             </div>
             <Button type="submit" loading={isSubmitting} fullWidth>
-              {isSubmitting ? "Starting scan..." : "Audit My Practice"}
+              {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
             </Button>
           </form>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
