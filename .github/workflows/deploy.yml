@@ -10,7 +10,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: prisma
+          POSTGRES_PASSWORD: prisma
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Verify schema.prisma matches committed migrations
+        run: |
+          set +e
+          npx prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --shadow-database-url postgresql://prisma:prisma@localhost:5432/shadow \
+            --exit-code
+          code=$?
+          set -e
+          if [ "$code" -eq 2 ]; then
+            echo "::error::schema.prisma has changes with no matching migration file. Run 'npx prisma migrate dev' locally (not 'prisma db push') and commit the generated migration before merging to main."
+            exit 1
+          elif [ "$code" -ne 0 ]; then
+            exit "$code"
+          fi
+          echo "Schema and migrations are in sync."
+
   deploy:
+    needs: check-migrations
     runs-on: ubuntu-latest
     steps:
       - name: Deploy over SSH
