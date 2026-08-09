@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { IconSearch, IconStar, IconMonitor, IconUsers, IconTrendingUp } from "@/components/icons";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
@@ -87,7 +88,17 @@ export default function Hero() {
 
   return (
     <section id="top" className="relative overflow-hidden bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
-      {/* Ambient depth — brand-teal glow, decorative only */}
+      {/* Ambient depth — a real practice, kept as quiet atmosphere, not a competing focal image */}
+      <div className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_60%_75%_at_30%_35%,transparent,black)]" aria-hidden>
+        <Image
+          src="/images/dental-operatory-calm.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover opacity-[0.16]"
+          quality={60}
+        />
+      </div>
       <div className="pointer-events-none absolute -top-24 right-0 h-[420px] w-[420px] rounded-full bg-primary/10 blur-[110px]" aria-hidden />
       <div className="pointer-events-none absolute -bottom-32 left-0 h-[360px] w-[360px] rounded-full bg-accent-soft blur-[110px]" aria-hidden />
 
@@ -96,14 +107,9 @@ export default function Hero() {
         {/* Left Column: Headline and Form */}
         <div>
           <Reveal>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-label text-xs tracking-wider text-muted-foreground">
-                <span aria-hidden>🍁</span> BUILT FOR CANADIAN DENTAL PRACTICES
-              </span>
-              <span className="inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
-                A FREE GROWTH CHECKUP
-              </span>
-            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-label text-xs tracking-wider text-muted-foreground">
+              <span aria-hidden>🍁</span> A FREE GROWTH CHECKUP FOR CANADIAN PRACTICES
+            </span>
           </Reveal>
           <Reveal delay={0.06}>
             <h1 className="mt-5 font-sans text-display text-foreground">
@@ -112,7 +118,7 @@ export default function Hero() {
           </Reveal>
           <Reveal delay={0.12}>
             <p className="mt-6 max-w-xl text-body-large text-muted-foreground">
-              A clear review of your Google visibility, website and local competition — with the priorities worth fixing first.
+              A clear review of what&apos;s costing you new patients — and what to fix first.
             </p>
           </Reveal>
 
@@ -171,13 +177,8 @@ export default function Hero() {
 
           {/* Trust Microcopy */}
           <Reveal delay={0.24}>
-            <ul className="mt-6 grid grid-cols-1 gap-x-6 gap-y-2 text-metadata text-muted-foreground sm:grid-cols-2">
-              {[
-                "No Google account access required",
-                "Based on real local search and website signals",
-                "Clear findings, explained in plain English",
-                "No obligation",
-              ].map((item) => (
+            <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-metadata text-muted-foreground">
+              {["No Google account access required", "No obligation"].map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                   <span>{item}</span>
