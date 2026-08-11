@@ -77,7 +77,7 @@ function AuditWizardForm() {
   // Step 1: practice details
   const [website, setWebsite] = useState("");
   const [city, setCity] = useState("");
-  const [country, setCountry] = useState("US");
+  const [country, setCountry] = useState("CA");
   const [websiteError, setWebsiteError] = useState("");
   const [cityError, setCityError] = useState("");
 
@@ -289,8 +289,8 @@ function AuditWizardForm() {
 
             <FormField id="country" label="Country" optionalLabel={false}>
               <Select id="country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country">
-                <option value="US">United States</option>
                 <option value="CA">Canada</option>
+                <option value="US">United States</option>
                 <option value="UK">United Kingdom</option>
                 <option value="AU">Australia</option>
               </Select>
