@@ -10,6 +10,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import ProgressSteps from "@/components/ui/ProgressSteps";
 import { IconCheck } from "@/components/icons";
+import { trackEvent } from "@/lib/analytics.client";
 
 type WizardStep = "details" | "processing" | "preview" | "contact";
 
@@ -93,6 +94,12 @@ function AuditWizardForm() {
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState("");
   const contactSubmitting = useRef(false);
+
+  useEffect(() => {
+    if (step === "processing") trackEvent("audit_processing_view", {});
+    else if (step === "preview") trackEvent("audit_preview_view", {});
+    else if (step === "contact") trackEvent("report_unlock_start", {});
+  }, [step]);
 
   const runScan = async (siteUrl: string, targetCity: string) => {
     if (scanInFlight.current) return;

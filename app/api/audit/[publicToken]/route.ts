@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildAuditNarrative } from "@/lib/auditNarrative";
+import { trackEvent } from "@/lib/analytics";
 
 export async function GET(
   request: Request,
@@ -29,6 +30,8 @@ export async function GET(
         data: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
       })
       .catch((err) => console.error("Failed to record audit view:", err));
+
+    void trackEvent({ eventName: "report_view", businessId: audit.businessId, auditId: audit.id });
 
     // Format the response payload safely
     const scorecard = {

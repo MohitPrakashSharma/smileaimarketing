@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { IconSearch, IconStar, IconMonitor, IconUsers, IconTrendingUp } from "@/components/icons";
@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import StatusBadge, { type StatusLevel } from "@/components/ui/StatusBadge";
 import { Reveal, RevealGroup, revealItem, AnimatedCounter, motion } from "@/components/ui/Reveal";
+import { trackEvent } from "@/lib/analytics.client";
 
 const DASHBOARD_METRICS: { Icon: typeof IconSearch; label: string; score: number; status: StatusLevel }[] = [
   { Icon: IconSearch, label: "Patient Discovery", score: 42, status: "attention" },
@@ -25,6 +26,13 @@ export default function Hero() {
   const [websiteError, setWebsiteError] = useState("");
   const [cityError, setCityError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasStartedForm = useRef(false);
+
+  const handleFormStart = () => {
+    if (hasStartedForm.current) return;
+    hasStartedForm.current = true;
+    trackEvent("audit_form_start", { form_location: "hero" });
+  };
 
   const validateInputs = () => {
     let isValid = true;
@@ -64,6 +72,7 @@ export default function Hero() {
 
     if (!validateInputs()) return;
 
+    trackEvent("audit_form_submit", { form_location: "hero" });
     setIsSubmitting(true);
 
     let normalizedWebsite = website.trim().toLowerCase();
@@ -141,7 +150,10 @@ export default function Hero() {
                     autoCorrect="off"
                     inputMode="url"
                     value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
+                    onChange={(e) => {
+                      handleFormStart();
+                      setWebsite(e.target.value);
+                    }}
                     placeholder="clinic.com"
                     hasError={!!websiteError}
                     aria-describedby={websiteError ? "hero-website-error" : undefined}
@@ -156,7 +168,10 @@ export default function Hero() {
                     disabled={isSubmitting}
                     autoComplete="address-level2"
                     value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    onChange={(e) => {
+                      handleFormStart();
+                      setCity(e.target.value);
+                    }}
                     placeholder="Toronto"
                     hasError={!!cityError}
                     aria-describedby={cityError ? "hero-city-error" : undefined}
