@@ -3,17 +3,25 @@ import fs from "fs/promises";
 import path from "path";
 import { prisma } from "./prisma";
 import { env } from "./env.server";
+import { buildAuditNarrative } from "./auditNarrative";
 
 export interface AuditPdfData {
   auditId: string;
   publicToken: string;
   businessName: string;
   city: string;
+  category: string;
   website: string;
   opportunityScore: number;
   summaryText: string;
-  findings: Array<{ category: string; score: number; title: string; detail: string }>;
+  findings: Array<{ category: string; score: number; title: string; detail: string; findingsJson: Record<string, unknown> }>;
   competitors: Array<{ name: string; rank: number; mapScore?: number }>;
+}
+
+// pdf-lib's built-in WinAnsi-encoded standard fonts can't render "★" (or other
+// non-Latin1 glyphs) and throw at draw time — sanitize before it ever reaches drawText.
+function sanitizeForPdf(text: string): string {
+  return text.replace(/★/g, "*");
 }
 
 function wrapText(text: string, maxChars: number): string[] {
@@ -34,8 +42,14 @@ function wrapText(text: string, maxChars: number): string[] {
   return lines;
 }
 
-function fmtScore(score: number | undefined): string {
-  return score !== undefined ? `${score}/100` : "N/A";
+/** Like wrapText, but caps at maxLines and marks truncation with "…" instead of silently cutting a sentence mid-word. */
+function wrapTextTruncated(text: string, maxChars: number, maxLines: number): string[] {
+  const lines = wrapText(text, maxChars);
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  const last = kept[maxLines - 1];
+  kept[maxLines - 1] = last.length > maxChars - 1 ? `${last.slice(0, maxChars - 1)}…` : `${last}…`;
+  return kept;
 }
 
 export async function generateLightAuditPdf(data: AuditPdfData): Promise<string> {
@@ -61,46 +75,91 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
     const cMutedText = rgb(0.380, 0.447, 0.478);     // #61727A
     const cBorder = rgb(0.863, 0.910, 0.898);        // #DCE8E5
     const cWarningAmber = rgb(0.949, 0.722, 0.294);  // #F2B84B
-    const cCriticalRed = rgb(0.851, 0.290, 0.333);   // #D94A55
     const cWhite = rgb(1, 1, 1);
 
     const reportDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
     const reportUrl = `${env.APP_BASE_URL}/audit/${data.publicToken}`;
 
+    // Same real, deterministic narrative the web report uses — one source of
+    // truth for both, built only from real findingsJson, never fabricated.
+    const rawNarrative = buildAuditNarrative({
+      businessName: data.businessName,
+      city: data.city,
+      category: data.category,
+      findings: data.findings.map((f) => ({ category: f.category, score: f.score, findingsJson: f.findingsJson })),
+      competitors: data.competitors.map((c) => ({ name: c.name, rank: c.rank, mapScore: c.mapScore ?? null })),
+    });
+    const narrative = {
+      headline: { line1: sanitizeForPdf(rawNarrative.headline.line1), line2: sanitizeForPdf(rawNarrative.headline.line2) },
+      dek: sanitizeForPdf(rawNarrative.dek),
+      stats: rawNarrative.stats.map((s) => ({ value: sanitizeForPdf(s.value), label: sanitizeForPdf(s.label), caption: sanitizeForPdf(s.caption) })),
+      fixCards: rawNarrative.fixCards.map((f) => ({ title: sanitizeForPdf(f.title), detail: sanitizeForPdf(f.detail), impact: sanitizeForPdf(f.impact) })),
+      quietLeaks: rawNarrative.quietLeaks.map((q) => ({ title: sanitizeForPdf(q.title), detail: sanitizeForPdf(q.detail) })),
+    };
+
+    const PAGE_SIZE: [number, number] = [595.28, 841.89]; // A4
+
+    function drawTopBar(page: ReturnType<typeof pdfDoc.addPage>, rightLabel: string) {
+      const { width, height } = page.getSize();
+      page.drawRectangle({ x: 0, y: height - 32, width, height: 32, color: cDeepNavy });
+      page.drawText(`SMILE AI MARKETING  |  ${data.businessName.toUpperCase()}`, {
+        x: 36,
+        y: height - 21,
+        size: 8.5,
+        font: fontBold,
+        color: cWhite,
+      });
+      page.drawText(rightLabel, {
+        x: width - 10 - fontBold.widthOfTextAtSize(rightLabel, 8.5),
+        y: height - 21,
+        size: 8.5,
+        font: fontBold,
+        color: cDentalTeal,
+      });
+    }
+
+    function drawFooter(page: ReturnType<typeof pdfDoc.addPage>, pageNum: number, totalPages: number) {
+      const { width } = page.getSize();
+      page.drawRectangle({ x: 36, y: 35, width: width - 72, height: 0.5, color: cBorder });
+      page.drawText("STRICTLY CONFIDENTIAL  ·  PREPARED BY SMILE AI MARKETING", {
+        x: 36,
+        y: 20,
+        size: 7.5,
+        font: fontBold,
+        color: cMutedText,
+      });
+      const label = `PAGE ${pageNum} OF ${totalPages}`;
+      page.drawText(label, {
+        x: width - 36 - fontBold.widthOfTextAtSize(label, 7.5),
+        y: 20,
+        size: 7.5,
+        font: fontBold,
+        color: cDarkTeal,
+      });
+    }
+
+    /** Draws a two-line headline: navy first line, teal-highlighted second line sized to fit its text. */
+    function drawHeadline(page: ReturnType<typeof pdfDoc.addPage>, x: number, yTop: number, line1: string, line2: string): number {
+      let y = yTop;
+      page.drawText(line1, { x, y, size: 22, font: fontBold, color: cDeepNavy });
+      y -= 32;
+      const size2 = 20;
+      const textWidth = fontBold.widthOfTextAtSize(line2, size2);
+      page.drawRectangle({ x: x - 2, y: y - 6, width: textWidth + 16, height: 30, color: cDentalTeal });
+      page.drawText(line2, { x: x + 6, y, size: size2, font: fontBold, color: cWhite });
+      return y - 30;
+    }
+
+    const totalPages = 2;
+
     // ==========================================
-    // PAGE 1 — EXECUTIVE SNAPSHOT
+    // PAGE 1 — THE HEADLINE + THE NUMBERS
     // ==========================================
-    const page1 = pdfDoc.addPage([595.28, 841.89]); // A4 (595.28 x 841.89 pt)
+    const page1 = pdfDoc.addPage(PAGE_SIZE);
     const { height: pageHeight, width: pageWidth } = page1.getSize();
-
-    // Slim top navy bar
-    page1.drawRectangle({
-      x: 0,
-      y: pageHeight - 32,
-      width: pageWidth,
-      height: 32,
-      color: cDeepNavy,
-    });
-
-    page1.drawText(`SMILE AI MARKETING  |  ${data.businessName.toUpperCase()}`, {
-      x: 36,
-      y: pageHeight - 21,
-      size: 8.5,
-      font: fontBold,
-      color: cWhite,
-    });
-
-    page1.drawText(reportDate.toUpperCase(), {
-      x: pageWidth - 140,
-      y: pageHeight - 21,
-      size: 8.5,
-      font: fontBold,
-      color: cDentalTeal,
-    });
+    drawTopBar(page1, reportDate.toUpperCase());
 
     let yPos = pageHeight - 65;
-
-    // Eyebrow label
     page1.drawText("YOUR PRACTICE GROWTH AUDIT, EXPLAINED SIMPLY", {
       x: 36,
       y: yPos,
@@ -109,52 +168,19 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDarkTeal,
     });
 
-    // Headline (2 Lines, second line with Dental Teal highlight box)
     yPos -= 32;
-    page1.drawText("Patients are searching for you.", {
-      x: 36,
-      y: yPos,
-      size: 24,
-      font: fontBold,
-      color: cDeepNavy,
-    });
+    yPos = drawHeadline(page1, 36, yPos, narrative.headline.line1, narrative.headline.line2);
 
-    yPos -= 36;
-    const highlightBoxWidth = 330;
-    const highlightBoxHeight = 32;
-    page1.drawRectangle({
-      x: 34,
-      y: yPos - 6,
-      width: highlightBoxWidth,
-      height: highlightBoxHeight,
-      color: cDentalTeal,
-    });
-
-    page1.drawText("Here's who's finding them first.", {
-      x: 42,
-      y: yPos,
-      size: 22,
-      font: fontBold,
-      color: cWhite,
-    });
-
-    // Editorial supporting statement (Georgia / Helvetica Oblique style)
-    yPos -= 32;
-    const summaryLines = wrapText(data.summaryText || "We looked at your online presence the same way a prospective patient would — your search visibility, your website, and how easy you are to book with — to find out where you're winning and where you're not.", 90);
-    for (const sLine of summaryLines.slice(0, 2)) {
-      page1.drawText(sLine, {
-        x: 36,
-        y: yPos,
-        size: 9.5,
-        font: fontItalic,
-        color: cMutedText,
-      });
+    yPos -= 22;
+    const dekLines = wrapTextTruncated(narrative.dek, 92, 3);
+    for (const dLine of dekLines) {
+      page1.drawText(dLine, { x: 36, y: yPos, size: 9.5, font: fontItalic, color: cMutedText });
       yPos -= 14;
     }
 
     yPos -= 10;
 
-    // Score Dashboard Panel
+    // Score Dashboard Panel — dominant Opportunity Score (left) + real, verified stat grid (right)
     const scoreBoxY = yPos - 95;
     page1.drawRectangle({
       x: 36,
@@ -166,170 +192,43 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       borderWidth: 1,
     });
 
-    // Dominant Overall Score Box (Left)
-    page1.drawRectangle({
-      x: 48,
-      y: scoreBoxY + 12,
-      width: 140,
-      height: 71,
-      color: cDeepNavy,
-    });
-
-    page1.drawText("OPPORTUNITY SCORE", {
-      x: 60,
-      y: scoreBoxY + 62,
-      size: 7.5,
-      font: fontBold,
-      color: cDentalTeal,
-    });
-
-    page1.drawText(`${data.opportunityScore}`, {
-      x: 60,
-      y: scoreBoxY + 26,
-      size: 32,
-      font: fontBold,
-      color: cWhite,
-    });
-
-    page1.drawText("/ 100", {
-      x: 125,
-      y: scoreBoxY + 30,
-      size: 14,
-      font: fontBold,
-      color: cMutedText,
-    });
-
-    // Compact Score Sub-cards (Right Grid) — pulled from the real computed
-    // category scores, never derived/guessed from the overall score.
-    const findScore = (category: string) => data.findings.find((f) => f.category === category)?.score;
-    const metrics = [
-      { label: "LOCAL VISIBILITY", value: fmtScore(findScore("LOCAL_VISIBILITY")) },
-      { label: "WEBSITE EXPERIENCE", value: fmtScore(findScore("WEBSITE_QUALITY")) },
-      { label: "REVIEWS & REPUTATION", value: fmtScore(findScore("REPUTATION")) },
-      { label: "COMPETITOR GAP", value: fmtScore(findScore("COMPETITOR_GAP")) },
-    ];
+    page1.drawRectangle({ x: 48, y: scoreBoxY + 12, width: 140, height: 71, color: cDeepNavy });
+    page1.drawText("OPPORTUNITY SCORE", { x: 60, y: scoreBoxY + 62, size: 7.5, font: fontBold, color: cDentalTeal });
+    page1.drawText(`${data.opportunityScore}`, { x: 60, y: scoreBoxY + 26, size: 32, font: fontBold, color: cWhite });
+    page1.drawText("/ 100", { x: 125, y: scoreBoxY + 30, size: 14, font: fontBold, color: cMutedText });
 
     const gridX = 205;
     const gridY = scoreBoxY + 48;
-    metrics.forEach((m, idx) => {
+    narrative.stats.slice(0, 4).forEach((s, idx) => {
       const mx = gridX + (idx % 2) * 160;
       const my = gridY - Math.floor(idx / 2) * 32;
-
-      page1.drawText(m.label, {
-        x: mx,
-        y: my,
-        size: 7,
-        font: fontBold,
-        color: cMutedText,
-      });
-
-      page1.drawText(m.value, {
-        x: mx,
-        y: my - 13,
-        size: 11,
-        font: fontBold,
-        color: cCharcoal,
-      });
+      page1.drawText(s.label.toUpperCase(), { x: mx, y: my, size: 7, font: fontBold, color: cMutedText });
+      page1.drawText(s.value, { x: mx, y: my - 13, size: 11, font: fontBold, color: cCharcoal });
     });
 
     yPos = scoreBoxY - 25;
 
-    // Verified Findings Section
-    page1.drawText("WHAT WE FOUND, IN PLAIN TERMS", {
-      x: 36,
-      y: yPos,
-      size: 11,
-      font: fontBold,
-      color: cDeepNavy,
-    });
-
-    yPos -= 10;
-    const topFindings = data.findings.slice(0, 3);
-    for (let i = 0; i < topFindings.length; i++) {
-      const f = topFindings[i];
-      yPos -= 46;
-
-      const isCritical = f.score < 70;
-      const badgeColor = isCritical ? cCriticalRed : (f.score < 85 ? cWarningAmber : cDarkTeal);
-
-      page1.drawRectangle({
-        x: 36,
-        y: yPos,
-        width: pageWidth - 72,
-        height: 40,
-        color: cOffWhite,
-        borderColor: cBorder,
-        borderWidth: 1,
-      });
-
-      // Left Accent Pill
-      page1.drawRectangle({
-        x: 36,
-        y: yPos,
-        width: 4,
-        height: 40,
-        color: badgeColor,
-      });
-
-      page1.drawText(f.title, {
-        x: 48,
-        y: yPos + 24,
-        size: 10,
-        font: fontBold,
-        color: cCharcoal,
-      });
-
-      const detailSnippet = f.detail.length > 90 ? `${f.detail.slice(0, 90)}...` : f.detail;
-      page1.drawText(detailSnippet, {
-        x: 48,
-        y: yPos + 10,
-        size: 8.5,
-        font: fontRegular,
-        color: cMutedText,
-      });
-    }
-
-    yPos -= 25;
-
     // Compact Dark Comparison Panel
-    page1.drawRectangle({
-      x: 36,
-      y: yPos - 95,
-      width: pageWidth - 72,
-      height: 95,
-      color: cDeepNavy,
-    });
-
-    page1.drawText("HOW YOU COMPARE TO A NEARBY PRACTICE", {
-      x: 48,
-      y: yPos - 20,
-      size: 8.5,
-      font: fontBold,
-      color: cDentalTeal,
-    });
+    page1.drawRectangle({ x: 36, y: yPos - 95, width: pageWidth - 72, height: 95, color: cDeepNavy });
+    page1.drawText("HOW YOU COMPARE TO A NEARBY PRACTICE", { x: 48, y: yPos - 20, size: 8.5, font: fontBold, color: cDentalTeal });
 
     const compLeader = data.competitors[0]?.name || "No verified competitor data this run";
     const compRank = data.competitors[0]?.rank ? `#${data.competitors[0].rank}` : "—";
     const compRating = data.competitors[0]?.mapScore ? `${data.competitors[0].mapScore} / 5.0` : "—";
 
-    // Table Header
     page1.drawText("PRACTICE NAME", { x: 48, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
     page1.drawText("STATUS / POSITION", { x: 280, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
     page1.drawText("RATING / REVIEWS", { x: 420, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
 
-    // Target Row
     page1.drawText(`${data.businessName} (YOU)`, { x: 48, y: yPos - 58, size: 9.5, font: fontBold, color: cWhite });
     page1.drawText("Your practice", { x: 280, y: yPos - 58, size: 9, font: fontRegular, color: cDentalTeal });
     page1.drawText("Verified Signals", { x: 420, y: yPos - 58, size: 9, font: fontRegular, color: cWhite });
 
-    // Competitor Row
     page1.drawText(compLeader, { x: 48, y: yPos - 76, size: 9.5, font: fontBold, color: cOffWhite });
     page1.drawText(compRank, { x: 280, y: yPos - 76, size: 9, font: fontRegular, color: cWarningAmber });
     page1.drawText(compRating, { x: 420, y: yPos - 76, size: 9, font: fontRegular, color: cOffWhite });
 
     yPos -= 115;
-
-    // Sources Line
     page1.drawText("Where this comes from: Google Places, DataForSEO, and a direct check of your live website.", {
       x: 36,
       y: yPos,
@@ -338,218 +237,74 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cMutedText,
     });
 
-    // Page 1 Footer
-    page1.drawRectangle({ x: 36, y: 35, width: pageWidth - 72, height: 0.5, color: cBorder });
-    page1.drawText("STRICTLY CONFIDENTIAL  ·  PREPARED BY SMILE AI MARKETING", {
-      x: 36,
-      y: 20,
-      size: 7.5,
-      font: fontBold,
-      color: cMutedText,
-    });
-    page1.drawText("PAGE 1 OF 2", {
-      x: pageWidth - 90,
-      y: 20,
-      size: 7.5,
-      font: fontBold,
-      color: cDarkTeal,
-    });
+    drawFooter(page1, 1, totalPages);
 
     // ==========================================
-    // PAGE 2 — WHAT TO FIX FIRST
+    // PAGE 2 — FIXES, IN ORDER OF IMPACT
     // ==========================================
-    const page2 = pdfDoc.addPage([595.28, 841.89]);
-
-    // Slim top navy bar
-    page2.drawRectangle({
-      x: 0,
-      y: pageHeight - 32,
-      width: pageWidth,
-      height: 32,
-      color: cDeepNavy,
-    });
-
-    page2.drawText(`SMILE AI MARKETING  |  ${data.businessName.toUpperCase()}`, {
-      x: 36,
-      y: pageHeight - 21,
-      size: 8.5,
-      font: fontBold,
-      color: cWhite,
-    });
-
-    page2.drawText("YOUR NEXT STEPS", {
-      x: pageWidth - 110,
-      y: pageHeight - 21,
-      size: 8.5,
-      font: fontBold,
-      color: cDentalTeal,
-    });
+    const page2 = pdfDoc.addPage(PAGE_SIZE);
+    drawTopBar(page2, "YOUR NEXT STEPS");
 
     let y2 = pageHeight - 65;
-
-    page2.drawText("Three fixes, in order of impact", {
-      x: 36,
-      y: y2,
-      size: 20,
-      font: fontBold,
-      color: cDeepNavy,
-    });
-
+    page2.drawText("Your fixes, in order of impact", { x: 36, y: y2, size: 20, font: fontBold, color: cDeepNavy });
     y2 -= 15;
 
-    // 3 Numbered Priority Recommendation Cards
-    const recs = [
-      {
-        num: "01",
-        title: "Make it effortless to book on a phone",
-        detail: "Add a tap-to-call button and a 2-step booking form patients can find without scrolling or searching.",
-        signal: "Why it matters: patients on their phone won't hunt for a way to reach you.",
-      },
-      {
-        num: "02",
-        title: "Get into the top 3 on Google Maps",
-        detail: "Match your name, address, and phone number everywhere online, and complete every field on your Google Business Profile.",
-        signal: "Why it matters: nearly all local clicks go to the top 3 — everyone else fights for scraps.",
-      },
-      {
-        num: "03",
-        title: "Put your reviews on autopilot",
-        detail: "A short text after every visit asking happy patients for a review — no one has to remember to ask.",
-        signal: "Why it matters: patients compare review counts before anything else.",
-      },
-    ];
-
-    for (const r of recs) {
+    const fixCards = narrative.fixCards.slice(0, 3);
+    for (let i = 0; i < fixCards.length; i++) {
+      const r = fixCards[i];
       y2 -= 80;
 
-      page2.drawRectangle({
-        x: 36,
-        y: y2,
-        width: pageWidth - 72,
-        height: 72,
-        color: cSoftMint,
-        borderColor: cBorder,
-        borderWidth: 1,
-      });
+      page2.drawRectangle({ x: 36, y: y2, width: pageWidth - 72, height: 72, color: cSoftMint, borderColor: cBorder, borderWidth: 1 });
+      page2.drawRectangle({ x: 36, y: y2, width: 4, height: 72, color: cDentalTeal });
 
-      // Left Dental Teal Accent Border
-      page2.drawRectangle({
-        x: 36,
-        y: y2,
-        width: 4,
-        height: 72,
-        color: cDentalTeal,
-      });
+      page2.drawText(String(i + 1).padStart(2, "0"), { x: 48, y: y2 + 42, size: 20, font: fontBold, color: cDarkTeal });
+      page2.drawText(r.title, { x: 82, y: y2 + 50, size: 11, font: fontBold, color: cDeepNavy });
 
-      // Faded Large Number
-      page2.drawText(r.num, {
-        x: 48,
-        y: y2 + 42,
-        size: 20,
-        font: fontBold,
-        color: cDarkTeal,
-      });
-
-      // Action Title
-      page2.drawText(r.title, {
-        x: 82,
-        y: y2 + 50,
-        size: 11,
-        font: fontBold,
-        color: cDeepNavy,
-      });
-
-      // Explanation
-      const recLines = wrapText(r.detail, 75);
+      const recLines = wrapTextTruncated(r.detail, 75, 2);
       let ry = y2 + 35;
-      for (const rl of recLines.slice(0, 2)) {
-        page2.drawText(rl, {
-          x: 82,
-          y: ry,
-          size: 8.5,
-          font: fontRegular,
-          color: cCharcoal,
-        });
+      for (const rl of recLines) {
+        page2.drawText(rl, { x: 82, y: ry, size: 8.5, font: fontRegular, color: cCharcoal });
         ry -= 12;
       }
 
-      // Signal Label
-      page2.drawText(r.signal, {
-        x: 82,
-        y: y2 + 10,
-        size: 7.5,
-        font: fontBold,
-        color: cDarkTeal,
-      });
+      page2.drawText(r.impact, { x: 82, y: y2 + 10, size: 7.5, font: fontBold, color: cDarkTeal });
     }
 
-    y2 -= 35;
-
-    // Compact Opportunity Summary Section
-    page2.drawText("WHERE THE GROWTH IS WAITING", {
-      x: 36,
-      y: y2,
-      size: 10,
-      font: fontBold,
-      color: cDeepNavy,
-    });
-
-    y2 -= 10;
-    const oppCards = [
-      { title: "Your website", desc: "Make it fast and easy to book on mobile" },
-      { title: "Google Maps", desc: "Move into the top 3 nearby search results" },
-      { title: "Reviews", desc: "Build the trust patients look for first" },
-    ];
-
-    const oppWidth = (pageWidth - 72 - 20) / 3;
-    oppCards.forEach((opp, i) => {
-      const ox = 36 + i * (oppWidth + 10);
-      page2.drawRectangle({
-        x: ox,
-        y: y2 - 50,
-        width: oppWidth,
-        height: 50,
-        color: cOffWhite,
-        borderColor: cBorder,
-        borderWidth: 1,
-      });
-
-      page2.drawText(opp.title, {
-        x: ox + 8,
-        y: y2 - 18,
-        size: 8.5,
-        font: fontBold,
-        color: cDeepNavy,
-      });
-
-      page2.drawText(opp.desc, {
-        x: ox + 8,
-        y: y2 - 36,
-        size: 7.5,
+    if (fixCards.length === 0) {
+      y2 -= 40;
+      page2.drawText("Nothing here scored low enough to call a real weak point — every category is holding up well.", {
+        x: 36,
+        y: y2,
+        size: 9.5,
         font: fontRegular,
         color: cMutedText,
       });
-    });
+    }
 
-    y2 -= 80;
+    y2 -= 30;
+
+    // Quiet leaks — secondary real findings, kept short
+    if (narrative.quietLeaks.length > 0) {
+      page2.drawText("A COUPLE MORE THINGS WE NOTICED", { x: 36, y: y2, size: 10, font: fontBold, color: cDeepNavy });
+      y2 -= 16;
+      for (const leak of narrative.quietLeaks.slice(0, 2)) {
+        page2.drawText(`•  ${leak.title}`, { x: 36, y: y2, size: 8.5, font: fontBold, color: cCharcoal });
+        y2 -= 12;
+        const leakLines = wrapTextTruncated(leak.detail, 95, 2);
+        for (const ll of leakLines) {
+          page2.drawText(ll, { x: 48, y: y2, size: 8, font: fontRegular, color: cMutedText });
+          y2 -= 11;
+        }
+        y2 -= 6;
+      }
+    }
+
+    y2 -= 20;
 
     // Prominent Consultation CTA Panel
-    page2.drawRectangle({
-      x: 36,
-      y: y2 - 110,
-      width: pageWidth - 72,
-      height: 110,
-      color: cDeepNavy,
-    });
-
-    page2.drawText("Let's walk through it together", {
-      x: 52,
-      y: y2 - 25,
-      size: 14,
-      font: fontBold,
-      color: cWhite,
-    });
-
+    const ctaHeight = 110;
+    page2.drawRectangle({ x: 36, y: y2 - ctaHeight, width: pageWidth - 72, height: ctaHeight, color: cDeepNavy });
+    page2.drawText("Let's walk through it together", { x: 52, y: y2 - 25, size: 14, font: fontBold, color: cWhite });
     page2.drawText("No pressure, no sales pitch — just a straight conversation about what's fixable and what it's worth.", {
       x: 52,
       y: y2 - 42,
@@ -557,7 +312,6 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       font: fontRegular,
       color: cSoftMint,
     });
-
     page2.drawText("• 15 minutes on video: we'll screen-share and show you exactly what patients see", {
       x: 52,
       y: y2 - 60,
@@ -565,7 +319,6 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       font: fontRegular,
       color: cWhite,
     });
-
     page2.drawText("• Or in person: we'll come to the practice and walk your team through it", {
       x: 52,
       y: y2 - 74,
@@ -573,7 +326,6 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       font: fontRegular,
       color: cWhite,
     });
-
     page2.drawText(`See your full report online: ${reportUrl}`, {
       x: 52,
       y: y2 - 96,
@@ -582,22 +334,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       color: cDentalTeal,
     });
 
-    // Page 2 Footer
-    page2.drawRectangle({ x: 36, y: 35, width: pageWidth - 72, height: 0.5, color: cBorder });
-    page2.drawText("STRICTLY CONFIDENTIAL  ·  PREPARED BY SMILE AI MARKETING", {
-      x: 36,
-      y: 20,
-      size: 7.5,
-      font: fontBold,
-      color: cMutedText,
-    });
-    page2.drawText("PAGE 2 OF 2", {
-      x: pageWidth - 90,
-      y: 20,
-      size: 7.5,
-      font: fontBold,
-      color: cDarkTeal,
-    });
+    drawFooter(page2, 2, totalPages);
 
     // Save PDF to public reports storage directory
     const reportsDir = path.join(process.cwd(), "public", "reports");
@@ -611,7 +348,6 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     const relativeUrl = `/reports/${fileName}`;
 
-    // Update Audit in Postgres
     await prisma.audit.update({
       where: { id: data.auditId },
       data: {

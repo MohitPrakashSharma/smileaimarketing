@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconMapPin, IconMonitor, IconStar, IconTrendingUp } from "@/components/icons";
+import { IconSearch, IconStar, IconMonitor, IconUsers, IconTrendingUp } from "@/components/icons";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import StatusBadge, { type StatusLevel } from "@/components/ui/StatusBadge";
+import { Reveal, RevealGroup, revealItem, AnimatedCounter, motion } from "@/components/ui/Reveal";
+
+const DASHBOARD_METRICS: { Icon: typeof IconSearch; label: string; score: number; status: StatusLevel }[] = [
+  { Icon: IconSearch, label: "Patient Discovery", score: 42, status: "attention" },
+  { Icon: IconStar, label: "Patient Trust", score: 78, status: "healthy" },
+  { Icon: IconMonitor, label: "Website Experience", score: 61, status: "opportunity" },
+];
 
 export default function Hero() {
   const router = useRouter();
@@ -78,159 +86,170 @@ export default function Hero() {
   };
 
   return (
-    <section id="top" className="relative bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
-      <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[52%_48%] lg:gap-8">
+    <section id="top" className="relative overflow-hidden bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
+      <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[50%_50%] lg:gap-10">
 
         {/* Left Column: Headline and Form */}
         <div>
-          <span className="animate-fade-in-up inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
-            A FREE GROWTH CHECK-UP FOR YOUR PRACTICE
-          </span>
-          <h1
-            className="animate-fade-in-up mt-5 font-sans text-display text-foreground"
-            style={{ animationDelay: "80ms" }}
-          >
-            Find out who your patients are calling instead of you.
-          </h1>
-          <p
-            className="animate-fade-in-up mt-6 max-w-xl text-body-large text-muted-foreground"
-            style={{ animationDelay: "140ms" }}
-          >
-            We&apos;ll look at your Google visibility, your website, your reviews, and how easy it is to book with you — then tell you plainly what to fix first.
-          </p>
+          <Reveal>
+            <span className="inline-block rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
+              A FREE GROWTH CHECKUP FOR YOUR PRACTICE
+            </span>
+          </Reveal>
+          <Reveal delay={0.06}>
+            <h1 className="mt-5 font-sans text-display text-foreground">
+              See where your dental practice is missing new patient opportunities.
+            </h1>
+          </Reveal>
+          <Reveal delay={0.12}>
+            <p className="mt-6 max-w-xl text-body-large text-muted-foreground">
+              We review your Google visibility, website, reviews, local competitors and booking journey — then show you what deserves attention first.
+            </p>
+          </Reveal>
 
           {/* Primary Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="animate-fade-in-up mt-8 max-w-xl space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-md"
-            style={{ animationDelay: "200ms" }}
-            noValidate
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
-                <Input
-                  id="hero-website"
-                  type="url"
-                  required
-                  disabled={isSubmitting}
-                  autoComplete="url"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  inputMode="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="clinic.com"
-                  hasError={!!websiteError}
-                  aria-describedby={websiteError ? "hero-website-error" : undefined}
-                />
-              </FormField>
+          <Reveal delay={0.18}>
+            <form
+              onSubmit={handleSubmit}
+              className="mt-8 max-w-xl space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-md"
+              noValidate
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
+                  <Input
+                    id="hero-website"
+                    type="url"
+                    required
+                    disabled={isSubmitting}
+                    autoComplete="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    inputMode="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="clinic.com"
+                    hasError={!!websiteError}
+                    aria-describedby={websiteError ? "hero-website-error" : undefined}
+                  />
+                </FormField>
 
-              <FormField id="hero-city" label="City" required optionalLabel={false} error={cityError}>
-                <Input
-                  id="hero-city"
-                  type="text"
-                  required
-                  disabled={isSubmitting}
-                  autoComplete="address-level2"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Chicago"
-                  hasError={!!cityError}
-                  aria-describedby={cityError ? "hero-city-error" : undefined}
-                />
-              </FormField>
-            </div>
+                <FormField id="hero-city" label="Practice Location / City" required optionalLabel={false} error={cityError}>
+                  <Input
+                    id="hero-city"
+                    type="text"
+                    required
+                    disabled={isSubmitting}
+                    autoComplete="address-level2"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Chicago"
+                    hasError={!!cityError}
+                    aria-describedby={cityError ? "hero-city-error" : undefined}
+                  />
+                </FormField>
+              </div>
 
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-              <Button type="submit" loading={isSubmitting} fullWidth className="sm:flex-1">
-                {isSubmitting ? "Starting scan..." : "Audit My Practice"}
-              </Button>
-              <Button type="button" variant="secondary" onClick={handleScrollToSample}>
-                View Sample Audit
-              </Button>
-            </div>
-          </form>
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <Button type="submit" loading={isSubmitting} fullWidth className="sm:flex-1">
+                  {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleScrollToSample}>
+                  View Sample Audit
+                </Button>
+              </div>
+            </form>
+          </Reveal>
 
           {/* Trust Microcopy */}
-          <ul
-            className="animate-fade-in-up mt-6 space-y-2 text-metadata text-muted-foreground"
-            style={{ animationDelay: "260ms" }}
-          >
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>No login or account access needed.</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>Based on what patients can already see.</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span>Straight talk, not jargon.</span>
-            </li>
-          </ul>
-        </div>
-
-        {/* Right Column: Realistic Product Preview Mockup */}
-        <div
-          className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
-          style={{ animationDelay: "160ms" }}
-        >
-          {/* Header Bar */}
-          <div className="flex items-center justify-between border-b border-border bg-background px-5 py-3">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-red-400" />
-              <span className="h-3 w-3 rounded-full bg-yellow-400" />
-              <span className="h-3 w-3 rounded-full bg-green-400" />
-              <span className="ml-2 font-mono text-xs text-muted-foreground">audit-preview-tool</span>
-            </div>
-            <span className="rounded bg-accent-soft px-2 py-0.5 font-label text-[10px] tracking-wider text-primary">
-              Sample audit preview
-            </span>
-          </div>
-
-          {/* Mock Dashboard Contents */}
-          <div className="space-y-6 p-6">
-            <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-body font-bold text-foreground">Metro Dental Care</p>
-                <p className="text-metadata">Sample report preview</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-metadata font-semibold uppercase text-muted-foreground">Opportunity</span>
-                <span className="rounded bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">
-                  HIGH
-                </span>
-              </div>
-            </div>
-
-            {/* Metrics List */}
-            <div className="space-y-4">
+          <Reveal delay={0.24}>
+            <ul className="mt-6 grid grid-cols-1 gap-x-6 gap-y-2 text-metadata text-muted-foreground sm:grid-cols-2">
               {[
-                { Icon: IconMapPin, label: "Local Visibility", caption: "Map-pack ranking indicator", value: "42/100", status: "Poor", tone: "text-rose-600" },
-                { Icon: IconMonitor, label: "Website Experience", caption: "Mobile speed & layout test", value: "61/100", status: "Average", tone: "text-amber-600" },
-                { Icon: IconStar, label: "Review Position", caption: "Local map ranking slot", value: "7th", status: "Buried", tone: "text-rose-600" },
-                { Icon: IconTrendingUp, label: "Competitors Ahead", caption: "Higher-ranked local practices", value: "3", status: "High Gap", tone: "text-rose-600" },
-              ].map((m) => (
-                <div key={m.label} className="flex items-center justify-between rounded-xl border border-border bg-background p-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-primary">
-                      <m.Icon className="h-4.5 w-4.5" />
-                    </span>
-                    <div>
-                      <p className="text-body-small font-semibold text-foreground">{m.label}</p>
-                      <p className="text-metadata">{m.caption}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-body font-bold ${m.tone}`}>{m.value}</p>
-                    <p className={`text-metadata font-semibold uppercase ${m.tone}`}>{m.status}</p>
-                  </div>
-                </div>
+                "No Google account access required",
+                "Based on real local search and website signals",
+                "Clear findings, explained in plain English",
+                "No obligation",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span>{item}</span>
+                </li>
               ))}
+            </ul>
+          </Reveal>
+        </div>
+
+        {/* Right Column: Practice Growth Checkup dashboard */}
+        <Reveal delay={0.15}>
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-xl">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between border-b border-border bg-background px-5 py-3.5">
+              <div>
+                <p className="text-body-small font-bold text-foreground">Metro Dental Care</p>
+                <p className="text-metadata">Chicago, IL</p>
+              </div>
+              <span className="rounded-full border border-border bg-surface px-2.5 py-1 font-label text-[10px] tracking-wider text-muted-foreground">
+                Sample data
+              </span>
+            </div>
+
+            <div className="space-y-5 p-5 sm:p-6">
+              <p className="font-label text-xs tracking-wider text-primary">PRACTICE GROWTH CHECKUP</p>
+
+              {/* Score metrics */}
+              <RevealGroup className="space-y-3" stagger={0.1}>
+                {DASHBOARD_METRICS.map((m) => (
+                  <motion.div
+                    key={m.label}
+                    variants={revealItem}
+                    className="flex items-center justify-between rounded-xl border border-border bg-background p-3.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-primary">
+                        <m.Icon className="h-4.5 w-4.5" />
+                      </span>
+                      <p className="text-body-small font-semibold text-foreground">{m.label}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-body font-bold text-foreground">
+                        <AnimatedCounter value={m.score} suffix=" / 100" />
+                      </p>
+                      <StatusBadge status={m.status} />
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* Competitive position - qualitative */}
+                <motion.div
+                  variants={revealItem}
+                  className="flex items-center justify-between rounded-xl border border-border bg-background p-3.5"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-primary">
+                      <IconUsers className="h-4.5 w-4.5" />
+                    </span>
+                    <p className="text-body-small font-semibold text-foreground">Competitive Position</p>
+                  </div>
+                  <p className="text-body-small font-semibold text-muted-foreground">3 practices ahead</p>
+                </motion.div>
+              </RevealGroup>
+
+              {/* Top opportunity callout */}
+              <Reveal delay={0.35} className="rounded-xl border border-border bg-surface-muted/60 p-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <IconTrendingUp className="h-4 w-4" />
+                  <p className="font-label text-xs tracking-wider">TOP OPPORTUNITY</p>
+                </div>
+                <p className="mt-2 text-body-small font-semibold text-foreground">
+                  &ldquo;Emergency Dentist Chicago&rdquo;
+                </p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-metadata text-muted-foreground">
+                  <span>Current position: <strong className="text-foreground">#11</strong></span>
+                  <span>Search demand: <strong className="text-foreground">High</strong></span>
+                </div>
+              </Reveal>
             </div>
           </div>
-        </div>
+        </Reveal>
 
       </div>
     </section>

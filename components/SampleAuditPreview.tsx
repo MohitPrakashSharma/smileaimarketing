@@ -1,6 +1,51 @@
 "use client";
 
-import { IconMapPin, IconMonitor, IconStar, IconTrendingUp } from "@/components/icons";
+import { IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers } from "@/components/icons";
+import StatusBadge, { type StatusLevel } from "@/components/ui/StatusBadge";
+import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
+
+const BAR_COLOR: Record<StatusLevel, string> = {
+  healthy: "var(--color-status-healthy-fg)",
+  opportunity: "var(--color-status-opportunity-fg)",
+  attention: "var(--color-status-attention-fg)",
+};
+
+const CATEGORIES: {
+  Icon: typeof IconSearch;
+  label: string;
+  score: number;
+  status: StatusLevel;
+  explanation: string;
+}[] = [
+  {
+    Icon: IconSearch,
+    label: "Patient Discovery",
+    score: 42,
+    status: "attention",
+    explanation: "Patients searching nearby aren't seeing your practice as often as they should.",
+  },
+  {
+    Icon: IconStar,
+    label: "Patient Trust",
+    score: 78,
+    status: "healthy",
+    explanation: "Your reviews and reputation are already working in your favor.",
+  },
+  {
+    Icon: IconMonitor,
+    label: "Website Experience",
+    score: 61,
+    status: "opportunity",
+    explanation: "Your site is slower and harder to use on mobile than nearby competitors.",
+  },
+  {
+    Icon: IconPhoneWave,
+    label: "Booking Journey",
+    score: 54,
+    status: "opportunity",
+    explanation: "It takes a few extra steps before a patient can request an appointment.",
+  },
+];
 
 export default function SampleAuditPreview() {
   const handleScrollToHero = () => {
@@ -10,43 +55,6 @@ export default function SampleAuditPreview() {
     }
   };
 
-  const metrics = [
-    {
-      Icon: IconMapPin,
-      label: "Local Search Visibility",
-      value: "42/100",
-      status: "Poor",
-      color: "text-rose-600 bg-rose-50 border-rose-100",
-    },
-    {
-      Icon: IconMonitor,
-      label: "Website Experience",
-      value: "61/100",
-      status: "Average",
-      color: "text-amber-600 bg-amber-50 border-amber-100",
-    },
-    {
-      Icon: IconStar,
-      label: "Google Map Position",
-      value: "7th",
-      status: "Buried",
-      color: "text-rose-600 bg-rose-50 border-rose-100",
-    },
-    {
-      Icon: IconTrendingUp,
-      label: "Competitors Ahead",
-      value: "3",
-      status: "High Gap",
-      color: "text-rose-600 bg-rose-50 border-rose-100",
-    },
-  ];
-
-  const actions = [
-    "Fix inconsistent Google Maps address details.",
-    "Speed up page load on mobile devices.",
-    "Add a booking option visitors can find immediately.",
-  ];
-
   return (
     <section id="sample-audit" className="border-t border-border bg-white scroll-mt-16">
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
@@ -55,73 +63,96 @@ export default function SampleAuditPreview() {
             SAMPLE AUDIT PREVIEW
           </span>
           <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
-            Here&apos;s what a real report looks like.
+            Your practice, through a patient&apos;s eyes.
           </h2>
           <p className="mt-4 text-body text-muted-foreground">
-            Where you&apos;re falling behind, what nearby competitors are doing better, and what&apos;s worth fixing first — in plain English.
+            We review the same journey a prospective patient takes — from searching locally to choosing a practice and requesting an appointment.
           </p>
         </div>
 
         <div className="mt-12 overflow-hidden rounded-2xl border border-border bg-background shadow-md">
           {/* Header Panel */}
-          <div className="flex flex-col gap-4 border-b border-border bg-surface px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-border bg-surface px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-primary" />
                 <span className="text-body font-semibold text-foreground">Metro Dental Care</span>
+                <span className="text-metadata">— Chicago, IL</span>
               </div>
-              <span className="text-metadata">Chicago, IL</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-metadata uppercase tracking-wider font-semibold">OPPORTUNITY LEVEL</span>
-              <span className="rounded bg-rose-100 px-2 py-0.5 font-label text-xs font-bold text-rose-700">
-                HIGH
-              </span>
-            </div>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1 font-label text-[10px] tracking-wider text-muted-foreground">
+              Sample data
+            </span>
           </div>
 
-          {/* Metrics Grid */}
-          <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
-            {metrics.map((m) => (
-              <div key={m.label} className="bg-surface p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-primary">
-                  <m.Icon className="h-5 w-5" />
-                </span>
-                <p className="mt-4 text-metadata font-medium text-muted-foreground">{m.label}</p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-display font-bold text-foreground">{m.value}</span>
-                  <span className={`rounded border px-1.5 py-0.5 text-metadata font-semibold ${m.color}`}>
-                    {m.status}
+          {/* Category rows */}
+          <RevealGroup className="divide-y divide-border" stagger={0.08}>
+            {CATEGORIES.map((c) => (
+              <motion.div
+                key={c.label}
+                variants={revealItem}
+                className="grid grid-cols-1 gap-4 bg-surface p-6 sm:grid-cols-[1.4fr_1fr] sm:items-center sm:gap-8"
+              >
+                <div className="flex items-start gap-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
+                    <c.Icon className="h-5 w-5" />
                   </span>
+                  <div>
+                    <p className="text-body font-semibold text-foreground">{c.label}</p>
+                    <p className="mt-1 text-body-small text-muted-foreground leading-relaxed">{c.explanation}</p>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-body font-bold text-foreground">{c.score}<span className="text-muted-foreground"> / 100</span></span>
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: BAR_COLOR[c.status] }}
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${c.score}%` }}
+                      viewport={{ once: true, margin: "-80px" }}
+                      transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+
+            {/* Competitive position - qualitative, no score */}
+            <motion.div
+              variants={revealItem}
+              className="grid grid-cols-1 gap-4 bg-surface p-6 sm:grid-cols-[1.4fr_1fr] sm:items-center sm:gap-8"
+            >
+              <div className="flex items-start gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
+                  <IconUsers className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-body font-semibold text-foreground">Competitive Position</p>
+                  <p className="mt-1 text-body-small text-muted-foreground leading-relaxed">
+                    Nearby practices currently have an advantage in local search visibility.
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Prioritized Actions */}
-          <div className="border-t border-border bg-surface p-6 sm:p-8">
-            <h3 className="text-heading-3 font-semibold text-foreground">What to fix first</h3>
-            <ol className="mt-6 space-y-4">
-              {actions.map((action, index) => (
-                <li key={index} className="flex items-start gap-4">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-body text-xs font-bold">
-                    {index + 1}
-                  </span>
-                  <p className="text-body text-foreground leading-relaxed">{action}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
+              <div className="sm:text-right">
+                <span className="text-body font-bold text-foreground">3 practices</span>
+                <span className="text-muted-foreground"> currently ahead</span>
+              </div>
+            </motion.div>
+          </RevealGroup>
         </div>
 
-        <div className="mt-10 text-center">
+        <Reveal delay={0.15} className="mt-10 text-center">
           <button
             onClick={handleScrollToHero}
             className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
           >
-            Audit My Practice
+            Get My Free Practice Audit
           </button>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

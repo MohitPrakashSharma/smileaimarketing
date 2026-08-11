@@ -1,6 +1,7 @@
 "use client";
 
 import { IconCheck, IconCalendarCheck, IconMapPin } from "@/components/icons";
+import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
 
 const TRUST_POINTS = [
   "No login required, ever",
@@ -31,10 +32,10 @@ export default function TrustAndConsultation() {
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
         <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
           {/* Trust points */}
-          <div className="rounded-2xl border border-border bg-surface-muted/30 p-6 sm:p-8">
+          <Reveal className="rounded-2xl border border-border bg-surface-muted/30 p-6 sm:p-8">
             <h2 className="text-heading-2 font-semibold text-foreground">Clear findings. Human review.</h2>
             <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
-              No inflated promises, no generic score pulled out of nowhere — just real findings based on what&apos;s actually visible online today.
+              Data helps identify the opportunity. A conversation helps determine what actually makes sense for your practice.
             </p>
             <ul className="mt-6 space-y-3">
               {TRUST_POINTS.map((point) => (
@@ -46,15 +47,16 @@ export default function TrustAndConsultation() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
 
           {/* Consultation options */}
           <div>
             <h2 className="text-heading-2 font-semibold text-foreground">Review your results your way.</h2>
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <RevealGroup className="mt-6 grid gap-6 sm:grid-cols-2" stagger={0.1}>
               {CONSULTATION_OPTIONS.map((opt) => (
-                <div
+                <motion.div
                   key={opt.title}
+                  variants={revealItem}
                   className="flex flex-col justify-between rounded-2xl border border-border bg-background p-6 shadow-sm"
                 >
                   <div>
@@ -72,9 +74,9 @@ export default function TrustAndConsultation() {
                   >
                     {opt.ctaText}
                   </a>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </RevealGroup>
           </div>
         </div>
       </div>
