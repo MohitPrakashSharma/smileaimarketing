@@ -4,6 +4,7 @@ import path from "path";
 import { prisma } from "./prisma";
 import { env } from "./env.server";
 import { buildAuditNarrative } from "./auditNarrative";
+import { industryFromCategory } from "./industry";
 
 export interface AuditPdfData {
   auditId: string;
@@ -82,6 +83,7 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     // Same real, deterministic narrative the web report uses — one source of
     // truth for both, built only from real findingsJson, never fabricated.
+    const ind = industryFromCategory(data.category);
     const rawNarrative = buildAuditNarrative({
       businessName: data.businessName,
       city: data.city,
@@ -210,18 +212,18 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
 
     // Compact Dark Comparison Panel
     page1.drawRectangle({ x: 36, y: yPos - 95, width: pageWidth - 72, height: 95, color: cDeepNavy });
-    page1.drawText("HOW YOU COMPARE TO A NEARBY PRACTICE", { x: 48, y: yPos - 20, size: 8.5, font: fontBold, color: cDentalTeal });
+    page1.drawText(`HOW YOU COMPARE TO A NEARBY ${ind.business.toUpperCase()}`, { x: 48, y: yPos - 20, size: 8.5, font: fontBold, color: cDentalTeal });
 
     const compLeader = data.competitors[0]?.name || "No verified competitor data this run";
     const compRank = data.competitors[0]?.rank ? `#${data.competitors[0].rank}` : "—";
     const compRating = data.competitors[0]?.mapScore ? `${data.competitors[0].mapScore} / 5.0` : "—";
 
-    page1.drawText("PRACTICE NAME", { x: 48, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
+    page1.drawText(`${ind.business.toUpperCase()} NAME`, { x: 48, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
     page1.drawText("STATUS / POSITION", { x: 280, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
     page1.drawText("RATING / REVIEWS", { x: 420, y: yPos - 40, size: 7.5, font: fontBold, color: cMutedText });
 
     page1.drawText(`${data.businessName} (YOU)`, { x: 48, y: yPos - 58, size: 9.5, font: fontBold, color: cWhite });
-    page1.drawText("Your practice", { x: 280, y: yPos - 58, size: 9, font: fontRegular, color: cDentalTeal });
+    page1.drawText(`Your ${ind.business}`, { x: 280, y: yPos - 58, size: 9, font: fontRegular, color: cDentalTeal });
     page1.drawText("Verified Signals", { x: 420, y: yPos - 58, size: 9, font: fontRegular, color: cWhite });
 
     page1.drawText(compLeader, { x: 48, y: yPos - 76, size: 9.5, font: fontBold, color: cOffWhite });
@@ -312,14 +314,14 @@ export async function generateLightAuditPdf(data: AuditPdfData): Promise<string>
       font: fontRegular,
       color: cSoftMint,
     });
-    page2.drawText("• 15 minutes on video: we'll screen-share and show you exactly what patients see", {
+    page2.drawText(`• 15 minutes on video: we'll screen-share and show you exactly what ${ind.customers} see`, {
       x: 52,
       y: y2 - 60,
       size: 8.5,
       font: fontRegular,
       color: cWhite,
     });
-    page2.drawText("• Or in person: we'll come to the practice and walk your team through it", {
+    page2.drawText(`• Or in person: we'll come to your ${ind.business} and walk your team through it`, {
       x: 52,
       y: y2 - 74,
       size: 8.5,

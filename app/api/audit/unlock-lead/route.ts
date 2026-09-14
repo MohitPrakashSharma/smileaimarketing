@@ -90,8 +90,9 @@ export async function POST(request: Request) {
       city: business.city,
       website: business.website,
       signals,
-      rating: business.rating || 4.5,
-      reviewCount: business.reviewCount || 45,
+      category: business.category,
+      rating: business.rating ?? undefined,
+      reviewCount: business.reviewCount ?? undefined,
       realCompetitors: localMarket.competitors,
       ownRank: localMarket.ownRank,
       marketChecked: localMarket.checked,
@@ -175,8 +176,10 @@ export async function POST(request: Request) {
           score: c.score,
           title: c.detailsJson.title,
           detail: c.detailsJson.description,
+          findingsJson: c.findingsJson,
         })),
         competitors: scoreOutput.competitors,
+        category: business.category,
       },
       { jobId: `pdf_${completedAudit.id}` }
     );

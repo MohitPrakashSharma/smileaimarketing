@@ -76,8 +76,11 @@ export async function analyzeWebsite(targetUrl: string): Promise<WebsiteSignals>
     // Click to Call
     const hasClickToCall = /href=["']tel:[^"']+["']/i.test(html);
 
-    // Booking CTA
-    const hasBookingCta = /\b(book|schedule|appointment|request consultation|online booking)\b/i.test(lowerHtml);
+    // Booking CTA — any industry's "take the next step" wording, not just appointments.
+    const hasBookingCta =
+      /\b(book|schedule|appointment|request (a )?(consultation|quote|estimate|service|demo|callback)|online booking|get (a )?(quote|estimate|started)|free (quote|estimate|consultation|trial)|reserve|make a reservation|order online|enrol|enroll|sign up|contact us)\b/i.test(
+        lowerHtml
+      );
 
     // Contact Form
     const hasContactForm = /<form[^>]*>/i.test(html) || /type=["']submit["']/i.test(html);
@@ -87,7 +90,11 @@ export async function analyzeWebsite(targetUrl: string): Promise<WebsiteSignals>
 
     // Phone / Address regex heuristics
     const hasVisiblePhone = /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(html);
-    const hasVisibleAddress = /\b(street|st|avenue|ave|road|rd|suite|ste|blvd|boulevard|drive|dr|way|lane|ln)\b/i.test(lowerHtml);
+    // A street number followed by a street-type word — "123 Main St" — not
+    // just the word "st"/"dr"/"way" appearing anywhere in the page copy.
+    const hasVisibleAddress =
+      /"streetAddress"\s*:/i.test(html) ||
+      /\b\d{1,6}\s+[a-z0-9.'\- ]{2,40}\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|court|ct|place|pl|parkway|pkwy|highway|hwy|crescent|cres)\.?\b/i.test(lowerHtml);
 
     return {
       reachable: true,

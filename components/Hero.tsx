@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import { Reveal, AnimatedCounter } from "@/components/ui/Reveal";
 import { trackEvent } from "@/lib/analytics.client";
 import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
+import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
 
 const TRUST_STATS: { Icon: typeof IconUsers; value: string; label: string }[] = [
   { Icon: IconUsers, value: "100+", label: "Dental Practices Helped" },
@@ -27,6 +28,16 @@ export default function Hero() {
   const [cityError, setCityError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasStartedForm = useRef(false);
+
+  // City auto-fills from the website lookup unless the visitor has typed
+  // their own — a manual entry always wins over a detected one.
+  const cityTouched = useRef(false);
+  const { status: detectStatus, result: detected, detect } = useSiteDetect((site) => {
+    if (site.city && !cityTouched.current) {
+      setCity([site.city, site.state].filter(Boolean).join(", "));
+      setCityError("");
+    }
+  });
 
   const handleFormStart = () => {
     if (hasStartedForm.current) return;
@@ -84,6 +95,9 @@ export default function Hero() {
       website: normalizedWebsite,
       city: city.trim(),
     });
+    if (detected?.name) params.set("name", detected.name);
+    if (detected?.country) params.set("country", detected.country);
+    if (detected?.industry?.key) params.set("industry", detected.industry.key);
 
     router.push(`/free-dental-audit?${params.toString()}`);
   };
@@ -153,10 +167,14 @@ export default function Hero() {
                     onChange={(e) => {
                       handleFormStart();
                       setWebsite(e.target.value);
+                      if (websiteError) setWebsiteError("");
+                      detect(e.target.value);
                     }}
+                    onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
+                    onBlur={(e) => detect(e.target.value, { immediate: true })}
                     placeholder="clinic.com"
                     hasError={!!websiteError}
-                    aria-describedby={websiteError ? "hero-website-error" : undefined}
+                    aria-describedby={websiteError ? "hero-website-error" : "hero-website-hint"}
                   />
                 </FormField>
 
@@ -170,14 +188,29 @@ export default function Hero() {
                     value={city}
                     onChange={(e) => {
                       handleFormStart();
+                      cityTouched.current = e.target.value.trim().length > 0;
                       setCity(e.target.value);
+                      if (cityError) setCityError("");
                     }}
-                    placeholder="Toronto"
+                    placeholder="Detected from your website"
                     hasError={!!cityError}
                     aria-describedby={cityError ? "hero-city-error" : undefined}
                   />
                 </FormField>
               </div>
+
+              {detectStatus !== "idle" && (
+                <p
+                  id="hero-website-hint"
+                  aria-live="polite"
+                  className={`-mt-1 flex items-center gap-2 text-metadata ${detectStatus === "found" ? "text-success" : "text-muted-foreground"}`}
+                >
+                  {detectStatus === "loading" && (
+                    <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" aria-hidden />
+                  )}
+                  {describeDetection(detectStatus, detected)}
+                </p>
+              )}
 
               <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                 <Button type="submit" loading={isSubmitting} fullWidth className="sm:flex-1">

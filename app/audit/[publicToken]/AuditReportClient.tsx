@@ -8,6 +8,7 @@ import Textarea from "@/components/ui/Textarea";
 import Button from "@/components/ui/Button";
 import StatusBadge, { statusFromScore, type StatusLevel } from "@/components/ui/StatusBadge";
 import { IconMapPin, IconCalendarCheck, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers } from "@/components/icons";
+import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
 
 // Same status→accent-color mapping as the landing page's sample preview —
 // used as a left-border "severity" indicator on each findings row, the way
@@ -29,13 +30,13 @@ type Finding = {
 
 // Same category → label/icon mapping as the landing page's sample preview
 // (components/SampleAuditPreview.tsx), so the real report matches what was promised.
-const CATEGORY_META: Record<string, { label: string; Icon: typeof IconSearch }> = {
-  LOCAL_VISIBILITY: { label: "Patient Discovery", Icon: IconSearch },
-  REPUTATION: { label: "Patient Trust", Icon: IconStar },
+const categoryMeta = (ind: IndustryProfile): Record<string, { label: string; Icon: typeof IconSearch }> => ({
+  LOCAL_VISIBILITY: { label: `${cap(ind.customer)} Discovery`, Icon: IconSearch },
+  REPUTATION: { label: `${cap(ind.customer)} Trust`, Icon: IconStar },
   WEBSITE_QUALITY: { label: "Website Experience", Icon: IconMonitor },
-  CONVERSION: { label: "Booking Journey", Icon: IconPhoneWave },
+  CONVERSION: { label: `${cap(ind.booking)} Journey`, Icon: IconPhoneWave },
   COMPETITOR_GAP: { label: "Competitive Position", Icon: IconUsers },
-};
+});
 const CATEGORY_ORDER = ["LOCAL_VISIBILITY", "REPUTATION", "WEBSITE_QUALITY", "CONVERSION", "COMPETITOR_GAP"];
 
 type Competitor = {
@@ -53,7 +54,7 @@ type Narrative = {
 };
 
 type AuditData = {
-  business: { name: string; website: string; city: string; opportunityScore: number };
+  business: { name: string; website: string; city: string; category?: string; opportunityScore: number };
   checkedAt: string;
   summary: string | null;
   narrative: Narrative;
@@ -192,6 +193,8 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   }
 
   const { business, checkedAt, summary, narrative, findings, competitors } = data;
+  const ind = industryFromCategory(business.category);
+  const CATEGORY_META = categoryMeta(ind);
 
   const orderedFindings = CATEGORY_ORDER
     .map((cat) => findings.find((f) => f.category === cat))
@@ -377,9 +380,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* Competitor Gap Panel */}
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-heading-3 font-semibold text-foreground">Who&apos;s winning the patients you&apos;re missing</h2>
+            <h2 className="text-heading-3 font-semibold text-foreground">Who&apos;s winning the {ind.customers} you&apos;re missing</h2>
             <p className="mt-1 mb-6 text-body-small text-muted-foreground">
-              Your local search strength vs. nearby practices in {business.city}.
+              Your local search strength vs. nearby {ind.businesses} in {business.city}.
             </p>
 
             <div className="space-y-2.5">
@@ -439,7 +442,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             </span>
             <h3 className="text-body font-bold text-foreground">Talk it through, 15 minutes on video</h3>
             <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              We&apos;ll screen-share this report together and show you exactly what a patient sees when they search for a dentist near you — no pitch, just the facts.
+              We&apos;ll screen-share this report together and show you exactly what a {ind.customer} sees when they search for a {ind.searchKeyword} near you — no pitch, just the facts.
             </p>
 
             {bookingSubmitted ? (
@@ -485,7 +488,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             </span>
             <h3 className="text-body font-bold text-foreground">Or we&apos;ll come to you</h3>
             <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              A local consultant visits your practice and walks your whole team through the findings in person.
+              A local consultant visits your {ind.business} and walks your whole team through the findings in person.
             </p>
 
             {visitSubmitted ? (
