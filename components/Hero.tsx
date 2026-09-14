@@ -167,6 +167,7 @@ export default function Hero() {
                     onChange={(e) => {
                       handleFormStart();
                       setWebsite(e.target.value);
+                      if (websiteError) setWebsiteError("");
                       detect(e.target.value);
                     }}
                     onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
@@ -189,6 +190,7 @@ export default function Hero() {
                       handleFormStart();
                       cityTouched.current = e.target.value.trim().length > 0;
                       setCity(e.target.value);
+                      if (cityError) setCityError("");
                     }}
                     placeholder="Detected from your website"
                     hasError={!!cityError}

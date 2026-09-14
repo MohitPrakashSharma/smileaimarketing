@@ -12,6 +12,7 @@ import ProgressSteps from "@/components/ui/ProgressSteps";
 import { IconCheck } from "@/components/icons";
 import { trackEvent } from "@/lib/analytics.client";
 import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
+import { industryFromCategory, cap } from "@/lib/industry";
 
 type WizardStep = "details" | "processing" | "preview" | "contact";
 
@@ -100,6 +101,9 @@ function AuditWizardForm() {
   // Results of the scan
   const [pendingAuditId, setPendingAuditId] = useState("");
   const [preliminary, setPreliminary] = useState<Preliminary | null>(null);
+  // Category the server settled on for this business — drives the preview copy.
+  const [resolvedCategory, setResolvedCategory] = useState<string | undefined>(undefined);
+  const ind = industryFromCategory(resolvedCategory);
 
   // Step 4: contact details
   const [firstName, setFirstName] = useState("");
@@ -151,6 +155,7 @@ function AuditWizardForm() {
 
       setPendingAuditId(data.pendingAuditId);
       setPreliminary(data.preliminaryFindings);
+      setResolvedCategory(data.business?.category);
       setStep("preview");
     } catch (err: unknown) {
       await minDelay;
@@ -303,6 +308,7 @@ function AuditWizardForm() {
                 value={website}
                 onChange={(e) => {
                   setWebsite(e.target.value);
+                  if (websiteError) setWebsiteError("");
                   detect(e.target.value);
                 }}
                 onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
@@ -335,6 +341,7 @@ function AuditWizardForm() {
                 onChange={(e) => {
                   cityTouched.current = e.target.value.trim().length > 0;
                   setCity(e.target.value);
+                  if (cityError) setCityError("");
                 }}
                 hasError={!!cityError}
               />
@@ -365,7 +372,7 @@ function AuditWizardForm() {
           <div className="text-center">
             <Eyebrow>Your quick look is ready</Eyebrow>
             <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
-              Patients are searching nearby right now.
+              {cap(ind.customers)} are searching nearby right now.
             </h1>
             <p className="mt-2 text-body-small text-muted-foreground">
               Here&apos;s a first look. Unlock the full report to see your score, who&apos;s ranking ahead of you, and exactly what to fix first.
@@ -401,7 +408,7 @@ function AuditWizardForm() {
             </div>
             <div className="absolute inset-0 flex items-center justify-center bg-background/60">
               <span className="rounded-full bg-surface px-4 py-1.5 text-metadata font-semibold text-muted-foreground shadow-sm">
-                Your score & the practice ahead of you — one step away
+                Your score & the {ind.business} ahead of you — one step away
               </span>
             </div>
           </div>
