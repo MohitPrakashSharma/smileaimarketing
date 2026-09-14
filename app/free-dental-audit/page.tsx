@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import ProgressSteps from "@/components/ui/ProgressSteps";
 import { IconCheck } from "@/components/icons";
 import { trackEvent } from "@/lib/analytics.client";
+import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
 
 type WizardStep = "details" | "processing" | "preview" | "contact";
 
@@ -81,6 +82,21 @@ function AuditWizardForm() {
   const [websiteError, setWebsiteError] = useState("");
   const [cityError, setCityError] = useState("");
 
+  // What we know about the business behind the URL — from the homepage
+  // hand-off or from our own lookup. City auto-fills unless typed manually.
+  const [businessName, setBusinessName] = useState("");
+  const [industryKey, setIndustryKey] = useState("");
+  const cityTouched = useRef(false);
+  const { status: detectStatus, result: detected, detect } = useSiteDetect((site) => {
+    if (site.city && !cityTouched.current) {
+      setCity([site.city, site.state].filter(Boolean).join(", "));
+      setCityError("");
+    }
+    if (site.country) setCountry(site.country === "GB" ? "UK" : site.country);
+    if (site.name) setBusinessName(site.name);
+    if (site.industry?.key) setIndustryKey(site.industry.key);
+  });
+
   // Results of the scan
   const [pendingAuditId, setPendingAuditId] = useState("");
   const [preliminary, setPreliminary] = useState<Preliminary | null>(null);
@@ -101,7 +117,7 @@ function AuditWizardForm() {
     else if (step === "contact") trackEvent("report_unlock_start", {});
   }, [step]);
 
-  const runScan = async (siteUrl: string, targetCity: string) => {
+  const runScan = async (siteUrl: string, targetCity: string, extra: { name?: string; country?: string; industry?: string } = {}) => {
     if (scanInFlight.current) return;
     scanInFlight.current = true;
     setError("");
@@ -121,8 +137,9 @@ function AuditWizardForm() {
         body: JSON.stringify({
           website: formattedUrl,
           city: targetCity,
-          clinicName: "My Dental Practice",
-          country,
+          businessName: extra.name || businessName || undefined,
+          country: extra.country || country,
+          industry: extra.industry || industryKey || undefined,
         }),
       });
       const data = await res.json();
@@ -148,6 +165,9 @@ function AuditWizardForm() {
   useEffect(() => {
     const queryWebsite = searchParams.get("website");
     const queryCity = searchParams.get("city");
+    const queryName = searchParams.get("name") || undefined;
+    const queryCountry = searchParams.get("country") || undefined;
+    const queryIndustry = searchParams.get("industry") || undefined;
 
     if (queryWebsite && queryCity) {
       const decodedWebsite = decodeURIComponent(queryWebsite);
@@ -155,7 +175,19 @@ function AuditWizardForm() {
       const timer = setTimeout(() => {
         setWebsite(decodedWebsite);
         setCity(decodedCity);
-        runScan(decodedWebsite, decodedCity);
+        cityTouched.current = true;
+        if (queryName) setBusinessName(queryName);
+        if (queryCountry) setCountry(queryCountry === "GB" ? "UK" : queryCountry);
+        if (queryIndustry) setIndustryKey(queryIndustry);
+        runScan(decodedWebsite, decodedCity, { name: queryName, country: queryCountry, industry: queryIndustry });
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    if (queryWebsite) {
+      const decodedWebsite = decodeURIComponent(queryWebsite);
+      const timer = setTimeout(() => {
+        setWebsite(decodedWebsite);
+        detect(decodedWebsite, { immediate: true });
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -247,7 +279,7 @@ function AuditWizardForm() {
               Run My Free Dental Audit
             </h1>
             <p className="mt-2 text-body-small text-muted-foreground">
-              Just your website and city — we&apos;ll handle the rest.
+              Paste your website — we&apos;ll find your location and handle the rest.
             </p>
           </div>
 
@@ -269,10 +301,28 @@ function AuditWizardForm() {
                 autoCorrect="off"
                 placeholder="e.g. clinicwebsite.com"
                 value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                onChange={(e) => {
+                  setWebsite(e.target.value);
+                  detect(e.target.value);
+                }}
+                onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
+                onBlur={(e) => detect(e.target.value, { immediate: true })}
                 hasError={!!websiteError}
+                aria-describedby={websiteError ? "website-error" : "website-hint"}
               />
             </FormField>
+            {detectStatus !== "idle" && (
+              <p
+                id="website-hint"
+                aria-live="polite"
+                className={`-mt-2 flex items-center gap-2 text-metadata ${detectStatus === "found" ? "text-success" : "text-muted-foreground"}`}
+              >
+                {detectStatus === "loading" && (
+                  <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" aria-hidden />
+                )}
+                {describeDetection(detectStatus, detected)}
+              </p>
+            )}
 
             <FormField id="city" label="City" required optionalLabel={false} error={cityError}>
               <Input
@@ -280,9 +330,12 @@ function AuditWizardForm() {
                 type="text"
                 required
                 autoComplete="address-level2"
-                placeholder="e.g. Toronto"
+                placeholder="Detected from your website"
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => {
+                  cityTouched.current = e.target.value.trim().length > 0;
+                  setCity(e.target.value);
+                }}
                 hasError={!!cityError}
               />
             </FormField>

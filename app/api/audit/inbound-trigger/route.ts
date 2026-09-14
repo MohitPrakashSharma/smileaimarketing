@@ -5,12 +5,18 @@ import { normalizeDomain, normalizeName } from "@/lib/normalize";
 import { checkWebsite } from "@/lib/websiteCheck.server";
 import { analysisQueue } from "@/lib/queue";
 import { trackEvent, readVisitorCookies } from "@/lib/analytics";
+import { detectSiteProfile } from "@/lib/siteProfile.server";
+import { industryFromCategory, INDUSTRIES } from "@/lib/industry";
 
 const inboundSchema = z.object({
   website: z.string().url(),
-  city: z.string().min(2),
-  clinicName: z.string().min(2),
-  country: z.string().default("US"),
+  // City is detected from the website when the form didn't supply one.
+  city: z.string().trim().min(2).optional(),
+  businessName: z.string().trim().min(2).max(120).optional(),
+  // Legacy field name from the old form — kept so nothing external breaks.
+  clinicName: z.string().trim().min(2).max(120).optional(),
+  country: z.string().trim().length(2).optional(),
+  industry: z.string().trim().optional(),
 });
 
 export async function POST(request: Request) {
@@ -22,9 +28,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid inputs" }, { status: 400 });
     }
 
-    const { website, city, clinicName, country } = result.data;
-    const normalizedDomain = normalizeDomain(website);
-    const normalizedName = normalizeName(clinicName);
+    const input = result.data;
+    const normalizedDomain = normalizeDomain(input.website);
+
+    // Who is this, and where? The form usually sends what it already
+    // detected; we look the site up again here regardless (cached, so it's
+    // free) so the record is right even if the client lookup failed.
+    const profile = await detectSiteProfile(input.website);
+    const website = profile.website;
+
+    const rawCity = input.city || profile.city;
+    if (!rawCity) {
+      return NextResponse.json(
+        { error: "We couldn't detect a city for this website — please enter it.", code: "CITY_REQUIRED" },
+        { status: 422 }
+      );
+    }
+    // "Toronto, ON" from the auto-fill → city "Toronto", state "ON"
+    const [cityPart, statePart] = rawCity.split(",").map((s) => s.trim());
+    const city = cityPart;
+    const state = statePart || profile.state || undefined;
+    const country = normalizeCountryCode(input.country) || profile.country || "US";
+
+    const industry =
+      INDUSTRIES.find((i) => i.key === input.industry) ??
+      (profile.industry.key !== "local-business" ? profile.industry : industryFromCategory(input.industry));
+    const businessName = input.businessName || input.clinicName || profile.name || `${industry.label} at ${normalizedDomain}`;
+    const normalizedName = normalizeName(businessName);
 
     // Check if the business already exists — exact match first, then by
     // normalized domain (catches e.g. https://x.com vs https://www.x.com/).
@@ -46,17 +76,27 @@ export async function POST(request: Request) {
       // First-touch attribution is captured once, here, at the moment this
       // anonymous visitor becomes a named lead — never overwritten afterwards.
       const { visitorId, firstTouch } = readVisitorCookies(request);
+      // A Google listing may already be on file from a campaign discovery run.
+      const placeOwner = profile.googlePlaceId
+        ? await prisma.business.findUnique({ where: { googlePlaceId: profile.googlePlaceId } })
+        : null;
       business = await prisma.business.create({
         data: {
-          name: clinicName,
+          name: businessName,
           normalizedName,
           website,
           normalizedDomain,
+          address: profile.address,
           city,
+          state,
           country,
-          category: "Dental Clinic",
+          phone: profile.phone,
+          category: industry.label,
+          rating: profile.rating,
+          reviewCount: profile.reviewCount,
+          googlePlaceId: placeOwner ? null : profile.googlePlaceId,
           status: "AUDITING",
-          providerSource: "SELF_SERVE",
+          providerSource: profile.googlePlaceId ? "GOOGLE_PLACES" : "SELF_SERVE",
           lastCheckedAt: new Date(),
           visitorId,
           firstTouchSource: firstTouch?.source,
@@ -69,9 +109,23 @@ export async function POST(request: Request) {
         },
       });
     } else {
+      // Returning business: refresh anything the lookup verified, keep the
+      // rest. The placeholder name from the old form gets replaced too.
+      const hadPlaceholderName = /^my dental practice$/i.test(business.name) || business.name.startsWith("Local Business at ");
       business = await prisma.business.update({
         where: { id: business.id },
-        data: { status: "AUDITING", lastCheckedAt: new Date() },
+        data: {
+          status: "AUDITING",
+          lastCheckedAt: new Date(),
+          name: hadPlaceholderName && businessName ? businessName : undefined,
+          normalizedName: hadPlaceholderName && businessName ? normalizedName : undefined,
+          category: business.category === "Dental Clinic" && industry.key !== "dental" ? industry.label : undefined,
+          state: business.state ?? state,
+          address: business.address ?? profile.address,
+          phone: business.phone ?? profile.phone,
+          rating: profile.rating ?? undefined,
+          reviewCount: profile.reviewCount ?? undefined,
+        },
       });
     }
 
@@ -103,6 +157,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       pendingAuditId: audit.id,
+      business: { name: business.name, city: business.city, state: business.state, country: business.country, category: business.category },
       preliminaryFindings: {
         sslValid: websiteCheck.sslValid,
         pageSpeedEstimate:
@@ -120,4 +175,10 @@ export async function POST(request: Request) {
     console.error("Inbound trigger error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+function normalizeCountryCode(code?: string): string | undefined {
+  if (!code) return undefined;
+  const c = code.toUpperCase();
+  return c === "UK" ? "GB" : c;
 }

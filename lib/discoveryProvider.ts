@@ -278,6 +278,8 @@ export interface RealCompetitor {
   website?: string;
   rank: number;
   mapScore: number;
+  /** Google review count from the same lookup, when the provider returned one. */
+  reviewCount?: number;
 }
 
 export interface LocalMarketLookup {
@@ -343,6 +345,7 @@ export async function findLocalMarketPosition(params: {
           website: item.website || (item.domain ? `https://${item.domain}` : undefined),
           rank: item.rank_group || competitors.length + 1,
           mapScore: typeof item.rating === "number" ? item.rating : 4.5,
+          reviewCount: typeof item.reviews_count === "number" ? item.reviews_count : undefined,
         });
       }
     }

@@ -28,6 +28,8 @@ export interface AuditNarrative {
   quietLeaks: Array<{ title: string; detail: string }>;
 }
 
+import { industryFromCategory, cap } from "./industry";
+
 function find(findings: NarrativeFinding[], category: string) {
   return findings.find((f) => f.category === category);
 }
@@ -55,31 +57,31 @@ export function buildAuditNarrative(input: {
   const reviewGap = competitorGap?.findingsJson.reviewGap as number | undefined;
 
   const topCompetitor = competitors[0];
-  const categoryLower = category.toLowerCase();
-  const searchPhrase = `${categoryLower} in ${city}`;
+  const ind = industryFromCategory(category);
+  const searchPhrase = `${ind.searchKeyword} in ${city}`;
 
   // --- Headline + dek: deterministic, ordered by what actually matters most ---
   let headline: { line1: string; line2: string };
   let dek: string;
 
   if (website && !websiteReachable) {
-    headline = { line1: "Patients Can't Even", line2: "Load Your Website" };
+    headline = { line1: `${cap(ind.customers)} Can't Even`, line2: "Load Your Website" };
     dek = `${businessName}'s website is down right now — ${websiteError || "unreachable"}. Every other finding in this report is secondary until that's fixed.`;
   } else if (reputation && reputation.score >= 70 && local && local.score < 50) {
     headline = { line1: "Better Reviewed.", line2: "Still Invisible." };
-    dek = `${businessName} has the reputation to win in ${city} — ${reviewCount ?? "a strong number of"} reviews at ${rating ?? "a high"}★ — but isn't showing up when patients search "${searchPhrase}."`;
+    dek = `${businessName} has the reputation to win in ${city} — ${reviewCount ?? "a strong number of"} reviews at ${rating ?? "a high"}★ — but isn't showing up when ${ind.customers} search "${searchPhrase}."`;
   } else if (local && verified && ownRank != null && ownRank <= 3) {
     headline = { line1: `Ranked #${ownRank}.`, line2: "Here's What Protects It." };
-    dek = `${businessName} already ranks #${ownRank} for "${searchPhrase}." The fixes below are about defending that spot as nearby practices catch up, not chasing it.`;
+    dek = `${businessName} already ranks #${ownRank} for "${searchPhrase}." The fixes below are about defending that spot as nearby ${ind.businesses} catch up, not chasing it.`;
   } else if (local && verified && ownRank != null) {
     headline = { line1: `Ranked #${ownRank}.`, line2: "Losing To The Top 3." };
     dek = `Nearly all the clicks for "${searchPhrase}" go to the top 3 results in Google's map pack. ${businessName} isn't there yet.`;
   } else if (local && verified) {
     headline = { line1: "They're Searching.", line2: "Finding Someone Else." };
-    dek = `${businessName} didn't appear at all in Google's local map results for "${searchPhrase}" when we checked — not ranked low, genuinely absent from what a nearby patient sees.`;
+    dek = `${businessName} didn't appear at all in Google's local map results for "${searchPhrase}" when we checked — not ranked low, genuinely absent from what a nearby ${ind.customer} sees.`;
   } else {
-    headline = { line1: "Here's Exactly", line2: "What's Costing You Patients." };
-    dek = `A plain look at where ${businessName} is winning online in ${city}, and where nearby practices are quietly ahead.`;
+    headline = { line1: "Here's Exactly", line2: `What's Costing You ${cap(ind.customers)}.` };
+    dek = `A plain look at where ${businessName} is winning online in ${city}, and where nearby ${ind.businesses} are quietly ahead.`;
   }
 
   // --- Stat block: only real, verified numbers ---
@@ -97,7 +99,7 @@ export function buildAuditNarrative(input: {
     },
     {
       value: reviewGap != null && reviewGap > 0 ? `${reviewGap}` : "0",
-      label: "Review gap to the #1 practice",
+      label: `Review gap to the #1 ${ind.business}`,
       caption: reviewGap != null && reviewGap > 0 ? "reviews behind" : "you're not behind on reviews",
     },
     {
@@ -113,7 +115,7 @@ export function buildAuditNarrative(input: {
   if (website && !websiteReachable) {
     fixCards.push({
       title: "Get the website back online",
-      detail: `Right now ${businessName}'s site returns: ${websiteError || "no response"}. Every patient trying to find you online is hitting the same wall — this blocks every other channel until it's fixed.`,
+      detail: `Right now ${businessName}'s site returns: ${websiteError || "no response"}. Every ${ind.customer} trying to find you online is hitting the same wall — this blocks every other channel until it's fixed.`,
       impact: "Blocks 100% of website conversions until fixed",
     });
   } else if (website) {
@@ -137,7 +139,7 @@ export function buildAuditNarrative(input: {
     if (!hasViewport) {
       fixCards.push({
         title: "Make the site mobile-responsive",
-        detail: "No mobile viewport tag was found — the site likely renders as a shrunk desktop page on a phone, which is where most patients will find you.",
+        detail: `No mobile viewport tag was found — the site likely renders as a shrunk desktop page on a phone, which is where most ${ind.customers} will find you.`,
         impact: "Typical range: 8–12% fewer mobile bounces",
       });
     }
@@ -148,21 +150,21 @@ export function buildAuditNarrative(input: {
     if (conversion.findingsJson.clickToCall === false) {
       fixCards.push({
         title: "Add a tap-to-call button",
-        detail: "No click-to-call link was found. A patient on their phone shouldn't have to copy a number to dial it.",
+        detail: `No click-to-call link was found. A ${ind.customer} on their phone shouldn't have to copy a number to dial it.`,
         impact: "Typical range: 10–20% more calls from mobile visitors",
       });
     }
     if (conversion.findingsJson.bookingCta === false) {
       fixCards.push({
-        title: "Add a visible booking button",
-        detail: "No booking call-to-action was found on the page a patient lands on first.",
-        impact: "Typical range: 8–15% more booking requests",
+        title: `Add a visible ${ind.booking} button`,
+        detail: `No ${ind.booking} call-to-action was found on the page a ${ind.customer} lands on first.`,
+        impact: `Typical range: 8–15% more ${ind.booking} requests`,
       });
     }
     if (conversion.findingsJson.contactForm === false) {
       fixCards.push({
         title: "Add a simple contact form",
-        detail: "No contact form was found for patients who'd rather not call.",
+        detail: `No contact form was found for ${ind.customers} who'd rather not call.`,
         impact: "Typical range: 5–10% more inquiries",
       });
     }
@@ -179,7 +181,7 @@ export function buildAuditNarrative(input: {
   if ((reviewGap != null && reviewGap > 0) || (reviewCount != null && reviewCount < 50)) {
     fixCards.push({
       title: "Put review requests on autopilot",
-      detail: "A short text after every visit asking happy patients for a Google review — automated, so no one has to remember to ask.",
+      detail: `A short text or email afterwards asking happy ${ind.customers} for a Google review — automated, so no one has to remember to ask.`,
       impact: "Typical range: 15–30% faster review growth",
     });
   }
@@ -196,8 +198,8 @@ export function buildAuditNarrative(input: {
   }
   if (competitorGap && competitors.length > 0) {
     quietLeaks.push({
-      title: "The practices ahead of you are pulling away, not standing still",
-      detail: `The top nearby practices average more reviews and consistent profile activity — a gap that widens on its own if nothing changes here.`,
+      title: `The ${ind.businesses} ahead of you are pulling away, not standing still`,
+      detail: `The top nearby ${ind.businesses} average more reviews and consistent profile activity — a gap that widens on its own if nothing changes here.`,
     });
   }
 

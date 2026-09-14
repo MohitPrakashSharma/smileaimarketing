@@ -79,6 +79,7 @@ export async function GET(
         name: audit.business.name,
         website: audit.business.website,
         city: audit.business.city,
+        category: audit.business.category,
         opportunityScore: audit.score,
       },
       checkedAt: audit.createdAt,

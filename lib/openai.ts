@@ -1,7 +1,11 @@
+import { industryFromCategory, cap } from "./industry";
+
 export interface AuditSummaryInput {
   businessName: string;
   website: string;
   city: string;
+  /** Business.category — sets the vocabulary (patients vs. clients vs. customers). */
+  category?: string;
   overallScore: number;
   results: Array<{ category: string; score: number }>;
   competitors?: Array<{ name: string; rank: number }>;
@@ -27,12 +31,13 @@ export async function generateAuditSummaryWithOpenAI(
 ): Promise<AuditSummaryOutput> {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const ind = industryFromCategory(input.category);
 
   // Fallback template builder if OpenAI key is missing or fails
   const buildTemplateFallback = (errMsg?: string): AuditSummaryOutput => ({
     summary: input.websiteIssue
-      ? `${input.businessName}'s website in ${input.city} is currently down: ${input.websiteIssue}. That's the headline finding — every other score in this report is capped until that's fixed, because no patient can reach the site to see anything else.`
-      : `${input.businessName} has an Opportunity Score of ${input.overallScore}/100 in ${input.city}. Patients nearby are searching for a dentist right now — this report shows where you're winning that search and where you're not.`,
+      ? `${input.businessName}'s website in ${input.city} is currently down: ${input.websiteIssue}. That's the headline finding — every other score in this report is capped until that's fixed, because no ${ind.customer} can reach the site to see anything else.`
+      : `${input.businessName} has an Opportunity Score of ${input.overallScore}/100 in ${input.city}. ${cap(ind.customers)} nearby are searching for a ${ind.searchKeyword} right now — this report shows where you're winning that search and where you're not.`,
     topFindings: input.websiteIssue
       ? [
           `Website is unreachable right now: ${input.websiteIssue}.`,
@@ -41,7 +46,7 @@ export async function generateAuditSummaryWithOpenAI(
         ]
       : [
           `Opportunity Score: ${input.overallScore}/100, based on what's actually visible online today.`,
-          `Your website and booking experience have real room to convert more visitors into booked patients.`,
+          `Your website and ${ind.booking} experience have real room to convert more visitors into ${ind.customers}.`,
           `Local search visibility is worth a closer look — it's often the single biggest lever.`,
         ],
     recommendedActions: input.websiteIssue
@@ -51,24 +56,24 @@ export async function generateAuditSummaryWithOpenAI(
           "Fill out every field on your Google Business Profile in the meantime — that's independent of the website outage.",
         ]
       : [
-          "Make it a one-tap process for a patient to call or book from their phone.",
+          `Make it a one-tap process for a ${ind.customer} to call or reach you from their phone.`,
           "Fill out every field on your Google Business Profile and keep your listing details consistent everywhere online.",
-          "Get your website loading fast and securely so patients don't bounce before they see it.",
+          `Get your website loading fast and securely so ${ind.customers} don't bounce before they see it.`,
         ],
     emailSubject: input.websiteIssue
       ? `${input.businessName}'s website looks to be down`
-      : `A quick look at ${input.businessName}'s patient visibility`,
+      : `A quick look at ${input.businessName}'s local visibility`,
     emailOpening: input.websiteIssue
       ? `Hi — while running a free visibility audit on ${input.businessName}, we noticed the website isn't loading (${input.websiteIssue}) — flagging it directly in case you weren't aware.`
       : `Hi — we ran a free growth audit on ${input.businessName} and found a few things worth a look.`,
     salesTalkingPoints: input.websiteIssue
       ? [
           `Lead with the outage — it's the single fact that matters most and it's independently verifiable by just visiting the site.`,
-          `Everything else in the report is real too, but the website being down is what's costing them patients today.`,
+          `Everything else in the report is real too, but the website being down is what's costing them ${ind.customers} today.`,
         ]
       : [
-          `The Opportunity Score (${input.overallScore}/100) is a plain-English way to talk about where patients are being lost.`,
-          "Lead with the fastest, cheapest fix first — usually the booking experience — to build trust before anything bigger.",
+          `The Opportunity Score (${input.overallScore}/100) is a plain-English way to talk about where ${ind.customers} are being lost.`,
+          `Lead with the fastest, cheapest fix first — usually the ${ind.booking} experience — to build trust before anything bigger.`,
         ],
     isAiGenerated: false,
     error: errMsg,
@@ -79,9 +84,9 @@ export async function generateAuditSummaryWithOpenAI(
   }
 
   try {
-    const prompt = `You're writing the opening summary of a growth audit for a dental practice. The reader is the dentist/owner themselves, not a marketing professional — write like a trusted colleague explaining the numbers over coffee, not like an ad agency pitch deck. Plain English, no jargon (no "CTA," "conversion funnel," "SEO" without explanation), warm but direct, and honest about what the data does and doesn't show.
+    const prompt = `You're writing the opening summary of a growth audit for a ${ind.label.toLowerCase()} (a ${ind.business} whose ${ind.customers} find it through local search). The reader is the owner themselves, not a marketing professional — write like a trusted colleague explaining the numbers over coffee, not like an ad agency pitch deck. Plain English, no jargon (no "CTA," "conversion funnel," "SEO" without explanation), warm but direct, and honest about what the data does and doesn't show.
 
-Real audit data for "${input.businessName}" (${input.website}) in ${input.city}:
+Real audit data for "${input.businessName}" (${input.website}), a ${ind.label.toLowerCase()} in ${input.city}. Refer to the people it serves as "${ind.customers}" and to the business as a "${ind.business}":
 - Overall Opportunity Score: ${input.overallScore}/100
 - Category Scores: ${JSON.stringify(input.results)}
 - Real nearby competitors found: ${JSON.stringify(input.competitors || [])}
@@ -89,15 +94,15 @@ ${input.websiteIssue ? `- IMPORTANT — the website could not be loaded at all w
 
 Provide strict JSON output matching schema:
 {
-  "summary": "2-3 sentences, plain language, doctor-to-doctor tone — what's working, what's costing them patients, framed around real patients and real competitors, not abstract scores",
+  "summary": "2-3 sentences, plain language, peer-to-peer tone — what's working, what's costing them ${ind.customers}, framed around real ${ind.customers} and real competitors, not abstract scores",
   "topFindings": ["finding 1", "finding 2", "finding 3"],
   "recommendedActions": ["action 1", "action 2", "action 3"],
   "emailSubject": "A plain, specific subject line — no hype, no clickbait",
-  "emailOpening": "One warm, direct opening line for an email to this practice owner",
+  "emailOpening": "One warm, direct opening line for an email to this ${ind.business} owner",
   "salesTalkingPoints": ["talking point 1", "talking point 2"]
 }
 
-Do not invent revenue, patient counts, or ranks beyond what's given above. Base every claim strictly on the scores and competitors provided — if competitors is empty, do not name or imply any specific competitor.`;
+Do not invent revenue, ${ind.customer} counts, review counts, or ranks beyond what's given above. Base every claim strictly on the scores and competitors provided — if competitors is empty, do not name or imply any specific competitor.`;
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -131,7 +136,7 @@ Do not invent revenue, patient counts, or ranks beyond what's given above. Base 
       summary: parsed.summary || "Audit complete.",
       topFindings: Array.isArray(parsed.topFindings) ? parsed.topFindings : [],
       recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : [],
-      emailSubject: parsed.emailSubject || `A quick look at ${input.businessName}'s patient visibility`,
+      emailSubject: parsed.emailSubject || `A quick look at ${input.businessName}'s local visibility`,
       emailOpening: parsed.emailOpening || `Hi — we ran a free growth audit on ${input.businessName} and found a few things worth a look.`,
       salesTalkingPoints: Array.isArray(parsed.salesTalkingPoints) ? parsed.salesTalkingPoints : [],
       modelUsed: model,
