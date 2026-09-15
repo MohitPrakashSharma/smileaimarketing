@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
+import MinimalShell from "@/components/MinimalShell";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import ProgressSteps from "@/components/ui/ProgressSteps";
-import { IconCheck } from "@/components/icons";
 import { trackEvent } from "@/lib/analytics.client";
 import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
 import { industryFromCategory, cap } from "@/lib/industry";
@@ -60,44 +59,52 @@ function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
   const pct = stages.length ? Math.max(8, Math.round((doneCount / stages.length) * 100)) : ((messageIndex + 1) / SCAN_MESSAGES.length) * 100;
 
   return (
-    <div className="animate-fade-in space-y-8 py-6 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/25 border-t-primary" />
-      </div>
+    <div className="animate-fade-in space-y-8 py-2">
       <div>
-        <h1 className="text-heading-2 font-semibold text-foreground">Running your free audit</h1>
+        <Eyebrow>Audit in progress</Eyebrow>
+        <h1 className="mt-4 text-heading-2 text-foreground">Running your free audit</h1>
         {stages.length === 0 && (
-          <p className="mt-2 text-body-small text-muted-foreground" aria-live="polite">
+          <p className="mt-3 text-body text-muted-foreground" aria-live="polite">
             {SCAN_MESSAGES[messageIndex]}
           </p>
         )}
       </div>
+
+      <div>
+        <div className="flex items-center justify-between text-metadata">
+          <span className="font-semibold text-foreground">{Math.round(pct)}%</span>
+          {progress && progress.findingsSoFar > 0 && (
+            <span className="font-semibold !text-primary-ink">{progress.findingsSoFar} verified finding{progress.findingsSoFar === 1 ? "" : "s"} so far</span>
+          )}
+        </div>
+        <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+          <div className="relative h-full overflow-hidden rounded-full bg-primary transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }}>
+            <span className="animate-progress-sheen absolute inset-y-0 w-1/3 bg-white/30" aria-hidden />
+          </div>
+        </div>
+      </div>
+
       {stages.length > 0 && (
-        <ol className="mx-auto max-w-xs space-y-1.5 text-left" aria-live="polite">
+        <ol className="divide-y divide-border-subtle rounded-[var(--radius-medium)] border border-border-subtle bg-background-alt" aria-live="polite">
           {stages.map((s) => (
-            <li key={s.key} className={`flex items-center gap-2.5 text-body-small ${s.status === "pending" ? "text-muted-foreground/60" : "text-foreground"}`}>
+            <li key={s.key} className={`flex items-center gap-3 px-4 py-3 text-body-small ${s.status === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
               <span
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${
-                  s.status === "done" ? "bg-primary text-primary-foreground" : s.status === "running" ? "border-2 border-primary/30 border-t-primary animate-spin" : s.status === "skipped" ? "bg-border text-muted-foreground" : "border border-border"
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                  s.status === "done" ? "bg-primary text-primary-foreground" : s.status === "running" ? "border-2 border-primary/30 border-t-primary animate-spin" : s.status === "skipped" ? "bg-border text-muted-foreground" : s.status === "failed" ? "bg-danger/10 text-danger" : "border border-border"
                 }`}
                 aria-hidden
               >
-                {s.status === "done" ? "✓" : s.status === "skipped" ? "–" : ""}
+                {s.status === "done" ? "✓" : s.status === "skipped" ? "–" : s.status === "failed" ? "!" : ""}
               </span>
               <span className="flex-1">
                 {s.key === "crawl" && progress && progress.pagesCrawled > 0 ? `Pages crawled ${progress.pagesCrawled}${progress.pagesDiscovered ? ` / ${Math.max(progress.pagesCrawled, progress.pagesDiscovered)}` : ""}` : s.label}
-                {s.detail && s.key !== "crawl" && <span className="ml-1.5 text-metadata text-muted-foreground">{s.detail}</span>}
+                {s.detail && s.key !== "crawl" && <span className="ml-1.5 text-metadata">{s.detail}</span>}
               </span>
+              {s.status === "running" && <span className="text-eyebrow !text-[0.6875rem] text-primary-ink">Running</span>}
             </li>
           ))}
         </ol>
       )}
-      {progress && progress.findingsSoFar > 0 && (
-        <p className="text-metadata font-semibold text-primary">{progress.findingsSoFar} verified finding{progress.findingsSoFar === 1 ? "" : "s"} so far</p>
-      )}
-      <div className="mx-auto h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-border">
-        <div className="h-full rounded-full bg-primary transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
-      </div>
     </div>
   );
 }
@@ -318,7 +325,7 @@ function AuditWizardForm() {
   };
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8">
+    <div className="card-elevated w-full max-w-xl p-6 sm:p-10">
       {step !== "processing" && (
         <div className="mb-8">
           <ProgressSteps steps={STEP_LABELS} current={STEP_INDEX[step]} />
@@ -328,23 +335,23 @@ function AuditWizardForm() {
       {/* STEP 1: Practice details */}
       {step === "details" && (
         <div className="animate-fade-in space-y-6">
-          <div className="text-center">
+          <div>
             <Eyebrow>Free Practice Audit</Eyebrow>
-            <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
+            <h1 className="mt-4 text-heading-2 text-foreground">
               Run My Free Dental Audit
             </h1>
-            <p className="mt-2 text-body-small text-muted-foreground">
+            <p className="mt-3 text-body text-muted-foreground">
               Paste your website — we&apos;ll find your location and handle the rest.
             </p>
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleDetailsSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleDetailsSubmit} className="space-y-5" noValidate>
             <FormField id="website" label="Practice Website" required optionalLabel={false} error={websiteError}>
               <Input
                 id="website"
@@ -371,7 +378,7 @@ function AuditWizardForm() {
               <p
                 id="website-hint"
                 aria-live="polite"
-                className={`-mt-2 flex items-center gap-2 text-metadata ${detectStatus === "found" ? "text-success" : "text-muted-foreground"}`}
+                className={`-mt-2 flex items-center gap-2 text-metadata ${detectStatus === "found" ? "!text-success" : ""}`}
               >
                 {detectStatus === "loading" && (
                   <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" aria-hidden />
@@ -406,7 +413,7 @@ function AuditWizardForm() {
               </Select>
             </FormField>
 
-            <Button type="submit" fullWidth loading={loading} disabled={loading}>
+            <Button type="submit" fullWidth loading={loading} disabled={loading} arrow className="mt-2">
               Run My Free Dental Audit
             </Button>
           </form>
@@ -419,76 +426,76 @@ function AuditWizardForm() {
       {/* STEP 3: Preview */}
       {step === "preview" && preliminary && (
         <div className="animate-fade-in space-y-6">
-          <div className="text-center">
+          <div>
             <Eyebrow>Your quick look is ready</Eyebrow>
-            <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
+            <h1 className="mt-4 text-heading-2 text-foreground">
               {cap(ind.customers)} are searching nearby right now.
             </h1>
-            <p className="mt-2 text-body-small text-muted-foreground">
+            <p className="mt-3 text-body text-muted-foreground">
               Here&apos;s a first look. Unlock the full report to see your score, who&apos;s ranking ahead of you, and exactly what to fix first.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-background p-4 text-center">
-            <div>
-              <span className="block text-metadata font-bold uppercase tracking-wider text-primary">SSL Security</span>
-              <span className="mt-1 block text-body-small font-medium text-foreground">
+          <div className="grid grid-cols-3 divide-x divide-border-subtle rounded-[var(--radius-medium)] border border-border-subtle bg-background-alt">
+            <div className="px-3 py-4 text-center">
+              <span className="block text-eyebrow !text-[0.6875rem] text-muted-foreground">SSL Security</span>
+              <span className="mt-1.5 block font-display text-[1.0625rem] font-semibold text-foreground">
                 {preliminary.sslValid ? "Secure" : "Unsecured"}
               </span>
             </div>
-            <div>
-              <span className="block text-metadata font-bold uppercase tracking-wider text-primary">Speed</span>
-              <span className="mt-1 block text-body-small font-medium text-foreground">
-                {preliminary.pageSpeedEstimate.replace(/_/g, " ")}
+            <div className="px-3 py-4 text-center">
+              <span className="block text-eyebrow !text-[0.6875rem] text-muted-foreground">Speed</span>
+              <span className="mt-1.5 block font-display text-[1.0625rem] font-semibold capitalize text-foreground">
+                {preliminary.pageSpeedEstimate.replace(/_/g, " ").toLowerCase()}
               </span>
             </div>
-            <div>
-              <span className="block text-metadata font-bold uppercase tracking-wider text-primary">Mobile Layout</span>
-              <span className="mt-1 block text-body-small font-medium text-foreground">
+            <div className="px-3 py-4 text-center">
+              <span className="block text-eyebrow !text-[0.6875rem] text-muted-foreground">Mobile Layout</span>
+              <span className="mt-1.5 block font-display text-[1.0625rem] font-semibold text-foreground">
                 {preliminary.mobileOptimized ? "Optimized" : "Needs Fixes"}
               </span>
             </div>
           </div>
 
           {findingsSoFar.length > 0 && (
-            <div className="rounded-xl border border-border bg-background p-4 text-left">
-              <p className="text-metadata font-bold uppercase tracking-wider text-primary">Verified so far</p>
-              <ul className="mt-2 space-y-1.5">
+            <div className="rounded-[var(--radius-medium)] border border-border-subtle p-5 text-left">
+              <p className="text-eyebrow text-primary-ink">Verified so far</p>
+              <ul className="mt-3 space-y-2.5">
                 {findingsSoFar.slice(0, 4).map((f) => (
-                  <li key={f.title} className="flex items-start gap-2 text-body-small text-foreground">
-                    <span className={`mt-0.5 shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase ${f.severity === "CRITICAL" || f.severity === "HIGH" ? "bg-danger/10 text-danger" : "bg-warning/10 text-warning"}`}>{f.severity.toLowerCase()}</span>
+                  <li key={f.title} className="flex items-start gap-2.5 text-body-small text-foreground">
+                    <span className={`mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] ${f.severity === "CRITICAL" || f.severity === "HIGH" ? "badge-attention" : "badge-opportunity"}`}>{f.severity.toLowerCase()}</span>
                     <span>{f.title}</span>
                   </li>
                 ))}
               </ul>
-              {findingsSoFar.length > 4 && <p className="mt-2 text-metadata text-muted-foreground">+{findingsSoFar.length - 4} more in the full report</p>}
+              {findingsSoFar.length > 4 && <p className="mt-3 text-metadata">+{findingsSoFar.length - 4} more in the full report</p>}
             </div>
           )}
 
-          <div className="relative overflow-hidden rounded-xl border border-border bg-background p-5">
-            <div className="space-y-3 blur-[3px] select-none" aria-hidden="true">
+          <div className="relative overflow-hidden rounded-[var(--radius-medium)] border border-border-subtle bg-background-alt p-5">
+            <div className="space-y-3 select-none blur-[3px]" aria-hidden="true">
               <div className="h-3 w-3/4 rounded bg-border" />
               <div className="h-3 w-full rounded bg-border" />
               <div className="h-3 w-2/3 rounded bg-border" />
             </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-              <span className="rounded-full bg-surface px-4 py-1.5 text-metadata font-semibold text-muted-foreground shadow-sm">
+            <div className="absolute inset-0 flex items-center justify-center px-4">
+              <span className="rounded-full border border-border bg-surface px-4 py-2 text-center text-metadata font-semibold !text-foreground shadow-sm">
                 Your score & the {ind.business} ahead of you — one step away
               </span>
             </div>
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
               {error}
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
             <Button type="button" variant="secondary" onClick={() => setStep("details")}>
               Back
             </Button>
-            <Button type="button" fullWidth onClick={() => setStep("contact")}>
+            <Button type="button" fullWidth arrow onClick={() => setStep("contact")}>
               See My Full Report
             </Button>
           </div>
@@ -498,23 +505,23 @@ function AuditWizardForm() {
       {/* STEP 4: Contact details */}
       {step === "contact" && (
         <div className="animate-fade-in space-y-6">
-          <div className="text-center">
+          <div>
             <Eyebrow>One last step</Eyebrow>
-            <h1 className="mt-4 text-heading-1 font-semibold text-foreground">
+            <h1 className="mt-4 text-heading-2 text-foreground">
               Where should we send it?
             </h1>
-            <p className="mt-2 text-body-small text-muted-foreground">
+            <p className="mt-3 text-body text-muted-foreground">
               We&apos;ll email your full report and a link you can come back to anytime.
             </p>
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleContactSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleContactSubmit} className="space-y-5" noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id="firstName" label="First Name" required optionalLabel={false}>
                 <Input
@@ -584,14 +591,14 @@ function AuditWizardForm() {
                   id="consent"
                   type="checkbox"
                   required
-                  className="mt-1 h-5 w-5 shrink-0 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded-[4px] border-border accent-[var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                   checked={consent}
                   onChange={(e) => {
                     setConsent(e.target.checked);
                     if (e.target.checked) setConsentError("");
                   }}
                 />
-                <span className="text-body-small leading-relaxed text-muted-foreground">
+                <span className="text-body-small text-muted-foreground">
                   I&apos;m okay receiving my audit results and occasional practice growth tips by email. I can opt out anytime.
                 </span>
               </label>
@@ -602,11 +609,11 @@ function AuditWizardForm() {
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
               <Button type="button" variant="secondary" onClick={() => setStep("preview")} disabled={loading}>
                 Back
               </Button>
-              <Button type="submit" fullWidth loading={loading} disabled={loading}>
+              <Button type="submit" fullWidth arrow loading={loading} disabled={loading}>
                 Unlock My Detailed Report
               </Button>
             </div>
@@ -619,32 +626,17 @@ function AuditWizardForm() {
 
 export default function FreeDentalAuditPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-[1200px] justify-between px-6 py-6 sm:px-8">
-        <Link href="/" className="flex items-center gap-1.5 text-lg font-bold tracking-tight text-foreground">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <IconCheck className="h-3.5 w-3.5" />
-          </span>
-          Smile AI Marketing
-        </Link>
-      </header>
-
-      <main className="flex flex-1 items-center justify-center px-6 py-12 sm:py-16">
-        <Suspense
-          fallback={
-            <div className="space-y-4 text-center">
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
-              <p className="text-body-small font-semibold text-muted-foreground">Loading...</p>
-            </div>
-          }
-        >
-          <AuditWizardForm />
-        </Suspense>
-      </main>
-
-      <footer className="border-t border-border py-6 text-center text-metadata text-muted-foreground">
-        &copy; {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
-      </footer>
-    </div>
+    <MinimalShell>
+      <Suspense
+        fallback={
+          <div className="space-y-4 text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
+            <p className="text-body-small font-semibold text-muted-foreground">Loading...</p>
+          </div>
+        }
+      >
+        <AuditWizardForm />
+      </Suspense>
+    </MinimalShell>
   );
 }

@@ -5,6 +5,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Eyebrow from "@/components/Eyebrow";
 import { IconCheck } from "@/components/icons";
+import FaqList from "@/components/ui/FaqList";
+import { buttonClasses, ButtonArrow } from "@/components/ui/buttonStyles";
 import { SERVICES, getServiceBySlug } from "@/lib/services";
 
 const SITE_URL = "https://smileaimarketing.com";
@@ -91,94 +93,77 @@ export default async function ServiceDetailPage({
       <Header />
       <main className="flex-1 bg-background">
         {/* Hero */}
-        <div className="border-b border-border bg-white">
-          <div className="mx-auto max-w-[800px] px-6 py-16 sm:px-8 sm:py-24">
-            <nav aria-label="Breadcrumb" className="mb-8 text-metadata text-muted-foreground">
-              <Link href="/" className="hover:text-foreground">Home</Link>
-              <span className="mx-2">/</span>
-              <Link href="/services" className="hover:text-foreground">Services</Link>
-              <span className="mx-2">/</span>
-              <span className="text-foreground">{service.title}</span>
-            </nav>
+        <div className="border-b border-border-subtle bg-background-alt">
+          <div className="container-site section-space">
+            <div className="container-narrow !mx-0">
+              <nav aria-label="Breadcrumb" className="mb-8 flex flex-wrap items-center gap-2 text-metadata">
+                <Link href="/" className="link-underline hover:text-foreground">Home</Link>
+                <span aria-hidden>/</span>
+                <Link href="/services" className="link-underline hover:text-foreground">Services</Link>
+                <span aria-hidden>/</span>
+                <span className="text-foreground">{service.title}</span>
+              </nav>
 
-            <Eyebrow>{service.eyebrow}</Eyebrow>
-            <h1 className="mt-4 text-heading-1 font-semibold text-foreground">{service.h1}</h1>
-            <p className="mt-6 text-body-large text-muted-foreground leading-relaxed">{service.subhead}</p>
+              <Eyebrow>{service.eyebrow}</Eyebrow>
+              <h1 className="mt-5 text-heading-1 text-foreground">{service.h1}</h1>
+              <p className="mt-6 text-body-large text-muted-foreground">{service.subhead}</p>
 
-            <Link
-              href="/free-dental-audit"
-              className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
-            >
-              Audit My Practice
-            </Link>
+              <Link href="/free-dental-audit" className={buttonClasses({ className: "mt-9" })}>
+                <span>Audit My Practice</span>
+                <ButtonArrow />
+              </Link>
+            </div>
           </div>
         </div>
 
-        <div className="mx-auto max-w-[800px] px-6 py-16 sm:px-8 sm:py-24">
-          {/* What we check */}
-          <section>
-            <h2 className="text-heading-3 font-semibold text-foreground">What we actually check</h2>
-            <div className="mt-6 space-y-4">
-              {service.whatWeCheck.map((item) => (
-                <div key={item.title} className="flex items-start gap-4 rounded-xl border border-border bg-surface p-5">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary">
-                    <IconCheck className="h-3.5 w-3.5" />
-                  </span>
-                  <div>
-                    <h3 className="text-body-small font-bold text-foreground">{item.title}</h3>
-                    <p className="mt-1 text-body-small text-muted-foreground leading-relaxed">{item.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Common problems */}
-          <section className="mt-14">
-            <h2 className="text-heading-3 font-semibold text-foreground">Common problems we find</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              {service.commonProblems.map((item) => (
-                <div key={item.title} className="rounded-xl border border-border bg-surface p-5">
-                  <h3 className="text-body-small font-bold text-foreground">{item.title}</h3>
-                  <p className="mt-2 text-body-small text-muted-foreground leading-relaxed">{item.detail}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* FAQ */}
-          <section className="mt-14">
-            <h2 className="text-heading-3 font-semibold text-foreground">Questions about local SEO</h2>
-            <div className="mt-6 divide-y divide-border border-y border-border">
-              {service.faqs.map((item) => (
-                <details key={item.q} className="group py-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-body font-semibold text-foreground marker:content-none focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 -mx-2">
-                    {item.q}
-                    <span
-                      aria-hidden
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary transition-transform duration-200 group-open:rotate-45"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
+        <div className="container-site section-space">
+          <div className="container-narrow !mx-0">
+            {/* What we check */}
+            <section>
+              <h2 className="text-heading-2 text-foreground">What we actually check</h2>
+              <div className="mt-8 divide-y divide-border-subtle border-y border-border-subtle">
+                {service.whatWeCheck.map((item) => (
+                  <div key={item.title} className="flex items-start gap-4 py-5">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                      <IconCheck className="h-3.5 w-3.5" />
                     </span>
-                  </summary>
-                  <p className="mt-3 text-body-small text-muted-foreground leading-relaxed pl-2">{item.a}</p>
-                </details>
-              ))}
-            </div>
-          </section>
+                    <div>
+                      <h3 className="text-heading-4 text-foreground">{item.title}</h3>
+                      <p className="mt-1.5 text-body-small text-muted-foreground">{item.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-          {/* Final CTA */}
-          <div className="mt-14 rounded-2xl border border-border bg-surface-muted/30 p-8 text-center">
-            <p className="text-body font-semibold text-foreground">See where your practice actually stands.</p>
-            <p className="mt-2 text-body-small text-muted-foreground">Free audit — just your website and city.</p>
-            <Link
-              href="/free-dental-audit"
-              className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-body text-base font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
-            >
-              Audit My Practice
-            </Link>
+            {/* Common problems */}
+            <section className="mt-16">
+              <h2 className="text-heading-2 text-foreground">Common problems we find</h2>
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                {service.commonProblems.map((item) => (
+                  <div key={item.title} className="card p-5">
+                    <h3 className="text-heading-4 text-foreground">{item.title}</h3>
+                    <p className="mt-2 text-body-small text-muted-foreground">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* FAQ */}
+            <section className="mt-16">
+              <h2 className="text-heading-2 text-foreground">Questions about local SEO</h2>
+              <FaqList items={service.faqs} className="mt-8" />
+            </section>
+
+            {/* Final CTA */}
+            <div className="band-dark mt-16 rounded-[var(--radius-large)] p-8 sm:p-10">
+              <p className="text-heading-3 text-foreground">See where your practice actually stands.</p>
+              <p className="mt-2 text-body text-muted-foreground">Free audit — just your website and city.</p>
+              <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "mt-7" })}>
+                <span>Audit My Practice</span>
+                <ButtonArrow />
+              </Link>
+            </div>
           </div>
         </div>
       </main>

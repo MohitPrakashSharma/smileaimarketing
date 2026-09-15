@@ -1,12 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import { Manrope, Outfit } from "next/font/google";
 import "./globals.css";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 
+// Both faces are SIL Open Font License and self-hosted by next/font (no
+// runtime request to Google). Outfit carries display headings; Manrope carries
+// body, UI and labels. Weights are the minimum the design system uses.
 const manrope = Manrope({
-  variable: "--font-sans",
+  variable: "--font-manrope",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -63,7 +74,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable}`}
+      className={`${manrope.variable} ${outfit.variable}`}
     >
       <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
         <AnalyticsProvider />

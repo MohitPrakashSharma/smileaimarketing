@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { IconCheck, IconCalendarCheck, IconMapPin } from "@/components/icons";
 import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
+import { ButtonLink } from "@/components/ui/Button";
+import Eyebrow from "@/components/Eyebrow";
 
 const TRUST_POINTS = [
   "No login required, ever",
@@ -29,12 +31,12 @@ const CONSULTATION_OPTIONS = [
 
 export default function TrustAndConsultation() {
   return (
-    <section id="trust-consultation" className="border-t border-border bg-white">
-      <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
+    <section id="trust-consultation" className="scroll-mt-[var(--header-height)] bg-background-alt">
+      <div className="container-site section-space">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-stretch lg:gap-10">
           {/* Trust points */}
-          <Reveal className="overflow-hidden rounded-2xl border border-border bg-surface-muted/30">
-            <div className="relative h-44 w-full sm:h-52">
+          <Reveal className="card overflow-hidden !border-border-subtle bg-surface">
+            <div className="relative h-48 w-full sm:h-56">
               <Image
                 src="/images/dental-operatory-calm.jpg"
                 alt="A modern dental treatment room — the kind of practice this review is built for"
@@ -45,14 +47,14 @@ export default function TrustAndConsultation() {
               />
             </div>
             <div className="p-6 sm:p-8">
-              <h2 className="text-heading-2 font-semibold text-foreground">Clear findings. Human review.</h2>
-              <p className="mt-3 text-body-small text-muted-foreground leading-relaxed">
+              <h2 className="text-heading-3 text-foreground">Clear findings. Human review.</h2>
+              <p className="mt-3 text-body-small text-muted-foreground">
                 Data helps identify the opportunity. A conversation helps determine what actually makes sense for your practice.
               </p>
               <ul className="mt-6 space-y-3">
                 {TRUST_POINTS.map((point) => (
                   <li key={point} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
                       <IconCheck className="h-3.5 w-3.5" />
                     </span>
                     <span className="text-body-small font-medium text-foreground">{point}</span>
@@ -63,30 +65,28 @@ export default function TrustAndConsultation() {
           </Reveal>
 
           {/* Consultation options */}
-          <div>
-            <h2 className="text-heading-2 font-semibold text-foreground">Review your results your way.</h2>
-            <RevealGroup className="mt-6 grid gap-6 sm:grid-cols-2" stagger={0.1}>
+          <div className="flex flex-col">
+            <Eyebrow>Consultation</Eyebrow>
+            <h2 className="mt-5 text-heading-2 text-foreground">Review your results your way.</h2>
+            <RevealGroup className="mt-8 grid flex-1 gap-4 sm:grid-cols-2" stagger={0.1}>
               {CONSULTATION_OPTIONS.map((opt) => (
                 <motion.div
                   key={opt.title}
                   variants={revealItem}
-                  className="flex flex-col justify-between rounded-2xl border border-border bg-background p-6 shadow-sm"
+                  className="card flex flex-col justify-between p-6 sm:p-7"
                 >
                   <div>
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-primary">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
                       <opt.Icon className="h-5 w-5" />
                     </span>
-                    <h3 className="mt-5 text-body font-semibold text-foreground">{opt.title}</h3>
-                    <p className="mt-2 text-body-small text-muted-foreground leading-relaxed">
+                    <h3 className="mt-6 text-heading-4 text-foreground">{opt.title}</h3>
+                    <p className="mt-2 text-body-small text-muted-foreground">
                       {opt.description}
                     </p>
                   </div>
-                  <a
-                    href={opt.ctaHref}
-                    className="mt-6 inline-flex h-12 items-center justify-center rounded-full border border-border bg-surface px-6 font-body text-body-small font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
-                  >
+                  <ButtonLink href={opt.ctaHref} variant="secondary" size="sm" arrow className="mt-7 w-fit">
                     {opt.ctaText}
-                  </a>
+                  </ButtonLink>
                 </motion.div>
               ))}
             </RevealGroup>

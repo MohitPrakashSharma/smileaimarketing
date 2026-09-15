@@ -1,6 +1,7 @@
 "use client";
 
 import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
+import Eyebrow from "@/components/Eyebrow";
 
 const STEPS = [
   {
@@ -23,20 +24,18 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="border-t border-border bg-white">
-      <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="rounded-full bg-accent-soft px-3 py-1 font-label text-xs tracking-wider text-primary">
-            THE PROCESS
-          </span>
-          <h2 className="mt-4 text-heading-1 font-semibold text-foreground">
+    <section id="how-it-works" className="band-dark scroll-mt-[var(--header-height)]">
+      <div className="container-site section-space">
+        <div className="max-w-2xl">
+          <Eyebrow tone="dark">The process</Eyebrow>
+          <h2 className="mt-5 text-heading-2 text-foreground">
             Your practice checkup in four simple steps.
           </h2>
         </div>
 
-        <div className="relative mt-16">
+        <div className="relative mt-14">
           <motion.div
-            className="absolute inset-x-6 top-6 hidden h-px origin-left bg-border lg:block"
+            className="absolute inset-x-0 top-6 hidden h-px origin-left bg-border lg:block"
             initial={{ scaleX: 0 }}
             whileInView={{ scaleX: 1 }}
             viewport={{ once: true, margin: "-80px" }}
@@ -45,26 +44,26 @@ export default function HowItWorks() {
           />
           <div className="absolute top-6 bottom-6 left-6 w-px bg-border lg:hidden" aria-hidden="true" />
 
-          <RevealGroup className="relative grid grid-cols-1 gap-10 lg:grid-cols-4 lg:gap-6" stagger={0.12}>
+          <RevealGroup className="relative grid grid-cols-1 gap-10 lg:grid-cols-4 lg:gap-8" stagger={0.12}>
             {STEPS.map((step, i) => (
               <motion.div
                 key={step.title}
                 variants={revealItem}
-                className="relative flex items-start gap-4 lg:flex-col lg:items-center lg:gap-3 lg:text-center"
+                className="relative flex items-start gap-5 lg:flex-col lg:gap-6"
               >
-                <span className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary font-body text-body-small font-bold text-primary-foreground">
+                <span className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-surface font-display text-[0.9375rem] font-semibold text-foreground ring-4 ring-[var(--color-bg-dark)]">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <div>
-                  <h3 className="text-body font-semibold text-foreground">{step.title}</h3>
-                  <p className="mt-1 text-body-small text-muted-foreground">{step.detail}</p>
+                <div className="pt-2 lg:pt-0">
+                  <h3 className="text-heading-4 text-foreground">{step.title}</h3>
+                  <p className="mt-2 text-body-small text-muted-foreground">{step.detail}</p>
                 </div>
               </motion.div>
             ))}
           </RevealGroup>
         </div>
 
-        <Reveal delay={0.2} className="mx-auto mt-14 max-w-lg text-center">
+        <Reveal delay={0.2} className="mt-14 max-w-lg">
           <p className="text-body-small text-muted-foreground">
             No jargon, no long forms — just a clear look at what&apos;s affecting new patient calls.
           </p>

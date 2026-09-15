@@ -1,16 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { IconStar, IconUsers, IconTrendingUp, IconCheck } from "@/components/icons";
-import FormField from "@/components/ui/FormField";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
+import { IconStar, IconUsers, IconTrendingUp, IconSearch, IconMonitor, IconPhoneWave } from "@/components/icons";
+import { ButtonLink } from "@/components/ui/Button";
 import { Reveal, AnimatedCounter } from "@/components/ui/Reveal";
-import { trackEvent } from "@/lib/analytics.client";
 import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
-import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
 
 const TRUST_STATS: { Icon: typeof IconUsers; value: string; label: string }[] = [
   { Icon: IconUsers, value: "100+", label: "Dental Practices Helped" },
@@ -18,252 +12,87 @@ const TRUST_STATS: { Icon: typeof IconUsers; value: string; label: string }[] = 
   { Icon: IconStar, value: "5-Star", label: "Client Rated" },
 ];
 
+// Product-style preview built from our own report UI — same categories and
+// sample figures as the "Sample audit preview" section further down.
+const PREVIEW_ROWS: { Icon: typeof IconSearch; label: string; score: number; tone: "attention" | "healthy" | "opportunity" }[] = [
+  { Icon: IconSearch, label: "Patient Discovery", score: 42, tone: "attention" },
+  { Icon: IconStar, label: "Patient Trust", score: 78, tone: "healthy" },
+  { Icon: IconMonitor, label: "Website Experience", score: 61, tone: "opportunity" },
+  { Icon: IconPhoneWave, label: "Booking Journey", score: 54, tone: "opportunity" },
+];
+
+const TONE_BAR: Record<string, string> = {
+  healthy: "var(--color-status-healthy-fg)",
+  opportunity: "var(--color-status-opportunity-fg)",
+  attention: "var(--color-status-attention-fg)",
+};
+
 export default function Hero() {
-  const router = useRouter();
-
-  const [website, setWebsite] = useState("");
-  const [city, setCity] = useState("");
-
-  const [websiteError, setWebsiteError] = useState("");
-  const [cityError, setCityError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasStartedForm = useRef(false);
-
-  // City auto-fills from the website lookup unless the visitor has typed
-  // their own — a manual entry always wins over a detected one.
-  const cityTouched = useRef(false);
-  const { status: detectStatus, result: detected, detect } = useSiteDetect((site) => {
-    if (site.city && !cityTouched.current) {
-      setCity([site.city, site.state].filter(Boolean).join(", "));
-      setCityError("");
-    }
-  });
-
-  const handleFormStart = () => {
-    if (hasStartedForm.current) return;
-    hasStartedForm.current = true;
-    trackEvent("audit_form_start", { form_location: "hero" });
-  };
-
-  const validateInputs = () => {
-    let isValid = true;
-
-    const trimmedWeb = website.trim();
-    if (!trimmedWeb) {
-      setWebsiteError("Website is required");
-      isValid = false;
-    } else {
-      const domainPattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-      const urlPattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-      if (!domainPattern.test(trimmedWeb) && !urlPattern.test(trimmedWeb)) {
-        setWebsiteError("Please enter a valid practice website (e.g., dentalclinic.com)");
-        isValid = false;
-      } else {
-        setWebsiteError("");
-      }
-    }
-
-    const trimmedCity = city.trim();
-    if (!trimmedCity) {
-      setCityError("City is required");
-      isValid = false;
-    } else if (trimmedCity.length < 2) {
-      setCityError("Please enter a valid city name");
-      isValid = false;
-    } else {
-      setCityError("");
-    }
-
-    return isValid;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-
-    if (!validateInputs()) return;
-
-    trackEvent("audit_form_submit", { form_location: "hero" });
-    setIsSubmitting(true);
-
-    let normalizedWebsite = website.trim().toLowerCase();
-    if (!/^https?:\/\//i.test(normalizedWebsite)) {
-      normalizedWebsite = `https://${normalizedWebsite}`;
-    }
-
-    const params = new URLSearchParams({
-      website: normalizedWebsite,
-      city: city.trim(),
-    });
-    if (detected?.name) params.set("name", detected.name);
-    if (detected?.country) params.set("country", detected.country);
-    if (detected?.industry?.key) params.set("industry", detected.industry.key);
-
-    router.push(`/free-dental-audit?${params.toString()}`);
-  };
-
-  const handleScrollToSample = () => {
-    const sampleSection = document.getElementById("sample-audit");
-    if (sampleSection) {
-      sampleSection.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   return (
-    <section id="top" className="relative overflow-hidden bg-background pt-10 pb-16 sm:pt-16 sm:pb-24">
-      {/* Ambient depth — a real practice, kept as quiet atmosphere, not a competing focal image */}
-      <div className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_60%_75%_at_30%_35%,transparent,black)]" aria-hidden>
-        <Image
-          src="/images/dental-operatory-calm.jpg"
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover opacity-[0.16]"
-          quality={60}
-        />
-      </div>
-      <div className="pointer-events-none absolute -top-24 right-0 h-[420px] w-[420px] rounded-full bg-primary/10 blur-[110px]" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-32 left-0 h-[360px] w-[360px] rounded-full bg-accent-soft blur-[110px]" aria-hidden />
+    <section id="top" className="relative overflow-hidden bg-background">
+      <div className="container-site grid items-center gap-14 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16 lg:pt-20 lg:pb-28">
 
-      <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-6 sm:px-8 lg:grid-cols-[50%_50%] lg:gap-10">
-
-        {/* Left Column: Headline and Form */}
-        <div>
+        {/* Left column: editorial headline and CTAs */}
+        <div className="max-w-2xl">
           <Reveal>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-label text-xs tracking-wider text-muted-foreground">
-              <span aria-hidden>🍁</span> BUILT FOR DENTAL PRACTICES IN {TARGET_CITY.toUpperCase()}, {TARGET_PROVINCE.toUpperCase()}
+            <span className="inline-flex items-center gap-2 text-eyebrow text-primary-ink">
+              <span aria-hidden>🍁</span> Built for dental practices in {TARGET_CITY}, {TARGET_PROVINCE}
             </span>
           </Reveal>
           <Reveal delay={0.06}>
-            <h1 className="mt-5 font-sans text-display text-foreground">
-              See where your dental practice is missing new patient opportunities.
+            <h1 className="mt-6 text-display-lg text-foreground">
+              See where your dental practice is missing{" "}
+              <span className="text-accent-gradient whitespace-nowrap">new patient</span> opportunities.
             </h1>
           </Reveal>
           <Reveal delay={0.12}>
-            <p className="mt-6 max-w-xl text-body-large text-muted-foreground">
+            <p className="mt-6 max-w-lg text-body-large text-muted-foreground">
               A clear review of what&apos;s costing you new patients — and what to fix first.
             </p>
           </Reveal>
 
-          {/* Primary Form */}
           <Reveal delay={0.18}>
-            <form
-              onSubmit={handleSubmit}
-              className="mt-8 max-w-xl space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-md"
-              noValidate
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
-                  <Input
-                    id="hero-website"
-                    type="url"
-                    required
-                    disabled={isSubmitting}
-                    autoComplete="url"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    inputMode="url"
-                    value={website}
-                    onChange={(e) => {
-                      handleFormStart();
-                      setWebsite(e.target.value);
-                      if (websiteError) setWebsiteError("");
-                      detect(e.target.value);
-                    }}
-                    onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
-                    onBlur={(e) => detect(e.target.value, { immediate: true })}
-                    placeholder="clinic.com"
-                    hasError={!!websiteError}
-                    aria-describedby={websiteError ? "hero-website-error" : "hero-website-hint"}
-                  />
-                </FormField>
-
-                <FormField id="hero-city" label="Practice Location / City" required optionalLabel={false} error={cityError}>
-                  <Input
-                    id="hero-city"
-                    type="text"
-                    required
-                    disabled={isSubmitting}
-                    autoComplete="address-level2"
-                    value={city}
-                    onChange={(e) => {
-                      handleFormStart();
-                      cityTouched.current = e.target.value.trim().length > 0;
-                      setCity(e.target.value);
-                      if (cityError) setCityError("");
-                    }}
-                    placeholder="Detected from your website"
-                    hasError={!!cityError}
-                    aria-describedby={cityError ? "hero-city-error" : undefined}
-                  />
-                </FormField>
-              </div>
-
-              {detectStatus !== "idle" && (
-                <p
-                  id="hero-website-hint"
-                  aria-live="polite"
-                  className={`-mt-1 flex items-center gap-2 text-metadata ${detectStatus === "found" ? "text-success" : "text-muted-foreground"}`}
-                >
-                  {detectStatus === "loading" && (
-                    <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" aria-hidden />
-                  )}
-                  {describeDetection(detectStatus, detected)}
-                </p>
-              )}
-
-              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-                <Button type="submit" loading={isSubmitting} fullWidth className="sm:flex-1">
-                  {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
-                </Button>
-                <Button type="button" variant="secondary" onClick={handleScrollToSample}>
-                  View Sample Audit
-                </Button>
-              </div>
-            </form>
-          </Reveal>
-
-          {/* Trust Stats */}
-          <Reveal delay={0.24}>
-            <div className="mt-8 flex flex-wrap items-start gap-x-8 gap-y-5 border-t border-border pt-6">
-              {TRUST_STATS.map((stat) => (
-                <div key={stat.label} className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary">
-                    <stat.Icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-heading-3 font-bold text-foreground">
-                      {stat.value === "100+" ? <AnimatedCounter value={100} suffix="+" /> : stat.value}
-                    </p>
-                    <p className="text-metadata text-muted-foreground">{stat.label}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <ButtonLink href="#seo-audit" arrow>
+                Get My Free Practice Audit
+              </ButtonLink>
+              <ButtonLink href="#sample-audit" variant="secondary">
+                View Sample Audit
+              </ButtonLink>
             </div>
-          </Reveal>
-
-          {/* Trust Microcopy */}
-          <Reveal delay={0.3}>
-            <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-metadata text-muted-foreground">
+            <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-metadata">
               {["No Google account access required", "No obligation"].map((item) => (
                 <li key={item} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
           </Reveal>
+
+          {/* Trust stats */}
+          <Reveal delay={0.24}>
+            <dl className="mt-12 grid grid-cols-3 gap-4 border-t border-border pt-8 sm:gap-6">
+              {TRUST_STATS.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="sr-only">{stat.label}</dt>
+                  <dd className="font-display text-[clamp(1.5rem,2.4vw,2rem)] font-bold tracking-[-0.02em] text-foreground">
+                    {stat.value === "100+" ? <AnimatedCounter value={100} suffix="+" /> : stat.value}
+                  </dd>
+                  <dd className="mt-1 flex items-start gap-1.5 text-metadata" aria-hidden>
+                    <stat.Icon className="mt-0.5 hidden h-3.5 w-3.5 shrink-0 text-primary sm:block" />
+                    {stat.label}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Reveal>
         </div>
 
-        {/* Right Column: Practice photo with floating result cards */}
+        {/* Right column: practice photo with a layered report preview */}
         <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-          {/* Decorative halo behind the photo */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-            <div className="h-[85%] w-[85%] rounded-full bg-primary/10 blur-[90px]" />
-          </div>
-
           <Reveal delay={0.15}>
-            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-border shadow-xl">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-xl)] bg-surface-muted sm:aspect-[5/6]">
               <Image
                 src="/images/dental-operatory-bright.jpg"
                 alt="A modern, welcoming dental practice interior"
@@ -271,46 +100,74 @@ export default function Hero() {
                 sizes="(min-width: 1024px) 45vw, 90vw"
                 className="object-cover"
                 quality={80}
+                priority
               />
+              <div className="absolute inset-0 bg-background-dark/15" aria-hidden />
             </div>
           </Reveal>
 
-          {/* Floating result cards */}
+          {/* Report preview card — our own audit UI, sample data */}
           <Reveal
-            delay={0.4}
-            className="absolute -left-2 top-8 w-36 rounded-2xl border border-border bg-surface p-3.5 shadow-lg sm:-left-6 sm:w-40"
+            delay={0.35}
+            className="card-elevated relative mt-4 w-full overflow-hidden sm:absolute sm:-bottom-6 sm:-left-8 sm:mt-0 sm:w-80"
           >
-            <p className="text-metadata font-semibold text-muted-foreground">Appointments Booked</p>
-            <p className="mt-1 text-heading-3 font-bold text-primary">
+            <div className="band-dark flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Practice Growth Review</p>
+                <p className="mt-0.5 font-display text-[0.9375rem] font-semibold text-foreground">Sample scorecard</p>
+              </div>
+              <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-foreground">
+                59<span className="font-body text-[0.6875rem] font-normal tracking-normal text-muted-foreground">/100</span>
+              </span>
+            </div>
+            <ul className="divide-y divide-border-subtle bg-surface px-4">
+              {PREVIEW_ROWS.map((row) => (
+                <li key={row.label} className="flex items-center gap-3 py-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                    <row.Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-[0.8125rem] font-semibold text-foreground">{row.label}</span>
+                      <span className="text-[0.75rem] font-semibold text-muted-foreground">{row.score}</span>
+                    </div>
+                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-muted">
+                      <div className="h-full rounded-full" style={{ width: `${row.score}%`, backgroundColor: TONE_BAR[row.tone] }} />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+
+          {/* Result cards */}
+          <Reveal
+            delay={0.5}
+            className="card-elevated absolute -right-3 top-8 w-40 p-4 sm:-right-8 sm:w-44"
+          >
+            <p className="text-metadata">Appointments Booked</p>
+            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-primary-ink">
               <AnimatedCounter value={120} prefix="+" suffix="%" />
             </p>
           </Reveal>
 
           <Reveal
-            delay={0.5}
-            className="absolute -right-2 top-1/3 w-36 rounded-2xl border border-border bg-surface p-3.5 shadow-lg sm:-right-6 sm:w-40"
+            delay={0.6}
+            className="card-elevated absolute -right-3 top-[42%] w-40 p-4 sm:-right-8 sm:w-44"
           >
-            <p className="text-metadata font-semibold text-muted-foreground">New Patients</p>
-            <p className="mt-1 text-heading-3 font-bold text-success">
+            <p className="text-metadata">New Patients</p>
+            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-foreground">
               <AnimatedCounter value={150} prefix="+" suffix="%" />
             </p>
           </Reveal>
 
           <Reveal
-            delay={0.6}
-            className="absolute -bottom-4 right-4 w-28 rounded-2xl border border-border bg-surface p-3.5 shadow-lg sm:-bottom-6 sm:right-8"
+            delay={0.7}
+            className="card-elevated absolute -left-3 top-10 w-28 p-4 sm:-left-8"
           >
-            <p className="text-metadata font-semibold text-muted-foreground">ROI</p>
-            <p className="mt-1 text-heading-3 font-bold text-foreground">2.7x</p>
+            <p className="text-metadata">ROI</p>
+            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-foreground">2.7x</p>
           </Reveal>
-
-          {/* Accent badge */}
-          <div
-            className="absolute -left-3 bottom-16 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg sm:-left-5"
-            aria-hidden
-          >
-            <IconCheck className="h-5 w-5" />
-          </div>
         </div>
 
       </div>

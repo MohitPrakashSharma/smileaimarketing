@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
+import MinimalShell from "@/components/MinimalShell";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -43,62 +43,50 @@ export default function UnsubscribePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-[1200px] justify-between px-6 py-6 sm:px-8">
-        <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
-          Smile AI<span className="text-primary">.</span>
-        </Link>
-      </header>
+    <MinimalShell>
+      <div className="card-elevated w-full max-w-lg p-6 sm:p-10">
+        <div className="space-y-4">
+          <Eyebrow>Outreach Compliance</Eyebrow>
+          <h1 className="text-heading-2 text-foreground">Unsubscribe</h1>
+          <p className="text-body text-muted-foreground">
+            Enter your professional email to suppress your email and domain from all future outreach.
+          </p>
+        </div>
 
-      <main className="flex flex-1 items-center justify-center px-6 py-12 sm:py-16">
-        <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-lg">
-          <div className="space-y-3 text-center">
-            <Eyebrow>Outreach Compliance</Eyebrow>
-            <h1 className="text-heading-2 font-semibold text-foreground">Unsubscribe</h1>
-            <p className="text-body-small text-muted-foreground">
-              Enter your professional email to suppress your email and domain from all future outreach.
+        {submitted ? (
+          <div className="animate-scale-in mt-8 rounded-[var(--radius-medium)] border border-primary/20 bg-accent-soft p-6">
+            <p className="text-body font-semibold text-primary-ink">Unsubscribed successfully</p>
+            <p className="mt-2 text-body-small text-muted-foreground">
+              {email} and its associated clinic domain have been added to our suppression list.
             </p>
           </div>
+        ) : (
+          <form onSubmit={handleUnsubscribe} className="mt-8 space-y-5" noValidate>
+            {error && (
+              <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+                {error}
+              </div>
+            )}
 
-          {submitted ? (
-            <div className="animate-scale-in mt-8 rounded-xl border border-primary/20 bg-accent-soft p-6 text-center">
-              <p className="text-body-small font-semibold text-primary">Unsubscribed successfully</p>
-              <p className="mt-2 text-body-small text-muted-foreground">
-                {email} and its associated clinic domain have been added to our suppression list.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleUnsubscribe} className="mt-8 space-y-4" noValidate>
-              {error && (
-                <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
-                  {error}
-                </div>
-              )}
+            <FormField id="email-address" label="Email Address" required optionalLabel={false}>
+              <Input
+                id="email-address"
+                type="email"
+                required
+                autoComplete="email"
+                inputMode="email"
+                placeholder="e.g. owner@clinicwebsite.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </FormField>
 
-              <FormField id="email-address" label="Email Address" required optionalLabel={false}>
-                <Input
-                  id="email-address"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  inputMode="email"
-                  placeholder="e.g. owner@clinicwebsite.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </FormField>
-
-              <Button type="submit" variant="danger" fullWidth loading={loading} disabled={loading}>
-                Confirm Opt-out
-              </Button>
-            </form>
-          )}
-        </div>
-      </main>
-
-      <footer className="border-t border-border py-6 text-center text-metadata text-muted-foreground">
-        &copy; {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
-      </footer>
-    </div>
+            <Button type="submit" variant="danger" fullWidth loading={loading} disabled={loading}>
+              Confirm Opt-out
+            </Button>
+          </form>
+        )}
+      </div>
+    </MinimalShell>
   );
 }
