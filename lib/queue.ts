@@ -20,3 +20,5 @@ export const discoveryQueue = new Queue("discovery-queue", { connection, default
 export const analysisQueue = new Queue("analysis-queue", { connection, defaultJobOptions });
 export const pdfQueue = new Queue("pdf-queue", { connection, defaultJobOptions });
 export const outreachQueue = new Queue("outreach-queue", { connection, defaultJobOptions });
+// v2: every audit run (either engine) goes through this queue when AUDIT_EXECUTION=queue.
+export const auditQueue = new Queue("audit-queue", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });

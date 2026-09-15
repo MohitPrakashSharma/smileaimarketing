@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildAuditNarrative } from "@/lib/auditNarrative";
 import { trackEvent } from "@/lib/analytics";
+import { buildV2Payload, legacyShapeFromV2 } from "@/lib/audit/report";
+import type { AuditProgress } from "@/lib/audit/progress";
 
 export async function GET(
   request: Request,
@@ -21,6 +23,57 @@ export async function GET(
 
     if (!audit) {
       return NextResponse.json({ error: "Audit report not found" }, { status: 404 });
+    }
+
+    const businessOut = {
+      name: audit.business.name,
+      website: audit.business.website,
+      city: audit.business.city,
+      category: audit.business.category,
+      opportunityScore: audit.score,
+    };
+
+    // Still running (either engine): return status + progress so the page
+    // can poll. Scores are never present here.
+    if (audit.status !== "COMPLETED") {
+      const [findings, pages] = audit.engine === "CRAWL_V2"
+        ? await Promise.all([prisma.auditFinding.findMany({ where: { auditId: audit.id } }), prisma.auditPage.findMany({ where: { auditId: audit.id } })])
+        : [[], []];
+      return NextResponse.json({
+        status: audit.status,
+        engine: audit.engine,
+        business: businessOut,
+        checkedAt: audit.createdAt,
+        progress: (audit.progressJson as unknown as AuditProgress | null) ?? null,
+        errorMessage: audit.status === "FAILED" ? audit.errorMessage : null,
+        // Verified-so-far findings (titles/severity), no scores.
+        findingsSoFar: findings.slice().sort((a, b) => b.priorityScore - a.priorityScore).map((f) => ({ title: f.title, severity: f.severity, pillar: f.pillar, affectedPageCount: f.affectedPageCount })),
+        pagesCrawled: pages.filter((p) => p.statusCode !== null).length,
+      });
+    }
+
+    // v2 engine: new payload + the legacy 5-card shape the current UI/PDF read.
+    if (audit.engine === "CRAWL_V2") {
+      const [findings, pages, checks] = await Promise.all([
+        prisma.auditFinding.findMany({ where: { auditId: audit.id } }),
+        prisma.auditPage.findMany({ where: { auditId: audit.id }, orderBy: { depth: "asc" } }),
+        prisma.auditCheckResult.findMany({ where: { auditId: audit.id } }),
+      ]);
+      prisma.audit.update({ where: { id: audit.id }, data: { viewCount: { increment: 1 }, lastViewedAt: new Date() } }).catch(() => undefined);
+      void trackEvent({ eventName: "report_view", businessId: audit.businessId, auditId: audit.id });
+      const legacy = legacyShapeFromV2(audit, findings, pages, { name: audit.business.name, city: audit.business.city, category: audit.business.category });
+      return NextResponse.json({
+        status: audit.status,
+        engine: audit.engine,
+        business: { ...businessOut, opportunityScore: audit.overallScore ?? audit.score },
+        checkedAt: audit.completedAt ?? audit.createdAt,
+        summary: audit.summaryText,
+        narrative: legacy.narrative,
+        scorecard: legacy.scorecard,
+        findings: legacy.cards,
+        competitors: audit.competitorGaps.map((c) => ({ name: c.name, rank: c.rank, mapScore: c.mapScore })),
+        v2: buildV2Payload(audit, findings, pages, checks),
+      });
     }
 
     // Record the view — best-effort, must not block/fail the response.
@@ -75,13 +128,9 @@ export async function GET(
     });
 
     return NextResponse.json({
-      business: {
-        name: audit.business.name,
-        website: audit.business.website,
-        city: audit.business.city,
-        category: audit.business.category,
-        opportunityScore: audit.score,
-      },
+      status: audit.status,
+      engine: audit.engine,
+      business: businessOut,
       checkedAt: audit.createdAt,
       // The real, AI-written (or honest deterministic fallback) plain-English
       // synthesis of this specific audit — was computed at audit time but

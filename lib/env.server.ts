@@ -99,6 +99,19 @@ const envSchema = z.object({
   CLOUDFLARE_R2_BUCKET: optionalNonEmpty,
   CLOUDFLARE_R2_PUBLIC_URL: optionalUrl,
 
+  // Audit engine v2 (lib/audit). CRAWL_V2 selects the crawler-based engine;
+  // AUDIT_EXECUTION decides whether audits run in the BullMQ worker ("queue")
+  // or in the web process ("inline" — default outside production so local
+  // dev works without `npm run worker`).
+  CRAWL_V2: boolFlag(false),
+  AUDIT_EXECUTION: z
+    .enum(["queue", "inline"])
+    .optional()
+    .transform((v) => v ?? (process.env.NODE_ENV === "production" ? "queue" : "inline")),
+  AUDIT_MAX_PAGES: z.coerce.number().int().positive().default(40),
+  AUDIT_MAX_PAGES_ADMIN: z.coerce.number().int().positive().default(150),
+  AUDIT_MAX_DURATION_MS: z.coerce.number().int().positive().default(90_000),
+
   // Analytics — internal event tracking is on by default; GA4 forwarding is
   // opt-in and only activates once both GA4 vars are supplied.
   ANALYTICS_ENABLED: boolFlag(true),

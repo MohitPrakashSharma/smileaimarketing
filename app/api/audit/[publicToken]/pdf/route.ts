@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateLightAuditPdf } from "@/lib/pdfGenerator";
 import { trackEvent } from "@/lib/analytics";
+import { legacyShapeFromV2 } from "@/lib/audit/report";
 import fs from "fs/promises";
 import path from "path";
 
@@ -29,7 +30,19 @@ export async function GET(
 
     // If PDF is not ready yet, generate it on demand
     if (!pdfRelativeUrl || audit.pdfStatus !== "READY") {
-      const findings = audit.results.map((r) => {
+      if (audit.status !== "COMPLETED") {
+        return NextResponse.json({ error: "The audit is still running — the PDF is available once it completes." }, { status: 409 });
+      }
+      // v2 audits keep their findings in AuditFinding, not AuditResult — the
+      // Phase-1 PDF renders the same compatibility cards the web report uses.
+      const v2Findings =
+        audit.engine === "CRAWL_V2"
+          ? await (async () => {
+              const [dbFindings, dbPages] = await Promise.all([prisma.auditFinding.findMany({ where: { auditId: audit.id } }), prisma.auditPage.findMany({ where: { auditId: audit.id } })]);
+              return legacyShapeFromV2(audit, dbFindings, dbPages, { name: audit.business.name, city: audit.business.city, category: audit.business.category }).cards.map((c) => ({ category: c.category, score: c.score, title: c.title, detail: c.detail, findingsJson: c.findings }));
+            })()
+          : null;
+      const findings = v2Findings ?? audit.results.map((r) => {
         const details = (r.detailsJson as Record<string, unknown> | null) || {};
         return {
           category: r.category,

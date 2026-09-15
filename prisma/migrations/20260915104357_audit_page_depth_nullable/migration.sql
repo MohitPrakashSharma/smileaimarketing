@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "AuditPage" ALTER COLUMN "depth" DROP NOT NULL,
+ALTER COLUMN "depth" DROP DEFAULT;
