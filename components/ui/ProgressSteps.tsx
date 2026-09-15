@@ -15,15 +15,15 @@ export default function ProgressSteps({
           return (
             <span
               key={label}
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                done || active ? "bg-primary" : "bg-border"
+              className={`h-1 flex-1 rounded-full transition-colors duration-[var(--duration-normal)] ${
+                done ? "bg-primary" : active ? "bg-primary/70" : "bg-border"
               }`}
               aria-hidden="true"
             />
           );
         })}
       </div>
-      <p className="mt-2.5 text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mt-3 text-eyebrow text-muted-foreground">
         Step {current} of {steps.length} &middot; {steps[current - 1]}
       </p>
     </div>

@@ -14,8 +14,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       aria-invalid={hasError || undefined}
-      className={`h-12 w-full rounded-lg border bg-background px-3.5 text-body text-foreground transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60 ${
-        hasError ? "border-danger focus:ring-danger" : "border-border"
+      className={`h-[var(--control-height)] w-full rounded-[var(--radius-small)] border bg-input px-4 text-body text-foreground shadow-xs transition-[border-color,box-shadow,background-color] duration-[var(--duration-fast)] placeholder:text-placeholder hover:border-border-strong focus:outline-none focus:border-primary focus:bg-surface focus:ring-[3px] focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:opacity-70 ${
+        hasError ? "border-danger focus:border-danger focus:ring-danger/20" : "border-border"
       } ${className}`}
       {...props}
     />

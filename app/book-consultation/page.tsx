@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
+import MinimalShell from "@/components/MinimalShell";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -143,13 +143,13 @@ function BookConsultationForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8">
-      <div className="space-y-3 text-center">
+    <div className="card-elevated w-full max-w-lg p-6 sm:p-10">
+      <div className="space-y-4">
         <Eyebrow>{isInPerson ? "In-Person Visit" : "Online Consultation"}</Eyebrow>
-        <h1 className="text-heading-1 font-semibold text-foreground">
-          {isInPerson ? "Request Your In-Person Visit" : "Book Your 15-Minute Review"}
+        <h1 className="text-heading-2 text-foreground">
+          {isInPerson ? "Request Your In-Person Visit" : "Book Your 15\u2011Minute Review"}
         </h1>
-        <p className="mx-auto max-w-md text-body-small text-muted-foreground">
+        <p className="max-w-md text-body text-muted-foreground">
           {isInPerson
             ? "A local consultant will confirm a time to walk your team through your visibility findings."
             : "We'll look at your Google Maps ranking live and identify your three biggest patient-acquisition gaps."}
@@ -157,12 +157,12 @@ function BookConsultationForm() {
       </div>
 
       {error && (
-        <div role="alert" className="mt-6 rounded-xl border border-danger/20 bg-danger/10 p-4 text-center text-body-small font-semibold text-danger">
+        <div role="alert" className="mt-6 rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleBooking} onChange={handleBookingStart} className="mt-8 space-y-4" noValidate>
+      <form onSubmit={handleBooking} onChange={handleBookingStart} className="mt-8 space-y-5" noValidate>
         {!publicToken && (
           <>
             <FormField id="website" label="Clinic Website" required optionalLabel={false}>
@@ -262,7 +262,7 @@ function BookConsultationForm() {
           />
         </FormField>
 
-        <Button type="submit" fullWidth loading={loading} disabled={loading} className="!h-12">
+        <Button type="submit" fullWidth loading={loading} disabled={loading} arrow className="mt-2">
           {isInPerson ? "Request Visit" : "Confirm Booking"}
         </Button>
       </form>
@@ -272,26 +272,14 @@ function BookConsultationForm() {
 
 export default function BookConsultationPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-[1200px] justify-between px-6 py-6 sm:px-8">
-        <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
-          Smile AI<span className="text-primary">.</span>
-        </Link>
-      </header>
-
-      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-16">
-        <Suspense
-          fallback={
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
-          }
-        >
-          <BookConsultationForm />
-        </Suspense>
-      </main>
-
-      <footer className="border-t border-border py-6 text-center text-metadata text-muted-foreground">
-        &copy; {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
-      </footer>
-    </div>
+    <MinimalShell>
+      <Suspense
+        fallback={
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
+        }
+      >
+        <BookConsultationForm />
+      </Suspense>
+    </MinimalShell>
   );
 }

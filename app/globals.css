@@ -1,54 +1,93 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   Smile AI Marketing — design tokens
+   Every colour, type size, space, radius, shadow and motion value used by the
+   marketing site, the audit flow and the admin lives here. Components consume
+   tokens (Tailwind utilities mapped in @theme, or the semantic classes below)
+   and never hard-code values.
+   ============================================================================= */
+
 :root {
-  /* Color Palette (Deep Navy / Soft Mint / Dental Teal) */
-  --color-navy-dark: #071c2c;       /* Deep clinical navy */
-  --color-navy-surface: #0c273a;    /* Navy surface */
-  --color-teal-brand: #1baa9a;      /* Dental teal */
-  --color-teal-strong: #13877c;     /* Strong teal */
-  --color-mint-soft: #eaf8f5;       /* Soft mint */
-  --color-off-white: #f8faf9;       /* Clean off-white */
-  --color-white: #ffffff;
-  --color-slate-primary: #10232e;   /* Primary text slate */
-  --color-slate-secondary: #52646d; /* Secondary text slate */
-  --color-slate-border: #dce5e7;    /* Neutral border */
-  --color-blue-accent: #dceff7;     /* Soft blue accent */
+  /* ---------------------------------------------------------------------------
+     0. Canonical colour tokens
+     Warm-neutral text, white + warm off-white light surfaces, a deep
+     indigo-violet dark band and a pink/coral accent. Every other colour name
+     in this file is an alias of one of these.
+     --------------------------------------------------------------------------- */
+  --color-bg: #ffffff;                 /* page background */
+  --color-bg-alt: #f7f6f4;             /* warm off-white alternate band */
+  --color-bg-dark: #1e1b47;            /* deep indigo-violet band */
+  --color-bg-dark-edge: #3a1d5c;       /* plum edge used in the dark-band gradient */
+  --color-bg-footer: #14122f;          /* footer: darker than the band, not black */
+  --color-surface: #ffffff;            /* cards on light */
+  --color-surface-alt: #f3f1ee;        /* muted surface (progress tracks, chips) */
+  --color-surface-dark: #2a2660;       /* cards / rows inside the dark band */
+  --color-input: #f5f4f1;              /* input fill on light */
+  --color-input-dark: rgba(255, 255, 255, 0.08);
 
-  /* Foreground on Dark backgrounds */
-  --color-foreground-on-navy: #f8faf9;
-  --color-foreground-on-navy-muted: #94a3b8;
+  --color-text: #2d2c2b;               /* headings, body */
+  --color-text-secondary: #4a4948;     /* supporting body */
+  --color-text-muted: #6b6a70;         /* captions (5.4:1 on white) */
+  --color-text-faint: #8e8c94;         /* placeholders, decorative numerals */
+  --color-text-on-dark: #ffffff;
+  --color-text-on-dark-muted: #c9c7d9; /* 9.7:1 on bg-dark */
 
-  /* 1. Semantic Color Tokens */
-  --color-background: var(--color-off-white);
-  --color-foreground: var(--color-slate-primary);
-  --color-surface: var(--color-white);
-  --color-surface-muted: var(--color-mint-soft);
-  --color-surface-elevated: var(--color-white);
-  --color-primary: var(--color-teal-brand);
-  --color-primary-hover: var(--color-teal-strong);
-  --color-primary-foreground: var(--color-white);
-  --color-accent: var(--color-blue-accent);
-  --color-accent-soft: var(--color-mint-soft);
-  --color-border: var(--color-slate-border);
-  --color-border-strong: #94a3b8;
-  --color-muted-foreground: var(--color-slate-secondary);
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #e11d48;
-  --color-focus-ring: var(--color-primary);
+  --color-accent: #d81b6a;             /* pink accent — 4.9:1 with white text (AA) */
+  --color-accent-hover: #c4175f;
+  --color-accent-active: #a9134f;
+  --color-accent-soft: #fde9f1;        /* accent wash on light */
+  --color-accent-soft-dark: rgba(255, 38, 103, 0.18);
+  --color-accent-on-dark: #ff7a8c;     /* accent as text on the dark band (6.5:1) */
+  --color-accent-gradient: linear-gradient(266deg, #ff2667 0%, #ff6b3c 100%);
+  --color-coral: #ff6b3c;
 
-  /* Status vocabulary: calm, non-alarmist diagnostic language (never color alone) */
-  --color-status-healthy-fg: #0f766e;
-  --color-status-healthy-bg: #e9f7f4;
-  --color-status-healthy-border: #bfe6de;
-  --color-status-opportunity-fg: #b45309;
-  --color-status-opportunity-bg: #fdf3e3;
-  --color-status-opportunity-border: #f3ddb0;
-  --color-status-attention-fg: #b3441f;
-  --color-status-attention-bg: #fbf0e8;
-  --color-status-attention-border: #f0d3bf;
+  --color-border: #e6e4e1;
+  --color-border-subtle: #efedea;
+  --color-border-strong: #b9b6b1;
+  --color-border-dark: rgba(255, 255, 255, 0.14);
+  --color-focus: #d81b6a;
 
-  /* Legacy variable mappings to prevent existing Tailwind utility breakages */
+  --color-success: #1f8a4c;
+  --color-warning: #b96a08;
+  --color-error: #d12e2e;
+
+  /* ---------------------------------------------------------------------------
+     1. Semantic aliases consumed by components (kept stable across passes)
+     --------------------------------------------------------------------------- */
+  --color-background: var(--color-bg);
+  --color-background-alt: var(--color-bg-alt);
+  --color-background-dark: var(--color-bg-dark);
+  --color-foreground: var(--color-text);
+  --color-foreground-secondary: var(--color-text-secondary);
+  --color-surface-muted: var(--color-surface-alt);
+  --color-surface-elevated: var(--color-surface);
+  --color-primary: var(--color-accent);
+  --color-primary-hover: var(--color-accent-hover);
+  --color-primary-pressed: var(--color-accent-active);
+  --color-primary-foreground: #ffffff;
+  --color-primary-ink: var(--color-accent);          /* accent used as text */
+  --color-muted-foreground: var(--color-text-muted);
+  --color-placeholder: var(--color-text-faint);
+  --color-danger: var(--color-error);
+  --color-focus-ring: var(--color-focus);
+  --color-foreground-on-navy: var(--color-text-on-dark);
+  --color-foreground-on-navy-muted: var(--color-text-on-dark-muted);
+  --color-navy-dark: var(--color-bg-dark);
+  --color-navy-surface: var(--color-surface-dark);
+
+  /* Status vocabulary: calm, non-alarmist diagnostic language (never colour alone) */
+  --color-status-healthy-fg: #1f7a45;
+  --color-status-healthy-bg: #eaf6ee;
+  --color-status-healthy-border: #c3e4cf;
+  --color-status-opportunity-fg: #a85f06;
+  --color-status-opportunity-bg: #fbf2e4;
+  --color-status-opportunity-border: #f0dab5;
+  --color-status-attention-fg: #c23b2e;
+  --color-status-attention-bg: #fcefec;
+  --color-status-attention-border: #f4cdc6;
+
+  /* Legacy names still referenced by older components — mapped, never redefined */
   --color-paper: var(--color-background);
   --color-mist: var(--color-surface-muted);
   --color-ink: var(--color-foreground);
@@ -56,68 +95,125 @@
   --color-teal: var(--color-primary);
   --color-teal-deep: var(--color-primary-hover);
   --color-slate: var(--color-muted-foreground);
-  --color-sky: var(--color-accent);
-  --color-coral: var(--color-danger);
+  --color-sky: var(--color-accent-soft);
   --color-line: var(--color-border);
 
-  /* Font mapping - all mapping to the single Manrope font */
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-sans);
+  /* ---------------------------------------------------------------------------
+     2. Typography tokens
+     --font-manrope / --font-outfit are injected by next/font in app/layout.tsx
+     --------------------------------------------------------------------------- */
+  --font-stack-fallback: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-manrope), var(--font-stack-fallback);
+  --font-display: var(--font-outfit), var(--font-manrope), var(--font-stack-fallback);
   --font-body: var(--font-sans);
   --font-label: var(--font-sans);
 
-  /* 2. Layout & Spacing Tokens */
-  --container-max-width: 80rem;         /* 1280px */
-  --section-spacing-mobile: 4rem;      /* py-16 */
-  --section-spacing-desktop: 6rem;     /* py-24 */
-  --page-padding-mobile: 1.5rem;       /* px-6 */
-  --page-padding-desktop: 2rem;        /* px-8 */
-  --header-height: 4rem;               /* h-16 */
-  --admin-top-nav-height: 4rem;        /* h-16 */
+  --text-display-xl: clamp(2.75rem, 1.5rem + 5.2vw, 5rem);       /* 44 → 80 */
+  --text-display-lg: clamp(2.5rem, 1.4rem + 4.2vw, 4.25rem);     /* 40 → 68 */
+  --text-h1: clamp(2.25rem, 1.4rem + 3.2vw, 3.5rem);             /* 36 → 56 */
+  --text-h2: clamp(1.875rem, 1.25rem + 2.4vw, 2.75rem);          /* 30 → 44 */
+  --text-h3: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);             /* 22 → 28 */
+  --text-h4: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);          /* 18 → 20 */
+  --text-body-lg: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);    /* 18 → 20 */
+  --text-body: 1rem;                                             /* 16 */
+  --text-body-sm: 0.9375rem;                                     /* 15 */
+  --text-eyebrow: 0.8125rem;                                     /* 13, uppercase, tracked */
+  --text-label: 0.875rem;                                        /* 14 */
+  --text-meta: 0.8125rem;                                        /* 13 */
+  --text-button: 0.9375rem;                                      /* 15 */
 
-  /* 3. Shared UI Tokens (Border Radii, Shadows, Motion) */
-  --radius-small: 0.5rem;               /* 8px */
-  --radius-medium: 0.75rem;             /* 12px */
-  --radius-large: 1rem;                 /* 16px */
-  --radius-xl: 1.5rem;                  /* 24px */
+  --leading-display: 1.02;
+  --leading-heading: 1.12;
+  --leading-body: 1.65;
+  --tracking-display: -0.03em;
+  --tracking-heading: -0.02em;
+  --tracking-eyebrow: 0.16em;
+
+  /* ---------------------------------------------------------------------------
+     3. Layout & spacing tokens
+     --------------------------------------------------------------------------- */
+  --container-max-width: 80rem;                       /* 1280px */
+  --container-narrow: 46rem;                          /* editorial measure */
+  --page-gutter: clamp(1.25rem, 4vw, 2.5rem);         /* 20 → 40 */
+  --section-space-sm: clamp(3.5rem, 6vw, 5rem);       /* 56 → 80 */
+  --section-space: clamp(5rem, 9vw, 7.5rem);          /* 80 → 120 */
+  --section-space-lg: clamp(6rem, 11vw, 9rem);        /* 96 → 144 */
+  --stack-gap: 1.5rem;
+  --grid-gap: clamp(1.25rem, 2.5vw, 2rem);
+  --header-height: 4.5rem;                            /* 72px */
+  --admin-top-nav-height: 4rem;                       /* 64px */
+
+  /* Kept for older utilities that read these names */
+  --section-spacing-mobile: var(--section-space-sm);
+  --section-spacing-desktop: var(--section-space);
+  --page-padding-mobile: var(--page-gutter);
+  --page-padding-desktop: var(--page-gutter);
+
+  /* ---------------------------------------------------------------------------
+     4. Shape, elevation, controls, motion
+     --------------------------------------------------------------------------- */
+  --radius-xs: 0.375rem;                /* 6px  — tags, small chips */
+  --radius-small: 0.625rem;             /* 10px — inputs */
+  --radius-medium: 0.875rem;            /* 14px — small cards */
+  --radius-large: 1.25rem;              /* 20px — cards, panels */
+  --radius-xl: 1.75rem;                 /* 28px — large media frames */
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(7, 28, 44, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(7, 28, 44, 0.1), 0 2px 4px -2px rgba(7, 28, 44, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(7, 28, 44, 0.1), 0 4px 6px -4px rgba(7, 28, 44, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(7, 28, 44, 0.1), 0 8px 10px -6px rgba(7, 28, 44, 0.1);
+  /* Soft stacked shadows (0.02 / 0.027 / 0.04 / 0.07 alphas) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.02), 0 6px 14px rgba(0, 0, 0, 0.04), 0 14px 32px -8px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.027), 0 12px 28px -8px rgba(0, 0, 0, 0.07), 0 30px 60px -20px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 4px 10px rgba(0, 0, 0, 0.04), 0 40px 80px -24px rgba(0, 0, 0, 0.2);
 
   --control-height: 3rem;              /* 48px */
-  --button-height: 3rem;               /* 48px */
+  --control-height-sm: 2.5rem;         /* 40px */
+  --button-height: 3.25rem;            /* 52px */
+  --button-height-sm: 2.75rem;         /* 44px — touch minimum */
 
   --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --duration-normal: 250ms;
+  --duration-slow: 450ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: var(--ease-standard);
 }
 
+/* Tailwind v4 theme bridge — exposes tokens as utilities (bg-primary, text-h2 …) */
 @theme inline {
-  /* Color theme mapping */
   --color-background: var(--color-background);
+  --color-background-alt: var(--color-background-alt);
+  --color-background-dark: var(--color-background-dark);
   --color-foreground: var(--color-foreground);
+  --color-foreground-secondary: var(--color-foreground-secondary);
   --color-surface: var(--color-surface);
   --color-surface-muted: var(--color-surface-muted);
   --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-dark: var(--color-surface-dark);
+  --color-input: var(--color-input);
+  --color-accent-on-dark: var(--color-accent-on-dark);
+  --color-coral: var(--color-coral);
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
+  --color-primary-pressed: var(--color-primary-pressed);
   --color-primary-foreground: var(--color-primary-foreground);
+  --color-primary-ink: var(--color-primary-ink);
   --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-active: var(--color-accent-active);
   --color-accent-soft: var(--color-accent-soft);
   --color-border: var(--color-border);
+  --color-border-dark: var(--color-border-dark);
+  --color-border-subtle: var(--color-border-subtle);
   --color-border-strong: var(--color-border-strong);
   --color-muted-foreground: var(--color-muted-foreground);
+  --color-placeholder: var(--color-placeholder);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
+  --color-error: var(--color-error);
   --color-focus-ring: var(--color-focus-ring);
 
-  /* Legacy color theme mapping for compiling */
   --color-paper: var(--color-paper);
   --color-mist: var(--color-mist);
   --color-ink: var(--color-ink);
@@ -126,51 +222,72 @@
   --color-teal-deep: var(--color-teal-deep);
   --color-slate: var(--color-slate);
   --color-sky: var(--color-sky);
-  --color-coral: var(--color-coral);
   --color-line: var(--color-line);
 
-  /* Typography / Fonts */
-  --font-display: var(--font-sans);
-  --font-body: var(--font-sans);
-  --font-label: var(--font-sans);
+  --font-sans: var(--font-manrope), var(--font-stack-fallback);
+  --font-display: var(--font-outfit), var(--font-manrope), var(--font-stack-fallback);
+  --font-body: var(--font-manrope), var(--font-stack-fallback);
+  --font-label: var(--font-manrope), var(--font-stack-fallback);
 
-  /* Radii mapping */
+  --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-small);
   --radius-md: var(--radius-medium);
   --radius-lg: var(--radius-large);
   --radius-xl: var(--radius-xl);
 
-  /* Shadow mapping */
+  --shadow-xs: var(--shadow-xs);
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
+
+  --ease-standard: var(--ease-standard);
+  --ease-out: var(--ease-out);
 }
 
-/* 4. Global Base Rules & Mobile Safari Foundations */
+/* =============================================================================
+   Base
+   ============================================================================= */
 html {
   scroll-behavior: smooth;
   color-scheme: light;
   max-width: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body), var(--font-stack-fallback);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   overflow-x: hidden;
   min-height: 100dvh;
+  font-feature-settings: "ss01", "cv11";
 }
 
-/* Focus rings style rule */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
 }
 
 /* Form input Mobile Safari fix: minimum font size 16px */
 input, select, textarea {
   font-size: 16px !important;
+}
+
+::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
 }
 
 /* Hand cursor on every actionable control. Tailwind v4's preflight resets
@@ -196,7 +313,35 @@ input:disabled {
   cursor: not-allowed;
 }
 
-/* 5. Safe Area Layout Utilities */
+::selection {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+/* =============================================================================
+   Layout utilities
+   ============================================================================= */
+@utility container-site {
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+@utility container-narrow {
+  width: 100%;
+  max-width: var(--container-narrow);
+  margin-inline: auto;
+}
+@utility section-space {
+  padding-block: var(--section-space);
+}
+@utility section-space-sm {
+  padding-block: var(--section-space-sm);
+}
+@utility section-space-lg {
+  padding-block: var(--section-space-lg);
+}
+
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -210,88 +355,186 @@ input:disabled {
   padding-right: env(safe-area-inset-right);
 }
 
-/* 6. Typography Semantic Classes */
+/* =============================================================================
+   Typography scale
+   The `text-display` / `text-heading-*` / `text-body*` / `text-label` /
+   `text-metadata` names predate this refresh and are used across the admin and
+   the audit flow; they now resolve to the new scale so nothing needs renaming.
+   ============================================================================= */
+@utility text-display-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xl);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+}
+@utility text-display-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+}
 @utility text-display {
   font-family: var(--font-display);
-  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-size: var(--text-h1);
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.06;
+  letter-spacing: var(--tracking-heading);
 }
 @utility text-heading-1 {
-  font-family: var(--font-body);
-  font-size: clamp(1.875rem, 4vw, 2.5rem);
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: var(--tracking-heading);
+}
+@utility text-heading-2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 700;
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-heading);
+}
+@utility text-heading-3 {
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
-@utility text-heading-2 {
-  font-family: var(--font-body);
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-@utility text-heading-3 {
-  font-family: var(--font-body);
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+@utility text-heading-4 {
+  font-family: var(--font-display);
+  font-size: var(--text-h4);
   font-weight: 600;
   line-height: 1.3;
+  letter-spacing: -0.005em;
 }
 @utility text-body-large {
   font-family: var(--font-body);
-  font-size: 1.125rem;
+  font-size: var(--text-body-lg);
   line-height: 1.6;
 }
 @utility text-body {
   font-family: var(--font-body);
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 @utility text-body-small {
   font-family: var(--font-body);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: var(--text-body-sm);
+  line-height: 1.6;
+}
+@utility text-eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
 }
 @utility text-label {
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: var(--text-eyebrow);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+@utility text-field-label {
+  font-family: var(--font-body);
+  font-size: var(--text-label);
+  font-weight: 600;
+  line-height: 1.3;
+}
+@utility text-button {
+  font-family: var(--font-body);
+  font-size: var(--text-button);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
 }
 @utility text-metadata {
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
+  line-height: 1.45;
   color: var(--color-muted-foreground);
 }
 
-/* 7. Theme Navy Override Class */
-.theme-navy {
-  --color-background: var(--color-navy-dark);
-  --color-foreground: var(--color-foreground-on-navy);
-  --color-surface: var(--color-navy-surface);
-  --color-surface-muted: rgba(255, 255, 255, 0.05);
-  --color-muted-foreground: var(--color-foreground-on-navy-muted);
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-border-strong: rgba(255, 255, 255, 0.3);
+/* =============================================================================
+   Dark band — sections and components inside `.band-dark` (alias `.theme-navy`)
+   re-bind the semantic aliases so the same components render on indigo.
+   ============================================================================= */
+.theme-navy,
+.band-dark {
+  --color-background: var(--color-bg-dark);
+  --color-background-alt: var(--color-surface-dark);
+  --color-foreground: var(--color-text-on-dark);
+  --color-foreground-secondary: #e4e2f0;
+  --color-surface: var(--color-surface-dark);
+  --color-surface-muted: rgba(255, 255, 255, 0.07);
+  --color-surface-elevated: var(--color-surface-dark);
+  --color-input: var(--color-input-dark);
+  --color-muted-foreground: var(--color-text-on-dark-muted);
+  --color-placeholder: #9a97b3;
+  --color-border: var(--color-border-dark);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.34);
+  --color-primary-ink: var(--color-accent-on-dark);
+  --color-accent-soft: var(--color-accent-soft-dark);
+  --color-focus-ring: #ff7a8c;
 
-  /* Re-bind legacy names inside dark navy themes */
   --color-paper: var(--color-background);
   --color-mist: var(--color-surface-muted);
   --color-ink: var(--color-foreground);
   --color-ink-2: var(--color-surface);
   --color-slate: var(--color-muted-foreground);
   --color-line: var(--color-border);
+
+  background-color: var(--color-bg-dark);
+  background-image: linear-gradient(118deg, var(--color-bg-dark) 0%, var(--color-bg-dark) 58%, var(--color-bg-dark-edge) 100%);
+  color: var(--color-text-on-dark);
 }
 
-/* Selection coloring */
-::selection {
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
+/* Footer: a step darker than the band */
+.band-footer {
+  background-color: var(--color-bg-footer);
+  background-image: none;
 }
 
-/* 7b. Status badge utilities */
+/* Light island inside a dark band (e.g. a white form card on indigo) */
+.band-light {
+  --color-background: var(--color-bg);
+  --color-background-alt: var(--color-bg-alt);
+  --color-foreground: var(--color-text);
+  --color-foreground-secondary: var(--color-text-secondary);
+  --color-surface: #ffffff;
+  --color-surface-muted: var(--color-surface-alt);
+  --color-surface-elevated: #ffffff;
+  --color-input: #f5f4f1;
+  --color-muted-foreground: var(--color-text-muted);
+  --color-placeholder: var(--color-text-faint);
+  --color-border: #e6e4e1;
+  --color-border-subtle: #efedea;
+  --color-border-strong: #b9b6b1;
+  --color-primary-ink: var(--color-accent);
+  --color-accent-soft: #fde9f1;
+  --color-focus-ring: var(--color-focus);
+
+  --color-paper: var(--color-background);
+  --color-mist: var(--color-surface-muted);
+  --color-ink: var(--color-foreground);
+  --color-slate: var(--color-muted-foreground);
+  --color-line: var(--color-border);
+
+  background: #ffffff;
+  color: var(--color-text);
+}
+
+/* =============================================================================
+   Component utilities
+   ============================================================================= */
+
+/* Status badge utilities */
 @utility badge-healthy {
   color: var(--color-status-healthy-fg);
   background: var(--color-status-healthy-bg);
@@ -308,7 +551,65 @@ input:disabled {
   border-color: var(--color-status-attention-border);
 }
 
-/* 8. Shared subtle animations */
+/* Accent gradient text (pink → coral) for a single highlighted word */
+@utility text-accent-gradient {
+  background-image: var(--color-accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card surfaces */
+@utility card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-xs);
+}
+@utility card-elevated {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Text link with an animated underline (reference-inspired, ours) */
+@utility link-underline {
+  position: relative;
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size var(--duration-normal) var(--ease-out);
+}
+.link-underline:hover,
+.link-underline:focus-visible {
+  background-size: 100% 1px;
+}
+
+/* Subtle dotted texture for large bands (pure CSS, no assets) */
+@utility texture-dots {
+  background-image: radial-gradient(rgba(45, 44, 43, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+@utility texture-dots-light {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Arrow motion inside buttons / links: the icon eases right on hover */
+.arrow-shift {
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+:is(a, button):hover .arrow-shift,
+:is(a, button):focus-visible .arrow-shift {
+  transform: translateX(3px);
+}
+
+/* =============================================================================
+   Motion
+   ============================================================================= */
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -337,17 +638,27 @@ input:disabled {
     transform: scale(1);
   }
 }
+@keyframes progress-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
 @utility animate-fade-in-up {
-  animation: fade-in-up 0.6s var(--ease-out) both;
+  animation: fade-in-up var(--duration-slow) var(--ease-out) both;
 }
 @utility animate-fade-in {
-  animation: fade-in 0.5s var(--ease-out) both;
+  animation: fade-in var(--duration-normal) var(--ease-out) both;
 }
 @utility animate-scale-in {
-  animation: scale-in 0.35s var(--ease-out) both;
+  animation: scale-in var(--duration-normal) var(--ease-out) both;
+}
+@utility animate-progress-sheen {
+  animation: progress-sheen 1.8s var(--ease-standard) infinite;
 }
 
-/* prefers-reduced-motion block */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
