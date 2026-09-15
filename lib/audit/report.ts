@@ -1,4 +1,4 @@
-import type { Audit, AuditFinding, AuditPage, AuditCheckResult } from "@prisma/client";
+import type { Audit, AuditFinding, AuditPage, AuditCheckResult, AuditPerformance, AuditAiPageAnalysis } from "@prisma/client";
 import { industryFromCategory, cap } from "@/lib/industry";
 import { gradeFor } from "./scoring";
 import { bucketFor, SEVERITY_ORDER } from "./priority";
@@ -21,9 +21,10 @@ export interface V2ReportPayload {
     overall: number | null;
     technical: number | null;
     content: number | null;
+    performance: number | null;
     search: number | null;
     local: number | null;
-    grades: Record<"overall" | "technical" | "content" | "search" | "local", ReturnType<typeof gradeFor>>;
+    grades: Record<"overall" | "technical" | "content" | "performance" | "search" | "local", ReturnType<typeof gradeFor>>;
     breakdown: unknown;
   };
   severityCounts: Record<Severity, number>;
@@ -50,7 +51,26 @@ export interface V2ReportPayload {
     priorityScore: number;
     owner: string;
     bucket: ReturnType<typeof bucketFor>;
+    evidenceKind: string | null;
+    source: string | null;
+    device: string | null;
+    metric: string | null;
   }>;
+  /** Phase 2A: one entry per representative URL × strategy — field and lab kept apart. */
+  performance: Array<{
+    url: string;
+    strategy: string;
+    pageType: string | null;
+    selectionReason: string | null;
+    status: string;
+    error: string | null;
+    field: unknown;
+    lab: unknown;
+    lcpElement: unknown;
+    diagnostics: unknown;
+  }>;
+  /** Phase 2A: per-page AI analyses (validated, scrubbed) — provenance visible via status/model. */
+  ai: Array<{ url: string; pageType: string | null; selectionReason: string | null; status: string; errorCode: string | null; error: string | null; model: string | null; result: unknown; scrubbedCount: number }>;
   pages: Array<{ url: string; statusCode: number | null; title: string | null; indexable: boolean | null; wordCount: number | null; depth: number | null; fetchMs: number | null }>;
   checks: Array<{ checkId: string; pillar: string; status: string; severity: string | null; affectedPageCount: number; pageShare: number; weight: number; penalty: number; reason: string | null }>;
 }
@@ -61,7 +81,7 @@ export function severityCounts(findings: Pick<AuditFinding, "severity">[]): Reco
   return c;
 }
 
-export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[]): V2ReportPayload {
+export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[], performance: AuditPerformance[] = [], ai: AuditAiPageAnalysis[] = []): V2ReportPayload {
   const progress = (audit.progressJson as unknown as AuditProgress | null) ?? null;
   const scoresLocked = audit.status === "COMPLETED" && audit.overallScore !== null;
   return {
@@ -74,9 +94,10 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
           overall: audit.overallScore,
           technical: audit.technicalScore,
           content: audit.contentScore,
+          performance: audit.performanceScore,
           search: audit.searchScore,
           local: audit.localScore,
-          grades: { overall: gradeFor(audit.overallScore), technical: gradeFor(audit.technicalScore), content: gradeFor(audit.contentScore), search: gradeFor(audit.searchScore), local: gradeFor(audit.localScore) },
+          grades: { overall: gradeFor(audit.overallScore), technical: gradeFor(audit.technicalScore), content: gradeFor(audit.contentScore), performance: gradeFor(audit.performanceScore), search: gradeFor(audit.searchScore), local: gradeFor(audit.localScore) },
           breakdown: audit.scoreBreakdownJson,
         }
       : null,
@@ -107,7 +128,13 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
         priorityScore: f.priorityScore,
         owner: f.owner,
         bucket: bucketFor({ severity: f.severity as Severity, impact: f.impact, effort: f.effort }),
+        evidenceKind: f.evidenceKind ?? "DETERMINISTIC_FINDING",
+        source: f.source ?? "crawler",
+        device: f.device,
+        metric: f.metric,
       })),
+    performance: performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson })),
+    ai: ai.map((a) => ({ url: a.url, pageType: a.pageType, selectionReason: a.selectionReason, status: a.status, errorCode: a.errorCode, error: a.error, model: a.model, result: a.resultJson, scrubbedCount: Array.isArray(a.scrubbedJson) ? (a.scrubbedJson as unknown[]).length : 0 })),
     pages: pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.title, indexable: p.indexable, wordCount: p.wordCount, depth: p.depth, fetchMs: p.fetchMs })),
     checks: checks.map((c) => ({ checkId: c.checkId, pillar: c.pillar, status: c.status, severity: c.severity, affectedPageCount: c.affectedPageCount, pageShare: c.pageShare, weight: c.weight, penalty: c.penalty, reason: c.reason })),
   };
@@ -149,6 +176,7 @@ export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages:
   const cards: LegacyCard[] = [
     card("TECHNICAL", audit.technicalScore, "Technical SEO", "TECHNICAL", "Not measured."),
     card("CONTENT", audit.contentScore, "On-page & content", "CONTENT", "Not measured."),
+    card("PERFORMANCE", audit.performanceScore, "Performance", "PERFORMANCE", "PageSpeed data was unavailable for this audit — not measured."),
     card("SEARCH", audit.searchScore, "Search opportunity", "SEARCH", "Ranking and keyword data are collected in a later phase — not measured in this audit."),
     card("LOCAL", audit.localScore, "Local SEO", "LOCAL", business.city ? "Google Business Profile and map-pack data are collected in a later phase — not measured in this audit." : "No physical location detected — local SEO not applicable."),
   ];
@@ -170,7 +198,7 @@ export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages:
       { value: String(crawled), label: "Pages crawled", caption: audit.crawlStatsJson && (audit.crawlStatsJson as { budgetHit?: string }).budgetHit !== "none" ? "crawl budget reached" : "full crawl" },
       { value: String(counts.CRITICAL + counts.HIGH), label: "Critical + high issues", caption: `${counts.MEDIUM} medium · ${counts.LOW} low` },
       { value: audit.technicalScore !== null ? `${audit.technicalScore}` : "—", label: "Technical health", caption: "out of 100" },
-      { value: audit.contentScore !== null ? `${audit.contentScore}` : "—", label: "Content health", caption: "out of 100" },
+      { value: audit.performanceScore !== null ? `${audit.performanceScore}` : audit.contentScore !== null ? `${audit.contentScore}` : "—", label: audit.performanceScore !== null ? "Performance" : "Content health", caption: "out of 100" },
     ],
     fixCards: sorted.slice(0, 5).map((f) => ({
       title: f.title,

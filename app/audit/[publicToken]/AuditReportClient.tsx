@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Button from "@/components/ui/Button";
 import StatusBadge, { statusFromScore, type StatusLevel } from "@/components/ui/StatusBadge";
-import { IconMapPin, IconCalendarCheck, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers } from "@/components/icons";
+import { IconMapPin, IconCalendarCheck, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers, IconTrendingUp } from "@/components/icons";
 import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
 
 // Same status→accent-color mapping as the landing page's sample preview —
@@ -41,9 +41,10 @@ const categoryMeta = (ind: IndustryProfile): Record<string, { label: string; Ico
   CONTENT: { label: "On-page & Content", Icon: IconSearch },
   SEARCH: { label: "Search Opportunity", Icon: IconUsers },
   LOCAL: { label: "Local SEO", Icon: IconMapPin },
+  PERFORMANCE: { label: "Performance", Icon: IconTrendingUp },
 });
 const CATEGORY_ORDER = ["LOCAL_VISIBILITY", "REPUTATION", "WEBSITE_QUALITY", "CONVERSION", "COMPETITOR_GAP"];
-const CATEGORY_ORDER_V2 = ["TECHNICAL", "CONTENT", "SEARCH", "LOCAL"];
+const CATEGORY_ORDER_V2 = ["TECHNICAL", "CONTENT", "PERFORMANCE", "SEARCH", "LOCAL"];
 
 const SEVERITY_STYLE: Record<string, string> = {
   CRITICAL: "bg-danger text-white",
@@ -73,11 +74,14 @@ type V2Finding = {
   priorityScore: number;
   owner: string;
   bucket: string;
+  evidenceKind: string | null;
+  source: string | null;
+  device: string | null;
 };
 
 type V2Payload = {
   scoresLocked: boolean;
-  scores: null | { overall: number | null; technical: number | null; content: number | null; search: number | null; local: number | null };
+  scores: null | { overall: number | null; technical: number | null; content: number | null; performance: number | null; search: number | null; local: number | null };
   severityCounts: Record<string, number>;
   crawlStats: { pagesCrawled?: number; pagesDiscovered?: number; budgetHit?: string; durationMs?: number } | null;
   findings: V2Finding[];
@@ -416,8 +420,8 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
 
           {/* v2: pillar scores — null means "not measured", never a fake number */}
           {isV2 && v2 && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {([["Technical", v2.scores?.technical], ["Content", v2.scores?.content], ["Search", v2.scores?.search], ["Local", v2.scores?.local]] as Array<[string, number | null | undefined]>).map(([label, score]) => (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {([["Technical", v2.scores?.technical], ["Content", v2.scores?.content], ["Performance", v2.scores?.performance], ["Search", v2.scores?.search], ["Local", v2.scores?.local]] as Array<[string, number | null | undefined]>).map(([label, score]) => (
                 <div key={label} className="rounded-xl border border-border bg-surface p-4">
                   <span className="block text-heading-3 font-extrabold text-foreground">{score == null ? "—" : score}<span className="text-metadata font-normal text-muted-foreground">{score == null ? "" : "/100"}</span></span>
                   <span className="block text-metadata font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
@@ -521,6 +525,8 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.LOW}`}>{f.severity.toLowerCase()}</span>
+                              {f.source === "openai" && <span className="rounded-full border border-primary/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">AI suggestion</span>}
+                              {f.source === "pagespeed" && <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">PageSpeed{f.device ? ` · ${f.device}` : ""}</span>}
                               <span className="text-metadata text-muted-foreground">{CATEGORY_META[f.pillar]?.label ?? f.pillar} · {f.affectedPageCount} page{f.affectedPageCount === 1 ? "" : "s"} · effort {f.effort}/5 · {f.owner === "owner" ? "you can do this" : f.owner === "developer" ? "needs a developer" : "we can handle this"}</span>
                             </div>
                             <p className="mt-1.5 text-body font-semibold text-foreground">{f.title}</p>

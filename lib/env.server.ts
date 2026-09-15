@@ -112,6 +112,16 @@ const envSchema = z.object({
   AUDIT_MAX_PAGES_ADMIN: z.coerce.number().int().positive().default(150),
   AUDIT_MAX_DURATION_MS: z.coerce.number().int().positive().default(90_000),
 
+  // Phase 2A — performance (Google PageSpeed Insights, free; key optional but
+  // raises the quota) and AI content intelligence (uses OPENAI_API_KEY/OPENAI_MODEL).
+  AUDIT_PSI_ENABLED: boolFlag(true),
+  PAGESPEED_API_KEY: optionalNonEmpty,
+  AUDIT_PSI_MAX_PAGES: z.coerce.number().int().positive().default(4),
+  AUDIT_PSI_MAX_PAGES_ADMIN: z.coerce.number().int().positive().default(5),
+  AUDIT_AI_ENABLED: boolFlag(true),
+  AUDIT_AI_MAX_PAGES: z.coerce.number().int().positive().default(5),
+  AUDIT_AI_MAX_PAGES_ADMIN: z.coerce.number().int().positive().default(8),
+
   // Analytics — internal event tracking is on by default; GA4 forwarding is
   // opt-in and only activates once both GA4 vars are supplied.
   ANALYTICS_ENABLED: boolFlag(true),
@@ -162,6 +172,7 @@ export function getDataForSeoAuthHeader(): string {
  */
 export const integrationStatus = {
   openai: Boolean(env.OPENAI_API_KEY),
+  pagespeed: env.AUDIT_PSI_ENABLED,
   googlePlaces: Boolean(env.GOOGLE_PLACES_API_KEY),
   dataforseo: Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
   apollo: Boolean(env.APOLLO_API_KEY),

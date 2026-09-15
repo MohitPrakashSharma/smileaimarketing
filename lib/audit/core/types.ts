@@ -61,9 +61,13 @@ export interface PageFacts {
   h1: string[];
   headingCounts: Record<string, number>;
   headingSequence: number[]; // [1,2,2,3,…] in document order, for skipped-level detection
+  /** Headings with text, document order (capped at 60) — outline for the AI evidence. */
+  headings: Array<{ level: number; text: string }>;
   wordCount: number;
   textHash: string;
   textSample: string; // first ~300 chars of visible text
+  /** Cleaned visible main-content text (capped at 15k chars) — never persisted raw; used to build AI evidence. */
+  mainText: string;
   links: LinkFact[];
   images: ImageFact[];
   schemaTypes: string[];
@@ -215,7 +219,7 @@ export const DEFAULT_BUDGET: CrawlBudget = {
   politenessDelayMs: 150,
 };
 
-export type ProgressStageKey = "detect" | "sitemap" | "crawl" | "technical" | "content" | "search" | "finalize" | "done";
+export type ProgressStageKey = "detect" | "sitemap" | "crawl" | "technical" | "content" | "performance" | "ai" | "search" | "finalize" | "done";
 
 export interface CrawlProgressEvent {
   stage: "sitemap" | "crawl" | "probe";

@@ -35,12 +35,14 @@ export const STAGE_LABELS: Record<ProgressStageKey, string> = {
   crawl: "Pages crawled",
   technical: "Technical analysis",
   content: "Content analysis",
+  performance: "Testing site performance",
+  ai: "Content intelligence",
   search: "Search analysis",
   finalize: "Finalizing report",
   done: "Report ready",
 };
 
-export const STAGE_ORDER: ProgressStageKey[] = ["detect", "sitemap", "crawl", "technical", "content", "search", "finalize", "done"];
+export const STAGE_ORDER: ProgressStageKey[] = ["detect", "sitemap", "crawl", "technical", "content", "performance", "ai", "search", "finalize", "done"];
 
 export function initialProgress(engine: AuditProgress["engine"]): AuditProgress {
   return {

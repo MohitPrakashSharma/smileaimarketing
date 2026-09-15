@@ -54,10 +54,12 @@ export async function GET(
 
     // v2 engine: new payload + the legacy 5-card shape the current UI/PDF read.
     if (audit.engine === "CRAWL_V2") {
-      const [findings, pages, checks] = await Promise.all([
+      const [findings, pages, checks, performance, ai] = await Promise.all([
         prisma.auditFinding.findMany({ where: { auditId: audit.id } }),
         prisma.auditPage.findMany({ where: { auditId: audit.id }, orderBy: { depth: "asc" } }),
         prisma.auditCheckResult.findMany({ where: { auditId: audit.id } }),
+        prisma.auditPerformance.findMany({ where: { auditId: audit.id } }),
+        prisma.auditAiPageAnalysis.findMany({ where: { auditId: audit.id } }),
       ]);
       prisma.audit.update({ where: { id: audit.id }, data: { viewCount: { increment: 1 }, lastViewedAt: new Date() } }).catch(() => undefined);
       void trackEvent({ eventName: "report_view", businessId: audit.businessId, auditId: audit.id });
@@ -72,7 +74,7 @@ export async function GET(
         scorecard: legacy.scorecard,
         findings: legacy.cards,
         competitors: audit.competitorGaps.map((c) => ({ name: c.name, rank: c.rank, mapScore: c.mapScore })),
-        v2: buildV2Payload(audit, findings, pages, checks),
+        v2: buildV2Payload(audit, findings, pages, checks, performance, ai),
       });
     }
 

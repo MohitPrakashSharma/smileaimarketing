@@ -1,11 +1,13 @@
 import TECHNICAL_CHECKS from "./technical";
 import CONTENT_CHECKS from "./content";
+import PERFORMANCE_CHECKS from "./performance";
+import type { PerfResult } from "../providers/pagespeed";
 import type { CheckContext, CheckDefinition, CheckRun, Pillar } from "./types";
 import type { CrawlResult } from "../core/types";
 import type { IndustryProfile } from "@/lib/industry";
 import { escalateSeverity } from "../priority";
 
-export const ALL_CHECKS: CheckDefinition[] = [...TECHNICAL_CHECKS, ...CONTENT_CHECKS];
+export const ALL_CHECKS: CheckDefinition[] = [...TECHNICAL_CHECKS, ...CONTENT_CHECKS, ...PERFORMANCE_CHECKS];
 
 /** Checks that are meaningful even when no HTML page could be fetched. */
 const NO_PAGE_CHECKS = new Set(["tech.reach.unreachable", "tech.reach.blocked", "tech.reach.timeouts", "tech.crawl.rate_limited", "tech.robots.missing", "tech.robots.blocks_all", "tech.sitemap.missing", "tech.sitemap.invalid", "tech.status.4xx", "tech.status.5xx", "tech.https.missing"]);
@@ -14,7 +16,7 @@ export function checksForPillar(pillar: Pillar): CheckDefinition[] {
   return ALL_CHECKS.filter((c) => c.pillar === pillar);
 }
 
-export function buildCheckContext(crawl: CrawlResult, business: { name: string; city?: string; industry: IndustryProfile }, siteHost: string): CheckContext {
+export function buildCheckContext(crawl: CrawlResult, business: { name: string; city?: string; industry: IndustryProfile }, siteHost: string, performance: PerfResult[] = []): CheckContext {
   const htmlPages = crawl.pages.filter((p) => p.statusCode === 200 && p.facts && (!p.finalUrl || p.finalUrl === p.url));
   const indexablePages = htmlPages.filter((p) => p.indexable);
   const homepage = crawl.pages.find((p) => p.discoveredVia === "seed") ?? null;
@@ -29,6 +31,7 @@ export function buildCheckContext(crawl: CrawlResult, business: { name: string; 
     indexablePages,
     homepage: home,
     keyPages,
+    performance,
   };
 }
 
@@ -37,7 +40,9 @@ export function buildCheckContext(crawl: CrawlResult, business: { name: string; 
  * as SKIPPED with the error — one broken check must never sink the audit.
  */
 export function runChecks(ctx: CheckContext, pillars: Pillar[] = ["TECHNICAL", "CONTENT"]): CheckRun[] {
-  const denominator = Math.max(1, ctx.indexablePages.length || ctx.htmlPages.length);
+  const crawledDenominator = Math.max(1, ctx.indexablePages.length || ctx.htmlPages.length);
+  const testedMobile = ctx.performance.filter((r) => r.strategy === "mobile" && r.status === "ok").length;
+  const perfDenominator = Math.max(1, testedMobile);
   const homeUrls = new Set([ctx.homepage?.url, ctx.homepage?.finalUrl].filter(Boolean) as string[]);
   const keyUrls = new Set(ctx.keyPages.map((p) => p.url));
 
@@ -51,12 +56,16 @@ export function runChecks(ctx: CheckContext, pillars: Pillar[] = ["TECHNICAL", "
       } else if (ctx.htmlPages.length === 0 && !NO_PAGE_CHECKS.has(def.id)) {
         // Nothing rendered → content/site-level checks would all "fail" for lack of evidence. Skip them.
         outcome = { status: "SKIPPED" as const, affected: [], reason: "no HTML pages could be crawled" };
+      } else if (def.pillar === "PERFORMANCE" && def.id !== "perf.psi.unavailable" && !ctx.performance.some((r) => r.status === "ok" && r.strategy === (def.device ?? "mobile"))) {
+        // No successful PageSpeed run for this device → not measured, never penalised.
+        outcome = { status: "SKIPPED" as const, affected: [], reason: ctx.performance.length ? `PageSpeed (${def.device ?? "mobile"}) unavailable — not measured` : "performance stage did not run" };
       } else {
         outcome = def.run(ctx);
       }
     } catch (err) {
       outcome = { status: "SKIPPED" as const, affected: [], reason: `check error: ${err instanceof Error ? err.message : String(err)}` };
     }
+    const denominator = def.scope === "performance" ? perfDenominator : crawledDenominator;
     const affectedPageCount = outcome.status === "FAIL" ? Math.max(outcome.affected.length, def.siteWide ? 1 : 0) : 0;
     const pageShare = outcome.status !== "FAIL" ? 0 : def.siteWide ? 1 : Math.min(1, affectedPageCount / denominator);
     const affectsHomepage = outcome.affected.some((a) => homeUrls.has(a.url));

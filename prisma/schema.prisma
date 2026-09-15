@@ -65,6 +65,17 @@ enum FindingPillar {
   SEARCH
   LOCAL
   CONVERSION
+  PERFORMANCE
+}
+
+// Provenance of a finding — a reader must always be able to tell a measured
+// fact from an inference (plan §2A "AI labeling").
+enum EvidenceKind {
+  MEASURED
+  DETERMINISTIC_FINDING
+  AI_RECOMMENDATION
+  AI_INFERRED_OPPORTUNITY
+  UNKNOWN
 }
 
 enum CheckStatus {
@@ -253,7 +264,7 @@ model Audit {
   engagementEvents EngagementEvent[]
 
   // --- Audit engine v2 (lib/audit) ---
-  engine             AuditEngine        @default(LEGACY_V1)
+  engine             AuditEngine           @default(LEGACY_V1)
   configJson         Json? // { maxPages, maxDurationMs, trigger: "self_serve" | "admin" | "campaign" }
   progressJson       Json? // stage list + counters, updated while RUNNING (see lib/audit/progress.ts)
   startedAt          DateTime?
@@ -265,12 +276,15 @@ model Audit {
   contentScore       Int?
   searchScore        Int?
   localScore         Int?
+  performanceScore   Int? // Phase 2A: PageSpeed-based pillar; null = not measured
   scoreBreakdownJson Json? // per pillar: [{ checkId, weight, pageShare, penalty }] — the ledger behind every score
   crawlStatsJson     Json? // { pagesDiscovered, pagesCrawled, pagesSkipped, robotsBlocked, durationMs, budgetHit }
   summaryJson        Json? // reserved for Phase 3 AI/template executive summary
   pages              AuditPage[]
   findings           AuditFinding[]
   checkResults       AuditCheckResult[]
+  performance        AuditPerformance[]
+  aiAnalyses         AuditAiPageAnalysis[]
 
   @@index([businessId])
   @@index([publicToken])
@@ -289,7 +303,7 @@ model AuditPage {
   fetchError         String?
   redirectChainJson  Json? // ["http://a", "https://a", "https://www.a"]
   contentType        String?
-  depth              Int?     // click depth via links; null = sitemap-only, never linked
+  depth              Int? // click depth via links; null = sitemap-only, never linked
   discoveredVia      String? // "seed" | "sitemap" | "link"
   parentUrl          String?
   inSitemap          Boolean  @default(false)
@@ -377,10 +391,67 @@ model AuditFinding {
   confidence           Int // 0–100
   priorityScore        Float
   owner                String // "owner" | "developer" | "agency"
+  // Phase 2A provenance — null on Phase-1 rows means DETERMINISTIC_FINDING from the crawler.
+  evidenceKind         EvidenceKind?
+  source               String? // "crawler" | "pagespeed" | "openai"
+  device               String? // "mobile" | "desktop" | null (not device-specific)
+  metric               String? // e.g. "LCP", "INP", "CLS", "performance_score"
   createdAt            DateTime        @default(now())
 
   @@index([auditId, pillar])
   @@index([auditId, priorityScore])
+}
+
+// One PageSpeed Insights run: a representative URL × strategy. Field (CrUX)
+// and lab (Lighthouse) data are kept apart; diagnostics are normalized and
+// capped — never the raw response.
+model AuditPerformance {
+  id                String    @id @default(uuid())
+  auditId           String
+  audit             Audit     @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  url               String
+  strategy          String // "mobile" | "desktop"
+  pageType          String? // "home" | "service" | "location" | "conversion" | "content" | "other"
+  selectionReason   String?
+  status            String // "ok" | "unavailable"
+  error             String?
+  errorCode         String? // "timeout" | "rate_limited" | "rejected" | "malformed" | "http_error" | "network"
+  fieldJson         Json? // normalized CrUX metrics (or { available: false })
+  labJson           Json? // normalized Lighthouse metrics + performance score
+  diagnosticsJson   Json? // normalized audits: [{ id, title, score, displayValue, numericValue, savingsMs, savingsBytes, items[≤5] }]
+  lcpElementJson    Json? // { snippet, url } when Lighthouse reports the LCP element
+  lighthouseVersion String?
+  analysisUtc       DateTime?
+  fetchedAt         DateTime  @default(now())
+
+  @@unique([auditId, url, strategy])
+  @@index([auditId])
+}
+
+// One OpenAI content-intelligence analysis per selected page. The compact
+// evidence we sent and the validated structured output are both kept so the
+// result is reproducible and the report never re-calls the API.
+model AuditAiPageAnalysis {
+  id              String   @id @default(uuid())
+  auditId         String
+  audit           Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  url             String
+  pageType        String?
+  selectionReason String?
+  status          String // "ok" | "unavailable" | "skipped"
+  error           String?
+  errorCode       String? // "no_api_key" | "model_unavailable" | "auth" | "rate_limited" | "timeout" | "api_error" | "invalid_output" | "low_confidence" | "empty_content"
+  model           String?
+  promptVersion   String?
+  inputTokens     Int?
+  outputTokens    Int?
+  evidenceJson    Json? // the normalized page evidence sent to the model (no secrets, no raw HTML)
+  resultJson      Json? // validated structured output (after claim scrubbing)
+  scrubbedJson    Json? // sentences removed by the unsupported-claim filter, for auditing
+  createdAt       DateTime @default(now())
+
+  @@unique([auditId, url])
+  @@index([auditId])
 }
 
 model AuditResult {

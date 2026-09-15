@@ -16,8 +16,25 @@ const CTA_WORDS =
 const PHONE_RE = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/;
 const ADDRESS_RE = /\b\d{1,6}\s+[a-z0-9.'\- ]{2,40}\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|court|ct|place|pl|parkway|pkwy|highway|hwy|crescent|cres|way)\b\.?/i;
 
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—", hellip: "…", copy: "©", reg: "®", trade: "™", rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“" };
+function decodeEntities(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === "#") {
+      const code = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+    }
+    return ENTITIES[e.toLowerCase()] ?? m;
+  });
+}
+
+/**
+ * Visible text with a space at every tag boundary, so adjacent inline
+ * elements ("<a>Download font</a><h2>Interoperable</h2>") don't glue into one
+ * word the way node-html-parser's `.text` does.
+ */
 function text(el: HTMLElement | null | undefined): string {
-  return (el?.text ?? "").replace(/\s+/g, " ").trim();
+  if (!el) return "";
+  return decodeEntities(el.innerHTML.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 }
 
 function attr(el: HTMLElement, name: string): string | null {
@@ -123,6 +140,7 @@ export function parsePage(html: string, pageUrl: string, siteHost: string): Page
   const rawHeadings = salvageHeadings(html);
   // The DOM walk loses headings on badly nested markup; the raw scan never sees fewer.
   const headings = rawHeadings.length > domHeadings.length ? rawHeadings : domHeadings;
+  const headingList = headings.slice(0, 60).map((h) => ({ level: h.level, text: h.text.slice(0, 160) }));
   for (const { level, text: t } of headings) {
     headingSequence.push(level);
     headingCounts[`h${level}`] = (headingCounts[`h${level}`] ?? 0) + 1;
@@ -153,7 +171,7 @@ export function parsePage(html: string, pageUrl: string, siteHost: string): Page
   // enough. Fall back to the body when no container holds a real share of the text.
   const containers = bodyEl.querySelectorAll("main, article, [role=main]").map((el) => text(el));
   const biggest = containers.reduce((best, t) => (t.length > best.length ? t : best), "");
-  const mainText = biggest.length >= fullBodyTextEarly.length * 0.3 ? biggest : fullBodyTextEarly;
+  const mainText = (biggest.length >= fullBodyTextEarly.length * 0.3 ? biggest : fullBodyTextEarly).replace(/^\s*<!doctype[^>]*>\s*/i, "");
   const wordCount = mainText ? mainText.split(/\s+/).filter((w) => /[a-z0-9]/i.test(w)).length : 0;
   const normalizedText = mainText.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
   const textHash = createHash("sha1").update(normalizedText).digest("hex");
@@ -258,9 +276,11 @@ export function parsePage(html: string, pageUrl: string, siteHost: string): Page
     h1,
     headingCounts,
     headingSequence,
+    headings: headingList,
     wordCount,
     textHash,
     textSample: mainText.slice(0, 300),
+    mainText: mainText.slice(0, 15_000),
     links,
     images,
     schemaTypes: [...new Set(schemaTypes)],

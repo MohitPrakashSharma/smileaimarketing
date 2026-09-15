@@ -15,6 +15,10 @@ import { computeScores, type Scores } from "../scoring";
 import { initialProgress, advance, setStageDetail, failProgress, type AuditProgress } from "../progress";
 import { legacyShapeFromV2 } from "../report";
 import type { EngineResult } from "../engine";
+import { runPerformanceStage } from "../stages/performance";
+import { runAiStage, type AiPageOutcome } from "../stages/ai";
+import type { PerfResult } from "../providers/pagespeed";
+import type { SelectedPage } from "../pages/select";
 
 /**
  * Engine v2: crawl → deterministic checks → grouped findings → scores.
@@ -58,6 +62,8 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
   await prisma.auditPage.deleteMany({ where: { auditId } });
   await prisma.auditFinding.deleteMany({ where: { auditId } });
   await prisma.auditCheckResult.deleteMany({ where: { auditId } });
+  await prisma.auditPerformance.deleteMany({ where: { auditId } });
+  await prisma.auditAiPageAnalysis.deleteMany({ where: { auditId } });
 
   try {
     // --- detect ---
@@ -91,12 +97,58 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
 
     const contentRuns = runChecks(ctx, ["CONTENT"]);
     await persistChecks(auditId, contentRuns);
-    const allRuns: CheckRun[] = [...technicalRuns, ...contentRuns];
+    let allRuns: CheckRun[] = [...technicalRuns, ...contentRuns];
     findings = buildFindings(allRuns, ctx);
     await persistFindings(auditId, findings);
-    await writeProgress(advance(progress, "search", { findingsSoFar: findings.length }, `${contentRuns.filter((r) => r.outcome.status === "FAIL").length} issues in ${contentRuns.length} checks`), true);
+    await writeProgress(advance(progress, "performance", { findingsSoFar: findings.length }, `${contentRuns.filter((r) => r.outcome.status === "FAIL").length} issues in ${contentRuns.length} checks`), true);
 
-    // Search pillar: external data arrives in Phase 2 — recorded as skipped, not faked.
+    // --- performance (PageSpeed Insights on representative pages) ---
+    let perfResults: PerfResult[] = [];
+    let perfSelected: SelectedPage[] = [];
+    if (env.AUDIT_PSI_ENABLED && ctx.htmlPages.length > 0) {
+      const perf = await runPerformanceStage(ctx, {
+        maxPages: opts.trigger === "admin" ? env.AUDIT_PSI_MAX_PAGES_ADMIN : env.AUDIT_PSI_MAX_PAGES,
+        // PAGESPEED_API_KEY, else the existing Google key (works once the PageSpeed Insights API is enabled on its project), else keyless.
+        psi: { apiKey: env.PAGESPEED_API_KEY ?? env.GOOGLE_PLACES_API_KEY },
+        onProgress: async (done, total, detail) => writeProgress(setStageDetail(progress, "performance", detail), done === total),
+      });
+      perfResults = perf.results;
+      perfSelected = perf.selected;
+      await persistPerformance(auditId, perf.results, perf.selected);
+      ctx.performance = perfResults;
+      const perfRuns = runChecks(ctx, ["PERFORMANCE"]);
+      await persistChecks(auditId, perfRuns);
+      allRuns = [...allRuns, ...perfRuns];
+      findings = buildFindings(allRuns, ctx);
+      await persistFindings(auditId, findings);
+      const okRuns = perfResults.filter((r) => r.status === "ok").length;
+      progress = setStageDetail(progress, "performance", okRuns ? `${okRuns}/${perfResults.length} PageSpeed runs · ${perfSelected.length} page${perfSelected.length === 1 ? "" : "s"}` : "PageSpeed unavailable — not measured", okRuns ? "done" : "skipped");
+    } else {
+      progress = setStageDetail(progress, "performance", ctx.htmlPages.length ? "disabled" : "no pages to test", "skipped");
+    }
+    await writeProgress(advance(progress, "ai", { findingsSoFar: findings.length }), true);
+
+    // --- AI content intelligence (interpretation only; never scored) ---
+    if (env.AUDIT_AI_ENABLED && ctx.htmlPages.length > 0) {
+      const ai = await runAiStage(ctx, allRuns, {
+        client: { apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL },
+        maxPages: opts.trigger === "admin" ? env.AUDIT_AI_MAX_PAGES_ADMIN : env.AUDIT_AI_MAX_PAGES,
+        onProgress: async (done, total, detail) => writeProgress(setStageDetail(progress, "ai", detail), done === total),
+      });
+      await persistAi(auditId, ai.outcomes);
+      if (ai.findings.length) {
+        findings = [...findings, ...ai.findings].sort((a, b) => b.priorityScore - a.priorityScore);
+        await persistFindings(auditId, findings);
+      }
+      const okAi = ai.outcomes.filter((o) => o.status === "ok").length;
+      progress = setStageDetail(progress, "ai", ai.haltedBy ? `unavailable — ${ai.haltedBy.code.replace(/_/g, " ")}` : okAi ? `${okAi}/${ai.outcomes.length} pages analysed` : "no pages analysed", okAi ? "done" : "skipped");
+      if (ai.haltedBy) console.warn(`[Audit v2] AI stage halted: ${ai.haltedBy.code} — ${ai.haltedBy.message}`);
+    } else {
+      progress = setStageDetail(progress, "ai", "disabled", "skipped");
+    }
+    await writeProgress(advance(progress, "search", { findingsSoFar: findings.length }), true);
+
+    // Search pillar: verified ranking data would come from a future Search Console provider — recorded as skipped, not faked.
     progress = setStageDetail(progress, "search", "ranking data not collected in this version", "skipped");
     await writeProgress(advance(progress, "finalize", {}), true);
 
@@ -111,9 +163,10 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
         overallScore: scores.overall,
         technicalScore: scores.technical.score,
         contentScore: scores.content.score,
+        performanceScore: scores.performance.score,
         searchScore: scores.search.score,
         localScore: scores.local.score,
-        scoreBreakdownJson: json({ technical: scores.technical, content: scores.content, search: scores.search, local: scores.local }),
+        scoreBreakdownJson: json({ technical: scores.technical, content: scores.content, performance: scores.performance, search: scores.search, local: scores.local }),
         summaryText: buildDeterministicSummary(business.name, crawl, findings, scores),
         progressJson: json(advance(progress, "done", { findingsSoFar: findings.length, scoresLocked: true })),
       },
@@ -256,6 +309,10 @@ async function persistFindings(auditId: string, findings: Finding[]) {
       confidence: f.confidence,
       priorityScore: f.priorityScore,
       owner: f.owner,
+      evidenceKind: f.evidenceKind,
+      source: f.source,
+      device: f.device,
+      metric: f.metric,
     })),
   });
 }
@@ -267,9 +324,56 @@ function buildDeterministicSummary(name: string, crawl: CrawlResult, findings: F
   const top = findings[0];
   const parts = [
     `We crawled ${crawl.stats.pagesCrawled} page${crawl.stats.pagesCrawled === 1 ? "" : "s"} of ${name}'s website and ran ${scores.technical.checksRun + scores.content.checksRun} checks.`,
-    scores.overall !== null ? `Overall SEO health is ${scores.overall}/100 (technical ${scores.technical.score ?? "—"}, content ${scores.content.score ?? "—"}).` : "",
+    scores.overall !== null ? `Overall SEO health is ${scores.overall}/100 (technical ${scores.technical.score ?? "—"}, content ${scores.content.score ?? "—"}, performance ${scores.performance.score ?? "not measured"}).` : "",
     findings.length ? `${findings.length} finding${findings.length === 1 ? "" : "s"} were verified — ${crit} critical, ${high} high.` : "No problems were found in the checks we ran.",
     top ? `The first thing to fix: ${top.title.toLowerCase()}.` : "",
   ];
   return parts.filter(Boolean).join(" ");
+}
+
+async function persistPerformance(auditId: string, results: PerfResult[], selected: SelectedPage[]) {
+  if (!results.length) return;
+  const reasonFor = new Map(selected.map((s) => [s.url, s]));
+  await prisma.auditPerformance.createMany({
+    data: results.map((r) => ({
+      auditId,
+      url: r.url,
+      strategy: r.strategy,
+      pageType: reasonFor.get(r.url)?.pageType ?? null,
+      selectionReason: reasonFor.get(r.url)?.reason ?? null,
+      status: r.status,
+      error: r.error ?? null,
+      errorCode: r.errorCode ?? null,
+      fieldJson: json(r.field),
+      labJson: r.lab ? json(r.lab) : undefined,
+      diagnosticsJson: json(r.diagnostics),
+      lcpElementJson: r.lcpElement ? json(r.lcpElement) : undefined,
+      lighthouseVersion: r.lighthouseVersion,
+      analysisUtc: r.analysisUtc ? new Date(r.analysisUtc) : null,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function persistAi(auditId: string, outcomes: AiPageOutcome[]) {
+  if (!outcomes.length) return;
+  await prisma.auditAiPageAnalysis.createMany({
+    data: outcomes.map((o) => ({
+      auditId,
+      url: o.url,
+      pageType: o.pageType,
+      selectionReason: o.selectionReason,
+      status: o.status,
+      error: o.error ?? null,
+      errorCode: o.errorCode ?? null,
+      model: o.model ?? null,
+      promptVersion: o.promptVersion,
+      inputTokens: o.inputTokens,
+      outputTokens: o.outputTokens,
+      evidenceJson: o.evidence ? json(o.evidence) : undefined,
+      resultJson: o.result ? json(o.result) : undefined,
+      scrubbedJson: o.scrubbed.length ? json(o.scrubbed) : undefined,
+    })),
+    skipDuplicates: true,
+  });
 }

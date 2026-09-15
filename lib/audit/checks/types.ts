@@ -1,5 +1,6 @@
 import type { CrawlResult, CrawledPage } from "../core/types";
 import type { IndustryProfile } from "@/lib/industry";
+import type { PerfResult } from "../providers/pagespeed";
 
 /**
  * A check is a pure function from crawl evidence to an outcome. It never
@@ -10,7 +11,7 @@ import type { IndustryProfile } from "@/lib/industry";
  */
 
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "OPPORTUNITY";
-export type Pillar = "TECHNICAL" | "CONTENT" | "SEARCH" | "LOCAL" | "CONVERSION";
+export type Pillar = "TECHNICAL" | "CONTENT" | "SEARCH" | "LOCAL" | "CONVERSION" | "PERFORMANCE";
 export type CheckStatus = "PASS" | "FAIL" | "SKIPPED" | "INFO";
 
 export interface CheckContext {
@@ -29,6 +30,8 @@ export interface CheckContext {
   homepage: CrawledPage | null;
   /** homepage + depth ≤ 1 indexable pages — "important" pages for escalation */
   keyPages: CrawledPage[];
+  /** Phase 2A: PageSpeed results for the representative pages (empty when the stage didn't run). */
+  performance: PerfResult[];
 }
 
 export interface AffectedPage {
@@ -65,6 +68,14 @@ export interface CheckDefinition {
   confidence: number;
   /** Site-level checks: a single failure counts as affecting the whole site (pageShare = 1). */
   siteWide?: boolean;
+  /** Denominator for pageShare: crawled indexable pages (default) or the PageSpeed-tested pages. */
+  scope?: "crawled" | "performance";
+  /** Device the check measures (performance checks). */
+  device?: "mobile" | "desktop";
+  /** Where the evidence comes from — surfaced to developers as field vs. lab. */
+  evidenceType?: "crawler" | "field" | "lab" | "diagnostic";
+  /** Metric name for performance checks, e.g. "LCP". */
+  metric?: string;
   /** Templates may use {customers} {customer} {business} {businesses} {booking} {searchKeyword} {city}. */
   expected: string;
   why: string;

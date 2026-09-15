@@ -21,10 +21,15 @@ import { cap } from "@/lib/industry";
  * `developerDetails` so the underlying evidence is one click away.
  */
 
+export type EvidenceKind = "MEASURED" | "DETERMINISTIC_FINDING" | "AI_RECOMMENDATION" | "AI_INFERRED_OPPORTUNITY" | "UNKNOWN";
+
 export interface DeveloperDetail {
   checkId: string;
   title: string;
   severity: Severity;
+  /** field = real-user CrUX, lab = Lighthouse simulation, diagnostic = Lighthouse audit, crawler = our crawl */
+  dataSource: "crawler" | "field" | "lab" | "diagnostic" | "ai";
+  device: "mobile" | "desktop" | null;
   affectedPageCount: number;
   detected: string | null;
   expected: string;
@@ -53,6 +58,11 @@ export interface Finding {
   confidence: number;
   priorityScore: number;
   owner: "owner" | "developer" | "agency";
+  /** Provenance — measured/deterministic for everything built here; AI findings are built in lib/audit/ai. */
+  evidenceKind: EvidenceKind;
+  source: "crawler" | "pagespeed" | "openai";
+  device: "mobile" | "desktop" | null;
+  metric: string | null;
 }
 
 interface GroupDef {
@@ -73,7 +83,15 @@ const GROUPS: GroupDef[] = [
   { key: "sitemap_robots", title: "Sitemap and robots.txt need attention", pillar: "TECHNICAL", section: "B1", checkIds: ["tech.robots.missing", "tech.sitemap.missing", "tech.sitemap.invalid", "tech.sitemap.stale_urls"], why: "The sitemap and robots.txt are how you hand search engines a clean map of your site. Missing or broken, they slow down discovery of every page you add.", fixIntro: "Publish a valid sitemap of live, indexable URLs and point robots.txt at it.", owner: "developer" },
   { key: "broken_pages_links", title: "Broken pages, links and redirects", pillar: "TECHNICAL", section: "B1", checkIds: ["tech.status.4xx", "tech.status.5xx", "tech.links.broken_internal", "tech.links.broken_external", "tech.redirect.chain", "tech.redirect.internal_links_redirect"], why: "Every dead link is a lost visitor and wasted crawl budget; redirect chains slow pages and leak ranking signal.", fixIntro: "Fix or redirect the broken URLs and point links at final destinations.", owner: "developer" },
   { key: "site_structure", title: "Site structure makes some pages hard to reach", pillar: "TECHNICAL", section: "B2", checkIds: ["tech.arch.depth_gt3", "tech.arch.orphan_in_sitemap", "tech.url.hygiene"], why: "Pages that are buried or barely linked look unimportant to search engines and get crawled less often.", fixIntro: "Bring important pages within three clicks of the homepage and keep URLs clean.", owner: "agency" },
-  { key: "performance", title: "Server response is slow", pillar: "TECHNICAL", section: "B3", checkIds: ["tech.perf.ttfb_slow", "tech.perf.html_weight"], why: "Slow responses delay every part of the page for {customers} and feed directly into Google's page-experience signals.", fixIntro: "Cache pages and reduce page weight.", owner: "developer" },
+  { key: "performance", title: "Server response is slow", pillar: "TECHNICAL", section: "B3", checkIds: ["tech.perf.ttfb_slow", "tech.perf.html_weight", "perf.diag.server_response", "perf.diag.redirects"], why: "Slow responses delay every part of the page for {customers} and feed directly into Google's page-experience signals.", fixIntro: "Cache pages and reduce page weight.", owner: "developer" },
+  // ---------- Phase 2A performance (PageSpeed) ----------
+  { key: "perf_mobile_load", title: "Mobile page load performance is poor", pillar: "PERFORMANCE", section: "P1", checkIds: ["perf.mobile.lab.score_poor", "perf.mobile.lab.score_needs_improvement", "perf.mobile.lab.fcp_slow", "perf.mobile.lab.speed_index_slow"], why: "Most {customers} arrive on a phone, often on mobile data. Google measures exactly this experience and uses it as a ranking signal — and a slow first impression is the easiest way to lose someone before they read a word.", fixIntro: "Treat mobile speed as one project: the findings below list the specific culprits in order of savings.", owner: "developer" },
+  { key: "perf_lcp", title: "Large hero media is delaying the page's main content", pillar: "PERFORMANCE", section: "P1", checkIds: ["perf.mobile.field.lcp_poor", "perf.mobile.field.lcp_needs_improvement", "perf.mobile.lab.lcp_poor", "perf.mobile.lab.lcp_needs_improvement", "perf.desktop.field.lcp_poor", "perf.diag.lcp_resource", "perf.diag.images"], why: "Largest Contentful Paint is the moment the page 'looks loaded'. When the hero image or headline is heavy, lazy-loaded or queued behind scripts, every visitor stares at a half-built page.", fixIntro: "Make the first big image load first and load lighter.", owner: "developer" },
+  { key: "perf_js_main_thread", title: "JavaScript is blocking the main thread", pillar: "PERFORMANCE", section: "P2", checkIds: ["perf.mobile.field.inp_poor", "perf.mobile.field.inp_needs_improvement", "perf.mobile.lab.tbt_high", "perf.mobile.lab.tbt_moderate", "perf.diag.render_blocking", "perf.diag.unused_js", "perf.diag.unused_css", "perf.diag.main_thread", "perf.diag.dom_size"], why: "Scripts that run before the page is usable keep a phone busy — taps are ignored, menus lag, and Google's INP metric records it. Unused code and render-blocking files are the usual cause.", fixIntro: "Load less JavaScript up front and defer the rest.", owner: "developer" },
+  { key: "perf_layout_shift", title: "The page layout shifts while loading", pillar: "PERFORMANCE", section: "P1", checkIds: ["perf.mobile.field.cls_poor", "perf.mobile.field.cls_needs_improvement", "perf.mobile.lab.cls_poor", "perf.mobile.lab.cls_needs_improvement", "perf.diag.fonts"], why: "Content jumping around as images, fonts and embeds arrive makes {customers} tap the wrong thing — and Google measures it as Cumulative Layout Shift.", fixIntro: "Reserve space for everything that loads late.", owner: "developer" },
+  { key: "perf_caching", title: "Static assets are not cached or compressed effectively", pillar: "PERFORMANCE", section: "P2", checkIds: ["perf.diag.caching", "perf.diag.compression", "perf.diag.payload"], why: "Files that could be compressed or kept in the browser are re-downloaded in full on every visit. These are server settings — cheap to fix, felt on every page.", fixIntro: "Enable compression and long-lived caching at the server or CDN.", owner: "developer" },
+  { key: "perf_third_party", title: "Third-party scripts are adding significant execution cost", pillar: "PERFORMANCE", section: "P2", checkIds: ["perf.diag.third_party"], why: "Chat widgets, tag managers, pixels and embeds run on every page and you don't control their code. Each one taxes every visitor's phone.", fixIntro: "Remove what you don't use; load the rest after the page is interactive.", owner: "owner" },
+  { key: "perf_desktop", title: "Desktop performance needs improvement", pillar: "PERFORMANCE", section: "P1", checkIds: ["perf.desktop.lab.score_poor", "perf.desktop.lab.score_needs_improvement"], why: "Slow on a laptop with a fast connection means the page itself is heavy, not the network.", fixIntro: "The mobile fixes above apply here too.", owner: "developer" },
   { key: "mobile_html", title: "Mobile and HTML basics are missing", pillar: "TECHNICAL", section: "B4", checkIds: ["tech.mobile.viewport_missing", "tech.html.lang_missing", "tech.html.basics"], why: "Google indexes the mobile version of your site first. Missing mobile basics hurt every page's ranking and every phone visitor's experience.", fixIntro: "Add the standard viewport, language and charset declarations to the site template.", owner: "developer" },
   { key: "js_rendering", title: "Page content depends on JavaScript to appear", pillar: "TECHNICAL", section: "B4", checkIds: ["tech.render.js_only"], why: "When the HTML arrives empty and JavaScript fills it in later, search engines see less — sometimes nothing — and previews on social/messaging apps are blank.", fixIntro: "Server-render or pre-render the main content.", owner: "developer" },
   { key: "structured_data", title: "Structured data is missing or invalid", pillar: "TECHNICAL", section: "B6", checkIds: ["tech.schema.none", "tech.schema.invalid_json", "tech.schema.missing_localbusiness"], why: "Structured data is how you tell Google exactly what the {business} is, where it is and when it's open — and how you qualify for rich results.", fixIntro: "Add valid LocalBusiness/Organization JSON-LD to the homepage.", owner: "developer" },
@@ -108,6 +126,8 @@ function detailFor(run: CheckRun, fill: (t: string) => string): DeveloperDetail 
     checkId: run.def.id,
     title: run.def.title,
     severity: run.severity ?? run.def.severity,
+    dataSource: run.def.evidenceType ?? "crawler",
+    device: run.def.device ?? null,
     affectedPageCount: run.affectedPageCount,
     detected: run.outcome.detected ?? (run.outcome.affected.length === 1 ? run.outcome.affected[0].detected ?? null : run.outcome.affected.length ? `${run.outcome.affected.length} page(s)` : null),
     expected: fill(run.def.expected),
@@ -129,6 +149,8 @@ function assemble(key: string, title: string, pillar: Pillar, section: string, w
   const details = members.sort((a, b) => (b.severity ? 1 : 0) - (a.severity ? 1 : 0)).map((m) => detailFor(m, fill));
   const lead = details[0];
   const fixLines = [fill(fixIntro), ...details.map((d) => `• ${d.fix}`)];
+  const devices = new Set(members.map((m) => m.def.device).filter(Boolean));
+  const source: Finding["source"] = members.every((m) => m.def.pillar === "PERFORMANCE") ? "pagespeed" : "crawler";
   return {
     findingKey: key,
     checkIds: members.map((m) => m.def.id),
@@ -149,6 +171,10 @@ function assemble(key: string, title: string, pillar: Pillar, section: string, w
     confidence,
     priorityScore: priorityScore({ severity, impact, effort, confidence, pageShare, affectsHomepage }),
     owner,
+    evidenceKind: source === "pagespeed" ? "MEASURED" : "DETERMINISTIC_FINDING",
+    source,
+    device: devices.size === 1 ? ([...devices][0] as "mobile" | "desktop") : null,
+    metric: members.length === 1 ? (members[0].def.metric ?? null) : null,
   };
 }
 
