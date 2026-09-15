@@ -37,7 +37,15 @@ type Preliminary = {
   mobileOptimized: boolean;
 };
 
-function ProcessingScreen() {
+type ProgressStage = { key: string; label: string; status: "pending" | "running" | "done" | "skipped" | "failed"; detail?: string };
+type AuditProgressView = { stages: ProgressStage[]; pagesCrawled: number; pagesDiscovered: number; findingsSoFar: number } | null;
+
+/**
+ * While the audit engine runs, show its real stages (from
+ * /api/audit/progress/[id]); before we have an audit id, fall back to the
+ * short scripted messages.
+ */
+function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
@@ -47,6 +55,10 @@ function ProcessingScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  const stages = progress?.stages ?? [];
+  const doneCount = stages.filter((s) => s.status === "done" || s.status === "skipped").length;
+  const pct = stages.length ? Math.max(8, Math.round((doneCount / stages.length) * 100)) : ((messageIndex + 1) / SCAN_MESSAGES.length) * 100;
+
   return (
     <div className="animate-fade-in space-y-8 py-6 text-center">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft">
@@ -54,15 +66,37 @@ function ProcessingScreen() {
       </div>
       <div>
         <h1 className="text-heading-2 font-semibold text-foreground">Running your free audit</h1>
-        <p className="mt-2 text-body-small text-muted-foreground" aria-live="polite">
-          {SCAN_MESSAGES[messageIndex]}
-        </p>
+        {stages.length === 0 && (
+          <p className="mt-2 text-body-small text-muted-foreground" aria-live="polite">
+            {SCAN_MESSAGES[messageIndex]}
+          </p>
+        )}
       </div>
+      {stages.length > 0 && (
+        <ol className="mx-auto max-w-xs space-y-1.5 text-left" aria-live="polite">
+          {stages.map((s) => (
+            <li key={s.key} className={`flex items-center gap-2.5 text-body-small ${s.status === "pending" ? "text-muted-foreground/60" : "text-foreground"}`}>
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                  s.status === "done" ? "bg-primary text-primary-foreground" : s.status === "running" ? "border-2 border-primary/30 border-t-primary animate-spin" : s.status === "skipped" ? "bg-border text-muted-foreground" : "border border-border"
+                }`}
+                aria-hidden
+              >
+                {s.status === "done" ? "✓" : s.status === "skipped" ? "–" : ""}
+              </span>
+              <span className="flex-1">
+                {s.key === "crawl" && progress && progress.pagesCrawled > 0 ? `Pages crawled ${progress.pagesCrawled}${progress.pagesDiscovered ? ` / ${Math.max(progress.pagesCrawled, progress.pagesDiscovered)}` : ""}` : s.label}
+                {s.detail && s.key !== "crawl" && <span className="ml-1.5 text-metadata text-muted-foreground">{s.detail}</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {progress && progress.findingsSoFar > 0 && (
+        <p className="text-metadata font-semibold text-primary">{progress.findingsSoFar} verified finding{progress.findingsSoFar === 1 ? "" : "s"} so far</p>
+      )}
       <div className="mx-auto h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-border">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-700 ease-out"
-          style={{ width: `${((messageIndex + 1) / SCAN_MESSAGES.length) * 100}%` }}
-        />
+        <div className="h-full rounded-full bg-primary transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -101,6 +135,8 @@ function AuditWizardForm() {
   // Results of the scan
   const [pendingAuditId, setPendingAuditId] = useState("");
   const [preliminary, setPreliminary] = useState<Preliminary | null>(null);
+  const [progress, setProgress] = useState<AuditProgressView>(null);
+  const [findingsSoFar, setFindingsSoFar] = useState<Array<{ title: string; severity: string }>>([]);
   // Category the server settled on for this business — drives the preview copy.
   const [resolvedCategory, setResolvedCategory] = useState<string | undefined>(undefined);
   const ind = industryFromCategory(resolvedCategory);
@@ -156,6 +192,20 @@ function AuditWizardForm() {
       setPendingAuditId(data.pendingAuditId);
       setPreliminary(data.preliminaryFindings);
       setResolvedCategory(data.business?.category);
+
+      // v2 engine: stay on the processing screen, showing real stages, until
+      // the crawl is complete enough for a preview (scores stay hidden).
+      if (data.engine === "CRAWL_V2") {
+        const deadline = Date.now() + 150_000;
+        for (;;) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const pr = await fetch(`/api/audit/progress/${data.pendingAuditId}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+          if (pr?.progress) setProgress(pr.progress);
+          if (pr?.findingsSoFar) setFindingsSoFar(pr.findingsSoFar);
+          if (pr?.status === "FAILED") throw new Error(pr.error || "We couldn't finish analyzing that website. Please try again.");
+          if (pr?.previewReady || pr?.status === "COMPLETED" || Date.now() > deadline) break;
+        }
+      }
       setStep("preview");
     } catch (err: unknown) {
       await minDelay;
@@ -364,7 +414,7 @@ function AuditWizardForm() {
       )}
 
       {/* STEP 2: Processing */}
-      {step === "processing" && <ProcessingScreen />}
+      {step === "processing" && <ProcessingScreen progress={progress} />}
 
       {/* STEP 3: Preview */}
       {step === "preview" && preliminary && (
@@ -399,6 +449,21 @@ function AuditWizardForm() {
               </span>
             </div>
           </div>
+
+          {findingsSoFar.length > 0 && (
+            <div className="rounded-xl border border-border bg-background p-4 text-left">
+              <p className="text-metadata font-bold uppercase tracking-wider text-primary">Verified so far</p>
+              <ul className="mt-2 space-y-1.5">
+                {findingsSoFar.slice(0, 4).map((f) => (
+                  <li key={f.title} className="flex items-start gap-2 text-body-small text-foreground">
+                    <span className={`mt-0.5 shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase ${f.severity === "CRITICAL" || f.severity === "HIGH" ? "bg-danger/10 text-danger" : "bg-warning/10 text-warning"}`}>{f.severity.toLowerCase()}</span>
+                    <span>{f.title}</span>
+                  </li>
+                ))}
+              </ul>
+              {findingsSoFar.length > 4 && <p className="mt-2 text-metadata text-muted-foreground">+{findingsSoFar.length - 4} more in the full report</p>}
+            </div>
+          )}
 
           <div className="relative overflow-hidden rounded-xl border border-border bg-background p-5">
             <div className="space-y-3 blur-[3px] select-none" aria-hidden="true">

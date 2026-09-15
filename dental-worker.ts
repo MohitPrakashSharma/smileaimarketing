@@ -2,20 +2,18 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { prisma } from "./lib/prisma";
 import { Prisma } from "@prisma/client";
-import { discoverBusinesses, findLocalMarketPosition } from "./lib/discoveryProvider";
+import { discoverBusinesses } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
-import { analyzeWebsite } from "./lib/websiteAnalyzer";
-import { computeAuditScores } from "./lib/auditScorer";
 import { generateLightAuditPdf } from "./lib/pdfGenerator";
 import { sendOutreachEmail } from "./lib/email.server";
 import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
-import { analysisQueue, pdfQueue } from "./lib/queue";
+import { auditQueue } from "./lib/queue";
 import { enrichBusinessContact } from "./lib/apollo";
 import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from "./lib/websiteContactExtractor";
-import { generateAuditSummaryWithOpenAI } from "./lib/openai";
 import { initiateAutomaticOutreach } from "./lib/outreach";
 import { env } from "./lib/env.server";
+import { runAudit, type RunAuditOptions } from "./lib/audit/engine";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -158,11 +156,11 @@ const discoveryWorker = new Worker(
         auditId: audit.id,
       });
 
-      // Queue analysis job
-      await analysisQueue.add(
-        "analyse-business",
-        { businessId: business.id, auditId: audit.id, contactId },
-        { jobId: `analysis_${audit.id}` }
+      // Queue the audit (engine chosen by CRAWL_V2 at run time)
+      await auditQueue.add(
+        "run-audit",
+        { auditId: audit.id, businessId: business.id, contactId, trigger: "campaign" },
+        { jobId: `audit_${audit.id}` }
       );
 
       savedCount++;
@@ -180,190 +178,47 @@ const discoveryWorker = new Worker(
   { connection, concurrency: 1 }
 );
 
-// 2. ANALYSIS WORKER
-const analysisWorker = new Worker(
-  "analysis-queue",
-  async (job: Job) => {
-    console.log(`[Analysis Worker] Processing job ${job.id} (${job.name})`);
-    const { businessId, auditId, contactId } = job.data;
+// 2. AUDIT WORKER — one job type for both engines (lib/audit/engine.ts).
+// "analysis-queue" is kept so jobs queued by an older deploy still drain.
+async function handleAuditJob(job: Job) {
+  const { auditId, businessId, contactId, trigger, engine, maxPages } = job.data as { auditId?: string; businessId?: string; contactId?: string } & Partial<RunAuditOptions>;
+  let targetAuditId = auditId;
+  if (!targetAuditId && businessId) {
+    const latest = await prisma.audit.findFirst({ where: { businessId }, orderBy: { createdAt: "desc" } });
+    targetAuditId = latest?.id;
+  }
+  if (!targetAuditId) {
+    console.error(`[Audit Worker] Job ${job.id} has no auditId.`);
+    return;
+  }
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      include: { audits: true },
-    });
+  const result = await runAudit(targetAuditId, { trigger: trigger ?? "campaign", engine, maxPages });
+  if (!result) return; // already running/completed elsewhere
 
-    if (!business) {
-      console.error(`[Analysis Worker] Business ${businessId} not found.`);
-      return;
-    }
-
-    const targetAuditId = auditId || business.audits[0]?.id;
-    if (!targetAuditId) return;
-
-    await prisma.audit.update({
-      where: { id: targetAuditId },
-      data: { status: "RUNNING" },
-    });
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: { status: "AUDITING" },
-    });
-
-    // Run real credential-free website check
-    const signals = await analyzeWebsite(business.website);
-
-    // Real competitor list + the business's own local-pack rank — never fabricated
-    const localMarket = await findLocalMarketPosition({
-      businessName: business.name,
-      website: business.website,
-      city: business.city,
-      state: business.state || undefined,
-      country: business.country,
-      category: business.category,
-      limit: 3,
-    });
-
-    // Calculate deterministic scores
-    const scoreOutput = computeAuditScores({
-      businessName: business.name,
-      city: business.city,
-      website: business.website,
-      signals,
-      category: business.category,
-      rating: business.rating ?? undefined,
-      reviewCount: business.reviewCount ?? undefined,
-      realCompetitors: localMarket.competitors,
-      ownRank: localMarket.ownRank,
-      marketChecked: localMarket.checked,
-    });
-
-    // Generate OpenAI summary if key available — pass the exact website
-    // failure through so the AI leads with it instead of glossing over a 0 score.
-    let finalSummary = scoreOutput.summaryText;
-    let aiEmailSubject: string | undefined;
-    let aiEmailOpening: string | undefined;
-    try {
-      const aiSummaryRes = await generateAuditSummaryWithOpenAI({
-        businessName: business.name,
-        website: business.website,
-        city: business.city,
-        category: business.category,
-        overallScore: scoreOutput.opportunityScore,
-        results: scoreOutput.categoryScores.map((c) => ({ category: c.category, score: c.score })),
-        competitors: scoreOutput.competitors,
-        websiteIssue: signals.reachable ? undefined : signals.error,
-      });
-      if (aiSummaryRes.summary) {
-        finalSummary = aiSummaryRes.summary;
-      }
-      aiEmailSubject = aiSummaryRes.emailSubject;
-      aiEmailOpening = aiSummaryRes.emailOpening;
-    } catch (err) {
-      console.warn("[Analysis Worker] OpenAI summary generation skipped:", err);
-    }
-
-    // Clear old audit results if re-running
-    await prisma.auditResult.deleteMany({ where: { auditId: targetAuditId } });
-    await prisma.competitor.deleteMany({ where: { auditId: targetAuditId } });
-
-    // Store AuditResults
-    for (const catScore of scoreOutput.categoryScores) {
-      await prisma.auditResult.create({
-        data: {
-          auditId: targetAuditId,
-          category: catScore.category,
-          score: catScore.score,
-          findingsJson: catScore.findingsJson as Prisma.InputJsonObject,
-          detailsJson: catScore.detailsJson as Prisma.InputJsonObject,
-        },
-      });
-    }
-
-    // Store Competitors
-    for (const comp of scoreOutput.competitors) {
-      await prisma.competitor.create({
-        data: {
-          auditId: targetAuditId,
-          name: comp.name,
-          website: comp.website || `https://${normalizeName(comp.name).replace(/\s+/g, "")}.com`,
-          rank: comp.rank,
-          mapScore: comp.mapScore,
-        },
-      });
-    }
-
-    // Update Audit & Business
-    const completedAudit = await prisma.audit.update({
-      where: { id: targetAuditId },
-      data: {
-        status: "COMPLETED",
-        score: scoreOutput.opportunityScore,
-        summaryText: finalSummary,
-      },
-    });
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        status: "AUDITED",
-        opportunityScore: scoreOutput.opportunityScore,
-        lastCheckedAt: new Date(),
-      },
-    });
-
-    await logEngagementEvent({
-      eventType: "audit_completed",
-      businessId,
-      auditId: targetAuditId,
-    });
-
-    // Enqueue PDF generation (concurrency 1)
-    await pdfQueue.add(
-      "generate-pdf",
-      {
-        auditId: completedAudit.id,
-        publicToken: completedAudit.publicToken,
-        businessName: business.name,
-        city: business.city,
-        website: business.website,
-        opportunityScore: scoreOutput.opportunityScore,
-        summaryText: finalSummary,
-        findings: scoreOutput.categoryScores.map((c) => ({
-          category: c.category,
-          score: c.score,
-          title: c.detailsJson.title,
-          detail: c.detailsJson.description,
-          findingsJson: c.findingsJson,
-        })),
-        competitors: scoreOutput.competitors,
-        category: business.category,
-      },
-      { jobId: `pdf_${completedAudit.id}` }
-    );
-
-    // Fully automatic outreach — no admin approval step. A no-op (with a
-    // logged reason) when there's genuinely no verified contact yet.
+  // Fully automatic outreach for campaign-discovered businesses — unchanged
+  // behaviour, now fed by whichever engine ran.
+  if ((trigger ?? "campaign") === "campaign" && businessId) {
     try {
       const outreachResult = await initiateAutomaticOutreach({
         businessId,
         contactId,
-        aiSubject: aiEmailSubject,
-        aiOpening: aiEmailOpening,
+        aiSubject: result.aiEmailSubject,
+        aiOpening: result.aiEmailOpening,
       });
       if (outreachResult.queued) {
-        console.log(`[Analysis Worker] Outreach auto-queued for business ${businessId} (message ${outreachResult.emailMessageId}).`);
+        console.log(`[Audit Worker] Outreach auto-queued for business ${businessId} (message ${outreachResult.emailMessageId}).`);
       } else {
-        console.log(`[Analysis Worker] Outreach not queued for business ${businessId}: ${outreachResult.reason}`);
+        console.log(`[Audit Worker] Outreach not queued for business ${businessId}: ${outreachResult.reason}`);
       }
     } catch (err) {
-      console.error(`[Analysis Worker] Auto-outreach failed for business ${businessId}:`, err);
+      console.error(`[Audit Worker] Auto-outreach failed for business ${businessId}:`, err);
     }
+  }
+  console.log(`[Audit Worker] Completed audit ${targetAuditId} with ${result.engine}. Score: ${result.score}/100.`);
+}
 
-    console.log(`[Analysis Worker] Completed audit ${targetAuditId}. Score: ${scoreOutput.opportunityScore}/100.`);
-  },
-  { connection, concurrency: 2 }
-);
+const auditWorker = new Worker("audit-queue", handleAuditJob, { connection, concurrency: 2 });
+const analysisWorker = new Worker("analysis-queue", handleAuditJob, { connection, concurrency: 1 });
 
 // 3. PDF WORKER (concurrency 1)
 const pdfWorker = new Worker(
@@ -449,6 +304,7 @@ const outreachWorker = new Worker(
 process.on("SIGTERM", async () => {
   console.log("[Smile AI Worker] Shutting down daemon gracefully...");
   await discoveryWorker.close();
+  await auditWorker.close();
   await analysisWorker.close();
   await pdfWorker.close();
   await outreachWorker.close();

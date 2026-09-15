@@ -36,8 +36,60 @@ const categoryMeta = (ind: IndustryProfile): Record<string, { label: string; Ico
   WEBSITE_QUALITY: { label: "Website Experience", Icon: IconMonitor },
   CONVERSION: { label: `${cap(ind.booking)} Journey`, Icon: IconPhoneWave },
   COMPETITOR_GAP: { label: "Competitive Position", Icon: IconUsers },
+  // v2 engine pillars
+  TECHNICAL: { label: "Technical SEO", Icon: IconMonitor },
+  CONTENT: { label: "On-page & Content", Icon: IconSearch },
+  SEARCH: { label: "Search Opportunity", Icon: IconUsers },
+  LOCAL: { label: "Local SEO", Icon: IconMapPin },
 });
 const CATEGORY_ORDER = ["LOCAL_VISIBILITY", "REPUTATION", "WEBSITE_QUALITY", "CONVERSION", "COMPETITOR_GAP"];
+const CATEGORY_ORDER_V2 = ["TECHNICAL", "CONTENT", "SEARCH", "LOCAL"];
+
+const SEVERITY_STYLE: Record<string, string> = {
+  CRITICAL: "bg-danger text-white",
+  HIGH: "bg-danger/10 text-danger",
+  MEDIUM: "bg-warning/15 text-[var(--color-status-opportunity-fg)]",
+  LOW: "bg-surface-muted text-muted-foreground",
+  OPPORTUNITY: "bg-accent-soft text-primary",
+};
+const BUCKET_LABEL: Record<string, string> = { this_week: "Do this week", this_month: "Do this month", this_quarter: "Plan this quarter" };
+
+type V2Finding = {
+  id: string;
+  pillar: string;
+  section: string;
+  severity: string;
+  title: string;
+  affectedUrls: string[];
+  affectedPageCount: number;
+  detectedValue: string | null;
+  expectedValue: string | null;
+  whyItMatters: string;
+  recommendedFix: string;
+  developerDetails: Array<{ checkId: string; title: string; severity: string; affectedPageCount: number; detected: string | null; expected: string; fix: string; developerFix: string | null; urls: Array<{ url: string; detected?: string; expected?: string }> }> | null;
+  impact: number;
+  effort: number;
+  confidence: number;
+  priorityScore: number;
+  owner: string;
+  bucket: string;
+};
+
+type V2Payload = {
+  scoresLocked: boolean;
+  scores: null | { overall: number | null; technical: number | null; content: number | null; search: number | null; local: number | null };
+  severityCounts: Record<string, number>;
+  crawlStats: { pagesCrawled?: number; pagesDiscovered?: number; budgetHit?: string; durationMs?: number } | null;
+  findings: V2Finding[];
+  pages: Array<{ url: string; statusCode: number | null; title: string | null; indexable: boolean | null; wordCount: number | null; depth: number | null }>;
+};
+
+type ProgressView = {
+  stages: Array<{ key: string; label: string; status: string; detail?: string }>;
+  pagesCrawled: number;
+  pagesDiscovered: number;
+  findingsSoFar: number;
+} | null;
 
 type Competitor = {
   name: string;
@@ -54,10 +106,17 @@ type Narrative = {
 };
 
 type AuditData = {
+  status?: string;
+  engine?: "LEGACY_V1" | "CRAWL_V2";
   business: { name: string; website: string; city: string; category?: string; opportunityScore: number };
   checkedAt: string;
   summary: string | null;
   narrative: Narrative;
+  v2?: V2Payload;
+  // present while the audit is still running
+  progress?: ProgressView;
+  findingsSoFar?: Array<{ title: string; severity: string; pillar: string; affectedPageCount: number }>;
+  errorMessage?: string | null;
   scorecard: {
     localVisibility: number;
     websiteQuality: number;
@@ -90,6 +149,8 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   const [bookingError, setBookingError] = useState("");
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
     async function fetchReport() {
       try {
         const res = await fetch(`/api/audit/${publicToken}`);
@@ -97,14 +158,21 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         if (!res.ok) {
           throw new Error(json.error || "Failed to load audit");
         }
+        if (cancelled) return;
         setData(json);
+        // Progressive audit: keep polling until the engine finishes or fails.
+        if (json.status === "PENDING" || json.status === "RUNNING") timer = setTimeout(fetchReport, 2000);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        if (!cancelled) setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchReport();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [publicToken]);
 
   const handleInPersonRequest = async (e: React.FormEvent) => {
@@ -192,11 +260,67 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
     );
   }
 
+  if (data.status === "PENDING" || data.status === "RUNNING" || data.status === "FAILED") {
+    const stages = data.progress?.stages ?? [];
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+        <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-8 shadow-lg">
+          {data.status === "FAILED" ? (
+            <>
+              <p className="text-heading-3 font-bold text-danger">We couldn&apos;t finish this audit</p>
+              <p className="mt-3 text-body-small text-muted-foreground">{data.errorMessage || "Something went wrong while analyzing the website."}</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 shrink-0 animate-spin rounded-full border-4 border-primary/25 border-t-primary" />
+                <div>
+                  <p className="text-heading-3 font-bold text-foreground">Analyzing {data.business.name}</p>
+                  <p className="text-metadata text-muted-foreground">Your report fills in as each stage completes. Scores appear once the crawl is done.</p>
+                </div>
+              </div>
+              {stages.length > 0 && (
+                <ol className="mt-6 space-y-2">
+                  {stages.map((st) => (
+                    <li key={st.key} className={`flex items-center gap-2.5 text-body-small ${st.status === "pending" ? "text-muted-foreground/60" : "text-foreground"}`}>
+                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${st.status === "done" ? "bg-primary text-primary-foreground" : st.status === "running" ? "animate-spin border-2 border-primary/30 border-t-primary" : st.status === "skipped" ? "bg-border" : "border border-border"}`} aria-hidden>
+                        {st.status === "done" ? "✓" : ""}
+                      </span>
+                      <span>
+                        {st.key === "crawl" && data.progress && data.progress.pagesCrawled > 0 ? `Pages crawled ${data.progress.pagesCrawled} / ${Math.max(data.progress.pagesCrawled, data.progress.pagesDiscovered)}` : st.label}
+                        {st.detail && st.key !== "crawl" && <span className="ml-1.5 text-metadata text-muted-foreground">{st.detail}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {data.findingsSoFar && data.findingsSoFar.length > 0 && (
+                <div className="mt-6 border-t border-border pt-4">
+                  <p className="text-metadata font-bold uppercase tracking-wider text-primary">Verified so far</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {data.findingsSoFar.slice(0, 6).map((f) => (
+                      <li key={f.title} className="flex items-start gap-2 text-body-small">
+                        <span className={`mt-0.5 shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.LOW}`}>{f.severity.toLowerCase()}</span>
+                        <span>{f.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const { business, checkedAt, summary, narrative, findings, competitors } = data;
   const ind = industryFromCategory(business.category);
   const CATEGORY_META = categoryMeta(ind);
+  const isV2 = data.engine === "CRAWL_V2" && Boolean(data.v2);
+  const v2 = data.v2;
 
-  const orderedFindings = CATEGORY_ORDER
+  const orderedFindings = (isV2 ? CATEGORY_ORDER_V2 : CATEGORY_ORDER)
     .map((cat) => findings.find((f) => f.category === cat))
     .filter((f): f is Finding => Boolean(f));
   const strongest = orderedFindings.length > 0
@@ -268,12 +392,12 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               style={{ borderLeftWidth: 4, borderLeftColor: "var(--color-primary)" }}
             >
               <div className="flex items-start justify-between gap-4">
-                <h2 className="text-heading-3 font-semibold text-foreground">Practice Assessment</h2>
+                <h2 className="text-heading-3 font-semibold text-foreground">{isV2 ? "Assessment" : `${cap(ind.business)} Assessment`}</h2>
                 <span className="shrink-0 text-right">
                   <span className="block text-heading-2 font-extrabold text-primary">
                     {business.opportunityScore}<span className="text-body-small font-normal text-muted-foreground">/100</span>
                   </span>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opportunity</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{isV2 ? "SEO health" : "Opportunity"}</span>
                 </span>
               </div>
               <p className="mt-3 text-body leading-relaxed text-foreground">{summary}</p>
@@ -287,6 +411,19 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                   {CATEGORY_META[biggestOpportunity.category]?.label ?? biggestOpportunity.category}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* v2: pillar scores — null means "not measured", never a fake number */}
+          {isV2 && v2 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([["Technical", v2.scores?.technical], ["Content", v2.scores?.content], ["Search", v2.scores?.search], ["Local", v2.scores?.local]] as Array<[string, number | null | undefined]>).map(([label, score]) => (
+                <div key={label} className="rounded-xl border border-border bg-surface p-4">
+                  <span className="block text-heading-3 font-extrabold text-foreground">{score == null ? "—" : score}<span className="text-metadata font-normal text-muted-foreground">{score == null ? "" : "/100"}</span></span>
+                  <span className="block text-metadata font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+                  {score == null && <span className="block text-[11px] text-muted-foreground">not measured yet</span>}
+                </div>
+              ))}
             </div>
           )}
 
@@ -362,6 +499,73 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               ))
             )}
           </div>
+
+          {/* v2: every verified finding, grouped by when to do it, with developer details */}
+          {isV2 && v2 && v2.findings.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+                <h2 className="text-heading-3 font-semibold text-foreground">Detailed findings ({v2.findings.length})</h2>
+                <p className="text-metadata text-muted-foreground">
+                  {v2.crawlStats?.pagesCrawled ?? 0} pages crawled · {v2.severityCounts.CRITICAL} critical · {v2.severityCounts.HIGH} high · {v2.severityCounts.MEDIUM} medium · {v2.severityCounts.LOW} low
+                </p>
+              </div>
+              {(["this_week", "this_month", "this_quarter"] as const).map((bucket) => {
+                const items = v2.findings.filter((f) => f.bucket === bucket);
+                if (!items.length) return null;
+                return (
+                  <div key={bucket} className="space-y-3">
+                    <h3 className="px-1 text-metadata font-bold uppercase tracking-wider text-muted-foreground">{BUCKET_LABEL[bucket]}</h3>
+                    {items.map((f) => (
+                      <details key={f.id} className="group rounded-xl border border-border bg-surface p-5 shadow-sm">
+                        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 marker:content-none">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.LOW}`}>{f.severity.toLowerCase()}</span>
+                              <span className="text-metadata text-muted-foreground">{CATEGORY_META[f.pillar]?.label ?? f.pillar} · {f.affectedPageCount} page{f.affectedPageCount === 1 ? "" : "s"} · effort {f.effort}/5 · {f.owner === "owner" ? "you can do this" : f.owner === "developer" ? "needs a developer" : "we can handle this"}</span>
+                            </div>
+                            <p className="mt-1.5 text-body font-semibold text-foreground">{f.title}</p>
+                          </div>
+                          <span className="shrink-0 text-metadata text-muted-foreground group-open:hidden">Details</span>
+                        </summary>
+                        <div className="mt-4 space-y-3 border-t border-border pt-4 text-body-small leading-relaxed">
+                          <p className="text-foreground"><span className="font-bold">Why it matters — </span>{f.whyItMatters}</p>
+                          <div className="text-muted-foreground">
+                            <span className="font-bold text-foreground">Recommended fix</span>
+                            {f.recommendedFix.split("\n").map((line, i) => (
+                              <p key={i} className={i === 0 ? "mt-0.5" : "mt-0.5 pl-2"}>{line}</p>
+                            ))}
+                          </div>
+                          {f.developerDetails && f.developerDetails.length > 0 && (
+                            <details className="rounded-lg border border-border bg-background p-3">
+                              <summary className="cursor-pointer text-metadata font-bold uppercase tracking-wider text-muted-foreground">Technical details for your developer ({f.developerDetails.length} check{f.developerDetails.length === 1 ? "" : "s"})</summary>
+                              <div className="mt-3 space-y-3">
+                                {f.developerDetails.map((d) => (
+                                  <div key={d.checkId} className="text-metadata">
+                                    <p className="font-semibold text-foreground">{d.title} <span className="font-normal text-muted-foreground">· {d.checkId} · {d.affectedPageCount} page{d.affectedPageCount === 1 ? "" : "s"}</span></p>
+                                    {d.detected && <p className="text-muted-foreground">Detected: <span className="text-foreground">{d.detected}</span></p>}
+                                    <p className="text-muted-foreground">Expected: <span className="text-foreground">{d.expected}</span></p>
+                                    {d.developerFix && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded bg-surface-muted p-2 font-mono text-[11px] text-foreground">{d.developerFix}</pre>}
+                                    {d.urls.length > 0 && (
+                                      <ul className="mt-1 space-y-0.5">
+                                        {d.urls.slice(0, 8).map((u) => (
+                                          <li key={u.url} className="truncate font-mono text-[11px] text-muted-foreground">{u.url}{u.detected ? ` — ${u.detected}` : ""}</li>
+                                        ))}
+                                        {d.urls.length > 8 && <li className="text-[11px] text-muted-foreground">+{d.urls.length - 8} more</li>}
+                                      </ul>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Quiet leaks — secondary issues worth knowing about */}
           {narrative.quietLeaks.length > 0 && (

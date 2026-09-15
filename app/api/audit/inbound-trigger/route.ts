@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { normalizeDomain, normalizeName } from "@/lib/normalize";
 import { checkWebsite } from "@/lib/websiteCheck.server";
-import { analysisQueue } from "@/lib/queue";
+import { dispatchAudit, selectedEngine } from "@/lib/audit/engine";
 import { trackEvent, readVisitorCookies } from "@/lib/analytics";
 import { detectSiteProfile } from "@/lib/siteProfile.server";
 import { industryFromCategory, INDUSTRIES } from "@/lib/industry";
@@ -146,17 +146,17 @@ export async function POST(request: Request) {
     // (Just for the instant on-page feedback; the full real audit runs next.)
     const websiteCheck = await checkWebsite(website);
 
-    // Hand off to the same real analysis pipeline campaigns use (website
-    // check + DataForSEO local rank + AI summary) — this used to leave the
-    // audit stuck at PENDING forever with only the preliminary check above.
-    await analysisQueue.add(
-      "analyze-business",
-      { auditId: audit.id, businessId: business.id },
-      { jobId: `analysis_${audit.id}` }
-    );
+    // Hand off to the single audit engine (lib/audit/engine.ts). With
+    // AUDIT_EXECUTION=inline it keeps running after this response returns;
+    // with =queue the worker picks it up. Either way the wizard polls
+    // /api/audit/progress/[id] for real progress.
+    const engine = selectedEngine();
+    const dispatched = await dispatchAudit(audit.id, { trigger: "self_serve" }, after);
 
     return NextResponse.json({
       pendingAuditId: audit.id,
+      engine,
+      execution: dispatched.mode,
       business: { name: business.name, city: business.city, state: business.state, country: business.country, category: business.category },
       preliminaryFindings: {
         sslValid: websiteCheck.sslValid,

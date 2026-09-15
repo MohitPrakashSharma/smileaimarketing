@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
-import { analysisQueue } from "@/lib/queue";
+import { dispatchAudit } from "@/lib/audit/engine";
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { businessId } = body;
+    const { businessId, engine, newAudit } = body as { businessId?: string; engine?: "LEGACY_V1" | "CRAWL_V2"; newAudit?: boolean };
 
     if (!businessId) {
       return NextResponse.json({ error: "Missing businessId" }, { status: 400 });
@@ -31,7 +31,9 @@ export async function POST(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    if (!audit) {
+    // `newAudit: true` keeps the previous report (e.g. to compare V1 vs V2);
+    // otherwise the latest audit is re-run in place.
+    if (!audit || newAudit) {
       audit = await prisma.audit.create({
         data: {
           businessId: business.id,
@@ -46,19 +48,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // Enqueue analysis job
-    await analysisQueue.add(
-      "analyze-business",
-      {
-        auditId: audit.id,
-        businessId: business.id,
-        website: business.website,
-        city: business.city,
-      },
-      { jobId: `analysis_${audit.id}_${Date.now()}` }
-    );
+    // Admin runs get the larger crawl budget; `engine` forces a specific engine.
+    await dispatchAudit(audit.id, { trigger: "admin", engine });
 
-    return NextResponse.json({ success: true, auditId: audit.id }, { status: 200 });
+    return NextResponse.json({ success: true, auditId: audit.id, publicToken: audit.publicToken, reportUrl: `/audit/${audit.publicToken}` }, { status: 200 });
   } catch (error) {
     console.error("Admin audit run POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
