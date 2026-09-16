@@ -17,7 +17,7 @@ export default function FormField({
 }) {
   return (
     <div className="flex flex-col">
-      <label htmlFor={id} className="mb-1.5 text-body-small font-semibold text-foreground">
+      <label htmlFor={id} className="mb-2 text-field-label text-foreground">
         {label}
         {required && (
           <span className="text-danger" aria-hidden="true">
@@ -26,13 +26,13 @@ export default function FormField({
           </span>
         )}
         {!required && optionalLabel && (
-          <span className="ml-1 font-normal text-muted-foreground">(Optional)</span>
+          <span className="ml-1.5 font-normal text-muted-foreground">(Optional)</span>
         )}
       </label>
       {children}
-      {hint && !error && <span className="mt-1.5 text-metadata text-muted-foreground">{hint}</span>}
+      {hint && !error && <span className="mt-2 text-metadata">{hint}</span>}
       {error && (
-        <span id={`${id}-error`} role="alert" className="mt-1.5 text-metadata font-semibold text-danger">
+        <span id={`${id}-error`} role="alert" className="mt-2 text-metadata font-semibold !text-danger">
           {error}
         </span>
       )}

@@ -1,126 +1,45 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
-import FormField from "@/components/ui/FormField";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
+import Eyebrow from "@/components/Eyebrow";
+import { ButtonLink } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
-import { trackEvent } from "@/lib/analytics.client";
 
+/**
+ * Closing band. The homepage now has exactly one audit form (AuditSection,
+ * `#seo-audit`), so this section points back to it instead of carrying a
+ * second copy of the form.
+ */
 export default function FinalCTA() {
-  const router = useRouter();
-  const [website, setWebsite] = useState("");
-  const [city, setCity] = useState("");
-  const [websiteError, setWebsiteError] = useState("");
-  const [cityError, setCityError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasStartedForm = useRef(false);
-
-  const handleFormStart = () => {
-    if (hasStartedForm.current) return;
-    hasStartedForm.current = true;
-    trackEvent("audit_form_start", { form_location: "final_cta" });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-
-    let isValid = true;
-    const trimmedWebsite = website.trim();
-    if (!trimmedWebsite) {
-      setWebsiteError("Website is required");
-      isValid = false;
-    } else {
-      setWebsiteError("");
-    }
-
-    const trimmedCity = city.trim();
-    if (!trimmedCity) {
-      setCityError("City is required");
-      isValid = false;
-    } else {
-      setCityError("");
-    }
-
-    if (!isValid) return;
-
-    trackEvent("audit_form_submit", { form_location: "final_cta" });
-    setIsSubmitting(true);
-    let normalizedWebsite = trimmedWebsite.toLowerCase();
-    if (!/^https?:\/\//i.test(normalizedWebsite)) {
-      normalizedWebsite = `https://${normalizedWebsite}`;
-    }
-
-    const params = new URLSearchParams({ website: normalizedWebsite, city: trimmedCity });
-    router.push(`/free-dental-audit?${params.toString()}`);
-  };
-
   return (
-    <section id="contact" className="relative overflow-hidden border-t border-border">
+    <section id="contact" className="band-dark relative overflow-hidden">
       <Image
         src="/images/dental-operatory-bright.jpg"
         alt=""
         fill
         sizes="100vw"
-        className="object-cover"
-        quality={70}
+        className="object-cover opacity-[0.12]"
+        quality={60}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-foreground/80 via-foreground/70 to-foreground/85" aria-hidden />
-      <div className="relative mx-auto max-w-[1200px] px-6 py-16 sm:py-24 sm:px-8">
-        <Reveal className="mx-auto max-w-xl rounded-2xl border border-border bg-surface px-6 py-12 text-center shadow-xl sm:py-14">
-          <h2 className="text-heading-1 font-semibold text-foreground">
-            See where your next patient opportunities may be.
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-body text-muted-foreground">
-            Enter your practice website and location and we&apos;ll prepare a clear, plain-English review.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4 text-left" noValidate>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="final-cta-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
-                <Input
-                  id="final-cta-website"
-                  type="url"
-                  required
-                  disabled={isSubmitting}
-                  autoComplete="url"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  inputMode="url"
-                  value={website}
-                  onChange={(e) => {
-                    handleFormStart();
-                    setWebsite(e.target.value);
-                  }}
-                  placeholder="clinic.com"
-                  hasError={!!websiteError}
-                />
-              </FormField>
-              <FormField id="final-cta-city" label="City" required optionalLabel={false} error={cityError}>
-                <Input
-                  id="final-cta-city"
-                  type="text"
-                  required
-                  disabled={isSubmitting}
-                  autoComplete="address-level2"
-                  value={city}
-                  onChange={(e) => {
-                    handleFormStart();
-                    setCity(e.target.value);
-                  }}
-                  placeholder="Toronto"
-                  hasError={!!cityError}
-                />
-              </FormField>
-            </div>
-            <Button type="submit" loading={isSubmitting} fullWidth>
-              {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
-            </Button>
-          </form>
-        </Reveal>
+      <div className="relative container-site section-space-lg">
+        <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+          <Reveal>
+            <Eyebrow tone="dark">Free practice audit</Eyebrow>
+            <h2 className="mt-5 text-display text-foreground">
+              See where your next{" "}
+              <span className="text-accent-gradient">patient opportunities</span> may be.
+            </h2>
+            <p className="mt-6 max-w-md text-body-large text-muted-foreground">
+              Enter your practice website and location and we&apos;ll prepare a clear, plain-English review.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1} className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+            <ButtonLink href="#seo-audit" arrow>
+              Get My Free Practice Audit
+            </ButtonLink>
+            <ButtonLink href="/book-consultation" variant="light">
+              Book Online Review
+            </ButtonLink>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Wordmark } from "@/components/Wordmark";
+import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
 
 const SECTION_LINKS = [
   { href: "#how-it-works", label: "How It Works" },
@@ -28,38 +30,55 @@ export default function Footer() {
     }
   };
 
+  const linkClass =
+    "link-underline text-body-small text-muted-foreground transition-colors duration-[var(--duration-fast)] hover:text-foreground";
+
   return (
-    <footer className="border-t border-border bg-surface text-muted-foreground">
-      <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-6 px-6 py-10 text-center sm:flex-row sm:justify-between sm:px-8 sm:text-left">
-        <span className="font-sans text-base font-bold text-foreground">
-          Smile AI Marketing
-        </span>
+    <footer className="band-dark band-footer">
+      <div className="container-site">
+        <div className="grid gap-10 py-14 sm:py-16 md:grid-cols-[1.4fr_1fr_1fr] md:gap-8">
+          <div>
+            <Wordmark full className="!text-[1.5rem]" />
+            <p className="mt-4 max-w-xs text-body-small text-muted-foreground">
+              Dental marketing agency for local growth.
+            </p>
+          </div>
 
-        <nav aria-label="Footer Navigation" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          {SECTION_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={onHomepage ? link.href : `/${link.href}`}
-              onClick={(e) => handleScrollToLink(e, link.href)}
-              className="text-body-small hover:text-foreground transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
-          {PAGE_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-body-small hover:text-foreground transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+          <nav aria-label="Footer sections">
+            <p className="text-eyebrow text-muted-foreground">On this site</p>
+            <ul className="mt-4 space-y-2.5">
+              {SECTION_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={onHomepage ? link.href : `/${link.href}`}
+                    onClick={(e) => handleScrollToLink(e, link.href)}
+                    className={linkClass}
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-        <p className="text-metadata">
-          © {new Date().getFullYear()} Smile AI Marketing. All rights reserved.
-        </p>
+          <nav aria-label="Footer pages">
+            <p className="text-eyebrow text-muted-foreground">Company</p>
+            <ul className="mt-4 space-y-2.5">
+              {PAGE_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a href={link.href} className={linkClass}>
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-border py-6 text-metadata sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} Smile AI Marketing. All rights reserved.</p>
+          <p>Built for dental practices in {TARGET_CITY}, {TARGET_PROVINCE}.</p>
+        </div>
       </div>
     </footer>
   );

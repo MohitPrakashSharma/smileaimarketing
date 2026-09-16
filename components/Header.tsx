@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ButtonArrow } from "@/components/ui/buttonStyles";
+import { Wordmark } from "@/components/Wordmark";
 
 const NAV_LINKS = [
   { href: "#how-it-works", label: "How It Works" },
@@ -11,113 +13,173 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-  const handleScrollToHero = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+  // Logo → top of page; CTA → the homepage audit section (or the wizard when
+  // the current page has no audit section).
+  const scrollToId = (id: string, fallbackHref?: string) => (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     e.preventDefault();
     setMobileMenuOpen(false);
-    const heroSection = document.getElementById("top");
-    if (heroSection) {
-      heroSection.scrollIntoView({ behavior: "smooth" });
-    } else {
-      window.location.href = "/free-dental-audit";
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    } else if (fallbackHref) {
+      window.location.href = fallbackHref;
     }
   };
+  const handleScrollToTop = scrollToId("top", "/");
+  const handleScrollToAudit = scrollToId("seo-audit", "/free-dental-audit");
+
+  // Hairline + solid background once the page has scrolled under the header.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Mobile drawer: lock page scroll, close on Escape, move focus in and back out.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const firstLink = drawerRef.current?.querySelector<HTMLElement>("a, button");
+    firstLink?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileMenuOpen]);
+
+  // Close the drawer if the viewport grows past the mobile breakpoint.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => mq.matches && setMobileMenuOpen(false);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-surface/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-6 sm:px-8">
-        <a href="#top" className="group flex items-baseline gap-1 shrink-0" onClick={handleScrollToHero}>
-          <span className="font-sans text-lg font-bold tracking-tight text-foreground sm:text-xl">
-            <span className="relative">
-              Smile
-              <svg
-                aria-hidden
-                viewBox="0 0 40 10"
-                className="absolute -bottom-1.5 left-0 h-2 w-full text-primary"
-              >
-                <path
-                  d="M2 2 C 12 10, 28 10, 38 2"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            {" "}AI<span className="hidden sm:inline"> Marketing</span>
-          </span>
+    <header
+      className={`sticky top-0 z-50 border-b transition-[background-color,border-color,box-shadow] duration-[var(--duration-normal)] ${
+        scrolled || mobileMenuOpen
+          ? "border-border bg-surface/95 shadow-xs backdrop-blur-md"
+          : "border-transparent bg-background/80 backdrop-blur-md"
+      }`}
+    >
+      <div className="container-site flex h-[var(--header-height)] items-center justify-between gap-6">
+        <a
+          href="#top"
+          className="flex shrink-0 items-center rounded-sm"
+          onClick={handleScrollToTop}
+          aria-label="Smile AI Marketing — back to top"
+        >
+          <Wordmark />
         </a>
 
-        {/* Desktop Navigation */}
-        <nav aria-label="Primary" className="hidden items-center gap-8 lg:flex">
+        {/* Desktop navigation */}
+        <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="font-body text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              className="group relative rounded-sm px-3.5 py-2 text-[0.9375rem] font-medium text-foreground-secondary transition-colors duration-[var(--duration-fast)] hover:text-foreground"
             >
               {link.label}
+              <span
+                aria-hidden
+                className="absolute inset-x-3.5 -bottom-0.5 h-px origin-left scale-x-0 bg-primary transition-transform duration-[var(--duration-normal)] ease-[var(--ease-out)] group-hover:scale-x-100 group-focus-visible:scale-x-100"
+              />
             </a>
           ))}
         </nav>
 
         {/* Desktop CTA */}
-        <div className="hidden lg:flex items-center">
+        <div className="hidden items-center lg:flex">
           <button
-            onClick={handleScrollToHero}
-            className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-primary px-5 font-body text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover active:scale-[0.98]"
+            onClick={handleScrollToAudit}
+            className="group inline-flex h-[var(--button-height-sm)] items-center gap-2 whitespace-nowrap rounded-full bg-background-dark px-5 text-button text-white shadow-sm transition-[background-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-primary hover:shadow-md active:translate-y-px"
           >
             Audit My Practice
+            <ButtonArrow />
           </button>
         </div>
 
-        {/* Mobile Menu Trigger & Mobile CTA */}
+        {/* Mobile: compact CTA + menu trigger */}
         <div className="flex items-center gap-2 lg:hidden">
           <button
-            onClick={handleScrollToHero}
-            className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-primary px-4 font-body text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover active:scale-[0.98]"
+            onClick={handleScrollToAudit}
+            className="inline-flex h-[var(--button-height-sm)] items-center gap-1.5 whitespace-nowrap rounded-full bg-background-dark px-4 text-[0.875rem] font-semibold text-white transition-colors duration-[var(--duration-normal)] hover:bg-primary active:translate-y-px"
           >
             Audit My Practice
           </button>
 
           <button
+            ref={menuButtonRef}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-foreground focus:outline-none"
-            aria-label="Toggle menu"
+            className="flex h-[var(--button-height-sm)] w-[var(--button-height-sm)] shrink-0 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors duration-[var(--duration-fast)] hover:border-foreground"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
           >
             <svg
               className="h-5 w-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              strokeWidth="2"
+              strokeWidth="1.8"
+              aria-hidden
             >
               {mobileMenuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h10" />
               )}
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-b border-border bg-surface px-6 py-4 shadow-lg">
-          <nav className="flex flex-col gap-4">
-            {NAV_LINKS.map((link) => (
+        <div
+          id="mobile-menu"
+          ref={drawerRef}
+          className="animate-fade-in border-t border-border bg-surface lg:hidden"
+        >
+          <nav aria-label="Primary mobile" className="container-site flex flex-col py-3">
+            {NAV_LINKS.map((link, i) => (
               <a
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="font-body text-base font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className={`flex items-center justify-between py-4 font-display text-[1.375rem] font-semibold text-foreground transition-colors hover:text-primary-ink ${
+                  i > 0 ? "border-t border-border-subtle" : ""
+                }`}
               >
                 {link.label}
+                <ButtonArrow className="text-muted-foreground" />
               </a>
             ))}
           </nav>
+          <div className="container-site border-t border-border-subtle py-4 pb-safe">
+            <button
+              onClick={handleScrollToAudit}
+              className="group inline-flex h-[var(--button-height)] w-full items-center justify-center gap-2 rounded-full bg-primary text-button text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              Audit My Practice
+              <ButtonArrow />
+            </button>
+          </div>
         </div>
       )}
     </header>
