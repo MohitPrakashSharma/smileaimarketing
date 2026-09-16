@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { discoverBusinesses } from "./lib/discoveryProvider";
 import { normalizeDomain, normalizeName } from "./lib/normalization";
 import { generateLightAuditPdf } from "./lib/pdfGenerator";
+import { generateV2AuditPdf } from "./lib/audit/pdf/generate";
 import { sendOutreachEmail } from "./lib/email.server";
 import { renderOutreachEmail } from "./lib/emailTemplate";
 import { logEngagementEvent } from "./lib/events";
@@ -226,7 +227,8 @@ const pdfWorker = new Worker(
   async (job: Job) => {
     console.log(`[PDF Worker] Processing job ${job.id}`);
     try {
-      const pdfUrl = await generateLightAuditPdf(job.data);
+      // v2 audits get the full report PDF; V1 keeps the legacy two-page layout.
+      const pdfUrl = job.data.engine === "CRAWL_V2" ? await generateV2AuditPdf(job.data.auditId, "customer") : await generateLightAuditPdf(job.data);
       console.log(`[PDF Worker] Generated PDF at ${pdfUrl} for audit ${job.data.auditId}`);
     } catch (err) {
       console.error(`[PDF Worker] Failed to generate PDF for job ${job.id}:`, err);

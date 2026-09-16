@@ -49,6 +49,7 @@ services:
       - proxy-network
     volumes:
       - smileaimarketing_reports:/app/public/reports
+      - smileaimarketing_private_reports:/app/storage/reports
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy-network"
@@ -87,6 +88,7 @@ services:
       - internal
     volumes:
       - smileaimarketing_reports:/app/public/reports
+      - smileaimarketing_private_reports:/app/storage/reports
 
 networks:
   internal:
@@ -98,3 +100,5 @@ volumes:
   smileaimarketing_postgres_data:
   smileaimarketing_redis_data:
   smileaimarketing_reports:
+  # v2 report PDFs: written by web (on demand) and worker (on audit completion), served only via /api/audit/[token]/pdf
+  smileaimarketing_private_reports:

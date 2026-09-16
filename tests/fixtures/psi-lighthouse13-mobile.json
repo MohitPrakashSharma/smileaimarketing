@@ -1,0 +1,1674 @@
+{
+ "captchaResult": "CAPTCHA_NOT_NEEDED",
+ "kind": "pagespeedonline#result",
+ "id": "https://torontoplumber.com/",
+ "loadingExperience": {
+  "initial_url": "https://torontoplumber.com/"
+ },
+ "analysisUTCTimestamp": "2026-09-16T10:07:36.842Z",
+ "lighthouseResult": {
+  "requestedUrl": "https://www.torontoplumber.com/",
+  "finalUrl": "https://torontoplumber.com/",
+  "finalDisplayedUrl": "https://torontoplumber.com/",
+  "lighthouseVersion": "13.4.1",
+  "fetchTime": "2026-09-16T10:07:36.842Z",
+  "categories": {
+   "performance": {
+    "id": "performance",
+    "title": "Performance",
+    "score": 0.56
+   }
+  },
+  "audits": {
+   "third-parties-insight": {
+    "id": "third-parties-insight",
+    "title": "3rd parties",
+    "score": 1,
+    "scoreDisplayMode": "informative",
+    "details": {
+     "items": [
+      {
+       "entity": "Google Tag Manager",
+       "mainThreadTime": 199.57199954986572,
+       "subItems": {
+        "items": [
+         {
+          "mainThreadTime": 199.57199954986572,
+          "transferSize": 171796,
+          "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K"
+         }
+        ],
+        "type": "subitems"
+       },
+       "transferSize": 171796
+      },
+      {
+       "subItems": {
+        "items": [
+         {
+          "transferSize": 25109,
+          "url": "https://cdn.trustindex.io/loader.js?ver=1",
+          "mainThreadTime": 11.081999778747559
+         },
+         {
+          "transferSize": 37625,
+          "url": "https://cdn.trustindex.io/assets/platform/Google/icon.svg",
+          "mainThreadTime": 0
+         },
+         {
+          "mainThreadTime": 0,
+          "url": "https://cdn.trustindex.io/assets/fonts/poppins/latin-600.woff2",
+          "transferSize": 8791
+         },
+         {
+          "mainThreadTime": 0,
+          "url": "https://cdn.trustindex.io/assets/fonts/poppins/latin.woff2",
+          "transferSize": 8675
+         },
+         {
+          "transferSize": 1695,
+          "mainThreadTime": 0,
+          "url": "https://cdn.trustindex.io/assets/platform/Google/logo.svg"
+         },
+         {
+          "mainThreadTime": 0,
+          "transferSize": 1576,
+          "url": "https://cdn.trustindex.io/assets/platform/Google/star/f.svg"
+         }
+        ],
+        "type": "subitems"
+       },
+       "transferSize": 83471,
+       "mainThreadTime": 11.081999778747559,
+       "entity": "trustindex.io"
+      },
+      {
+       "transferSize": 10475,
+       "subItems": {
+        "type": "subitems",
+        "items": [
+         {
+          "mainThreadTime": 5.376000642776489,
+          "transferSize": 10475,
+          "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+         }
+        ]
+       },
+       "entity": "Cloudflare",
+       "mainThreadTime": 5.376000642776489
+      },
+      {
+       "mainThreadTime": 0,
+       "subItems": {
+        "type": "subitems",
+        "items": [
+         {
+          "url": "https://fonts.gstatic.com/s/mavenpro/v40/7Au9p_AqnyWWAxW2Wk3GzWQIElsO0w.woff2",
+          "transferSize": 20968,
+          "mainThreadTime": 0
+         },
+         {
+          "url": "https://fonts.gstatic.com/s/ptserif/v19/EJRSQgYoZZY2vCFuvAnt66qSVyvVp8NA.woff2",
+          "mainThreadTime": 0,
+          "transferSize": 14350
+         },
+         {
+          "mainThreadTime": 0,
+          "url": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLEj6Z1xlFd2JQEk.woff2",
+          "transferSize": 8803
+         },
+         {
+          "transferSize": 8711,
+          "url": "https://fonts.gstatic.com/s/poppins/v24/pxiEyp8kv8JHgFVrJJfecnFHGPc.woff2",
+          "mainThreadTime": 0
+         },
+         {
+          "transferSize": 8659,
+          "url": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7Z1xlFd2JQEk.woff2",
+          "mainThreadTime": 0
+         },
+         {
+          "url": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLGT9Z1xlFd2JQEk.woff2",
+          "transferSize": 8551,
+          "mainThreadTime": 0
+         },
+         {
+          "url": "https://fonts.googleapis.com/css?family=Roboto:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic&display=swap",
+          "mainThreadTime": 0,
+          "transferSize": 3641
+         },
+         {
+          "transferSize": 1699,
+          "url": "https://fonts.googleapis.com/css?family=Poppins:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic&display=swap",
+          "mainThreadTime": 0
+         },
+         {
+          "transferSize": 1684,
+          "url": "https://fonts.googleapis.com/css?family=Roboto+Slab:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic&display=swap",
+          "mainThreadTime": 0
+         },
+         {
+          "mainThreadTime": 0,
+          "url": "https://fonts.googleapis.com/css?family=PT+Serif:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic&display=swap",
+          "transferSize": 1391
+         },
+         {
+          "url": "https://fonts.googleapis.com/css?family=Maven+Pro:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic&display=swap",
+          "transferSize": 1317,
+          "mainThreadTime": 0
+         }
+        ]
+       },
+       "entity": "Google Fonts",
+       "transferSize": 79774
+      },
+      {
+       "entity": "Other Google APIs/SDKs",
+       "subItems": {
+        "items": [
+         {
+          "url": "https://lh3.googleusercontent.com/a-/ACNPEu9Pzo_Z-xMlx6LmV_fg23DD1hR4yhTQBZNZP3s7=w80-h80-c-c-rp-w80-h80-mo-br100",
+          "transferSize": 15120,
+          "mainThreadTime": 0
+         },
+         {
+          "transferSize": 13631,
+          "url": "https://lh3.googleusercontent.com/a-/ACNPEu-wl2ki2cOoOsVmYg1ELq6lH7jZpGQzOdNTJbBGYw=w80-h80-c-c-rp-w80-h80-mo-ba3-br100",
+          "mainThreadTime": 0
+         }
+        ],
+        "type": "subitems"
+       },
+       "mainThreadTime": 0,
+       "transferSize": 28751
+      },
+      {
+       "transferSize": 802,
+       "mainThreadTime": 0,
+       "entity": "Google Analytics",
+       "subItems": {
+        "items": [
+         {
+          "transferSize": 802,
+          "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-RBF2911BYZ&gtm=45Pe69e1v9183510829za200zd9183510829&_p=1789553259398&gcd=13l3l3l3l1l1&npa=0&dma=0&gdid=dZTNiMT&are=1&cid=1579509856.1789553260&frm=0&ngs=1&pscdl=noapi&rcb=14&sr=412x823&uaa=&uab=64&uafvl=Not%253DA%253FBrand%3B99.0.0.0%7CHeadlessChrome%3B151.0.7922.173%7CChromium%3B151.0.7922.173&uam=moto%20g%20power%20(2022)&uamb=1&uap=Android&uapv=11.0&uaw=0&ul=en-us&_s=1&tag_exp=115616986~115938466~115938468~118897920~118897930~120213116~120385423~120469145~120469153&sid=1789553260&sct=1&seg=0&dl=https%3A%2F%2Ftorontoplumber.com%2F&dt=Plumbing%20repairs%20%7C%20Emergency%20Plumbing%2024%2F7%20-%20Toronto%20Plumber&en=page_view&_fv=1&_nsi=1&_ss=1&_ee=1&tfd=3445",
+          "mainThreadTime": 0
+         }
+        ],
+        "type": "subitems"
+       }
+      }
+     ],
+     "type": "table",
+     "isEntityGrouped": true,
+     "headings": [
+      {
+       "key": "entity",
+       "label": "3rd party",
+       "valueType": "text",
+       "subItemsHeading": {
+        "key": "url",
+        "valueType": "url"
+       }
+      },
+      {
+       "valueType": "bytes",
+       "key": "transferSize",
+       "granularity": 1,
+       "label": "Transfer size",
+       "subItemsHeading": {
+        "key": "transferSize"
+       }
+      },
+      {
+       "subItemsHeading": {
+        "key": "mainThreadTime"
+       },
+       "key": "mainThreadTime",
+       "valueType": "ms",
+       "label": "Main thread time",
+       "granularity": 1
+      }
+     ]
+    }
+   },
+   "unminified-javascript": {
+    "id": "unminified-javascript",
+    "title": "Minify JavaScript",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "overallSavingsMs": 0,
+     "sortedBy": [
+      "wastedBytes"
+     ],
+     "type": "opportunity",
+     "debugData": {
+      "metricSavings": {
+       "LCP": 0,
+       "FCP": 0
+      },
+      "type": "debugdata"
+     },
+     "items": [],
+     "headings": [],
+     "overallSavingsBytes": 0
+    },
+    "warnings": [],
+    "numericValue": 0,
+    "numericUnit": "millisecond"
+   },
+   "lcp-discovery-insight": {
+    "id": "lcp-discovery-insight",
+    "title": "LCP request discovery",
+    "score": null,
+    "scoreDisplayMode": "notApplicable"
+   },
+   "total-byte-weight": {
+    "id": "total-byte-weight",
+    "title": "Avoids enormous network payloads",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Total size was 1,293 KiB",
+    "details": {
+     "headings": [
+      {
+       "label": "URL",
+       "valueType": "url",
+       "key": "url"
+      },
+      {
+       "label": "Transfer Size",
+       "key": "totalBytes",
+       "valueType": "bytes"
+      }
+     ],
+     "type": "table",
+     "items": [
+      {
+       "totalBytes": 171796,
+       "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K"
+      },
+      {
+       "totalBytes": 108916,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/eicons/fonts/eicons.woff2?5.53.0"
+      },
+      {
+       "totalBytes": 82521,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/webfonts/fa-brands-400.woff2"
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/webfonts/fa-solid-900.woff2",
+       "totalBytes": 79107
+      },
+      {
+       "totalBytes": 77892,
+       "url": "https://torontoplumber.com/wp-content/uploads/2022/12/toronto-plumber-768x1024.webp"
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/repair-plumbing-in-toronto-pztkp67xtqezqfd50697gkdbonw2qre14h3ko2j3ig.webp",
+       "totalBytes": 51620
+      }
+     ],
+     "sortedBy": [
+      "totalBytes"
+     ]
+    },
+    "numericValue": 1324402,
+    "numericUnit": "byte"
+   },
+   "font-display-insight": {
+    "id": "font-display-insight",
+    "title": "Font display",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 170 ms",
+    "metricSavings": {
+     "FCP": 150,
+     "INP": 0
+    },
+    "details": {
+     "headings": [
+      {
+       "key": "url",
+       "label": "URL",
+       "valueType": "url"
+      },
+      {
+       "label": "Est Savings",
+       "valueType": "ms",
+       "key": "wastedMs"
+      }
+     ],
+     "items": [
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/eicons/fonts/eicons.woff2?5.53.0",
+       "wastedMs": 170
+      },
+      {
+       "wastedMs": 160,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/webfonts/fa-solid-900.woff2"
+      },
+      {
+       "wastedMs": 160,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/webfonts/fa-brands-400.woff2"
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/webfonts/fa-regular-400.woff2",
+       "wastedMs": 105
+      }
+     ],
+     "type": "table",
+     "skipSumming": [
+      "wastedMs"
+     ]
+    }
+   },
+   "unsized-images": {
+    "id": "unsized-images",
+    "title": "Image elements do not have explicit `width` and `height`",
+    "score": 0.5,
+    "scoreDisplayMode": "metricSavings",
+    "metricSavings": {
+     "CLS": 0
+    },
+    "details": {
+     "items": [
+      {
+       "node": {
+        "nodeLabel": "A group of plumbers wearing helmets and work gear, posing happily with tools an…",
+        "type": "node",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restora…\" alt=\"A group of plumbers wearing helmets and work gear, posing happily with too…\">"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restoration-team-1-pzrzoi816cgxy4z74wayejrmwt81hyg1kpvc6u1fgo.jpg"
+      },
+      {
+       "node": {
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/repair-plum…\" alt=\"A plumber using a wrench to adjust a valve on a gas boiler system with vis…\">",
+        "nodeLabel": "A plumber using a wrench to adjust a valve on a gas boiler system with visible …",
+        "type": "node"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/repair-plumbing-in-toronto-pztkp67xtqezqfd50697gkdbonw2qre14h3ko2j3ig.webp"
+      },
+      {
+       "node": {
+        "nodeLabel": "A plumber wearing red gloves uses a wrench to adjust or fix something underneat…",
+        "type": "node",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-tor…\" alt=\"A plumber wearing red gloves uses a wrench to adjust or fix something unde…\">"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-toronto-pztkf67r46q67rw2ecn3fl7s636huoou2z8lv3cvpk.webp"
+      },
+      {
+       "node": {
+        "nodeLabel": "A plumber using a wrench to tighten a fitting on a pipe in a well-lit boiler ro…",
+        "type": "node",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/Professiona…\" alt=\"A plumber using a wrench to tighten a fitting on a pipe in a well-lit boil…\">"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/Professional-plumber-pztlbml5395l32qxvvod0wdqk17qmgj6vm55e18ivc.webp"
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-work-gta-toronto-plumber-pztktqpp1qo666q7bncx2wuzn3db5sj2339jnhr79k.webp",
+       "node": {
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-wor…\" alt=\"A plumber specializing in water damage restoration, wearing a blue t-shirt…\">",
+        "type": "node",
+        "nodeLabel": "A plumber specializing in water damage restoration, wearing a blue t-shirt and …"
+       }
+      },
+      {
+       "node": {
+        "nodeLabel": "A group of plumbers wearing helmets and work gear, posing happily with tools an…",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restora…\" alt=\"A group of plumbers wearing helmets and work gear, posing happily with too…\">",
+        "type": "node"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restoration-team-1-pzrzoi816cgxy4z74wayejrmwt81hyg1kpvc6u1fgo.jpg"
+      }
+     ],
+     "type": "table",
+     "headings": [
+      {
+       "valueType": "node",
+       "key": "node"
+      },
+      {
+       "key": "url",
+       "valueType": "url",
+       "label": "URL"
+      }
+     ]
+    }
+   },
+   "lcp-breakdown-insight": {
+    "id": "lcp-breakdown-insight",
+    "title": "LCP breakdown",
+    "score": 0,
+    "scoreDisplayMode": "numeric",
+    "metricSavings": {
+     "LCP": 0
+    },
+    "details": {
+     "type": "list",
+     "items": [
+      {
+       "type": "table",
+       "headings": [
+        {
+         "valueType": "text",
+         "key": "label",
+         "label": "Subpart"
+        },
+        {
+         "key": "duration",
+         "valueType": "ms",
+         "label": "Duration"
+        }
+       ],
+       "items": [
+        {
+         "label": "Time to first byte",
+         "duration": 24.188,
+         "subpart": "timeToFirstByte"
+        },
+        {
+         "label": "Element render delay",
+         "subpart": "elementRenderDelay",
+         "duration": 4300.979
+        }
+       ]
+      },
+      {
+       "snippet": "<h2 class=\"elementor-heading-title elementor-size-default\">",
+       "type": "node",
+       "nodeLabel": "Have You Encountered Damage To The Plumbing System, Do You Need A Professional …"
+      }
+     ]
+    }
+   },
+   "bootup-time": {
+    "id": "bootup-time",
+    "title": "JavaScript execution time",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "0.6 s",
+    "metricSavings": {
+     "TBT": 150
+    },
+    "details": {
+     "summary": {
+      "wastedMs": 615.6059999999998
+     },
+     "type": "table",
+     "headings": [
+      {
+       "key": "url",
+       "valueType": "url",
+       "label": "URL"
+      },
+      {
+       "key": "total",
+       "label": "Total CPU Time",
+       "valueType": "ms",
+       "granularity": 1
+      },
+      {
+       "valueType": "ms",
+       "label": "Script Evaluation",
+       "granularity": 1,
+       "key": "scripting"
+      },
+      {
+       "granularity": 1,
+       "label": "Script Parse",
+       "key": "scriptParseCompile",
+       "valueType": "ms"
+      }
+     ],
+     "sortedBy": [
+      "total"
+     ],
+     "items": [
+      {
+       "scriptParseCompile": 1.991999999999999,
+       "scripting": 15.3408,
+       "url": "https://torontoplumber.com/",
+       "total": 458.4468
+      },
+      {
+       "scripting": 146.07360000000028,
+       "total": 295.2420000000003,
+       "scriptParseCompile": 93.93,
+       "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K"
+      },
+      {
+       "scripting": 207.4655999999993,
+       "scriptParseCompile": 9.144,
+       "total": 227.96399999999926,
+       "url": "https://torontoplumber.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1"
+      },
+      {
+       "total": 170.16839999999968,
+       "scripting": 3.935999999999997,
+       "scriptParseCompile": 0,
+       "url": "Unattributable"
+      },
+      {
+       "total": 129.9912000000001,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/js/image-carousel.6167d20b95b33386757b.bundle.min.js",
+       "scripting": 115.91880000000012,
+       "scriptParseCompile": 0.3252
+      },
+      {
+       "scripting": 10.607999999999997,
+       "scriptParseCompile": 10.872,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/swiper/v8/swiper.min.js?ver=8.4.5",
+       "total": 80.3664
+      }
+     ]
+    },
+    "numericValue": 615.6059999999998,
+    "numericUnit": "millisecond"
+   },
+   "unminified-css": {
+    "id": "unminified-css",
+    "title": "Minify CSS",
+    "score": 0.5,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 2 KiB",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "sortedBy": [
+      "wastedBytes"
+     ],
+     "overallSavingsBytes": 2343,
+     "overallSavingsMs": 0,
+     "debugData": {
+      "metricSavings": {
+       "LCP": 0,
+       "FCP": 0
+      },
+      "type": "debugdata"
+     },
+     "type": "opportunity",
+     "items": [
+      {
+       "wastedPercent": 17.458162473678374,
+       "wastedBytes": 2343,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/fontawesome.css?ver=5.15.3",
+       "totalBytes": 13418
+      }
+     ],
+     "headings": [
+      {
+       "valueType": "url",
+       "key": "url",
+       "label": "URL"
+      },
+      {
+       "valueType": "bytes",
+       "key": "totalBytes",
+       "label": "Transfer Size"
+      },
+      {
+       "valueType": "bytes",
+       "key": "wastedBytes",
+       "label": "Est Savings"
+      }
+     ]
+    },
+    "numericValue": 0,
+    "numericUnit": "millisecond"
+   },
+   "unused-css-rules": {
+    "id": "unused-css-rules",
+    "title": "Reduce unused CSS",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 35 KiB",
+    "metricSavings": {
+     "LCP": 300,
+     "FCP": 300
+    },
+    "details": {
+     "overallSavingsMs": 300,
+     "sortedBy": [
+      "wastedBytes"
+     ],
+     "type": "opportunity",
+     "overallSavingsBytes": 36077,
+     "headings": [
+      {
+       "label": "URL",
+       "valueType": "url",
+       "key": "url"
+      },
+      {
+       "label": "Transfer Size",
+       "valueType": "bytes",
+       "key": "totalBytes"
+      },
+      {
+       "key": "wastedBytes",
+       "label": "Est Savings",
+       "valueType": "bytes"
+      }
+     ],
+     "items": [
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/fontawesome.css?ver=5.15.3",
+       "wastedPercent": 98.69361631386457,
+       "totalBytes": 12360,
+       "wastedBytes": 12199
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/all.min.css?ver=4.2.4",
+       "wastedPercent": 98.42444055001349,
+       "totalBytes": 12225,
+       "wastedBytes": 12032
+      },
+      {
+       "wastedPercent": 98.63098620654027,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/fontawesome.min.css?ver=5.15.3",
+       "wastedBytes": 11846,
+       "totalBytes": 12010
+      }
+     ],
+     "debugData": {
+      "metricSavings": {
+       "LCP": 300,
+       "FCP": 300
+      },
+      "type": "debugdata"
+     }
+    },
+    "numericValue": 300,
+    "numericUnit": "millisecond"
+   },
+   "speed-index": {
+    "id": "speed-index",
+    "title": "Speed Index",
+    "score": 0.25,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "7.6 s",
+    "numericValue": 7622.197934413333,
+    "numericUnit": "millisecond"
+   },
+   "long-tasks": {
+    "id": "long-tasks",
+    "title": "Avoid long main-thread tasks",
+    "score": 1,
+    "scoreDisplayMode": "informative",
+    "displayValue": "6 long tasks found",
+    "metricSavings": {
+     "TBT": 150
+    },
+    "details": {
+     "sortedBy": [
+      "duration"
+     ],
+     "skipSumming": [
+      "startTime"
+     ],
+     "items": [
+      {
+       "startTime": 5465.006930251566,
+       "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K",
+       "duration": 130
+      },
+      {
+       "duration": 121,
+       "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K",
+       "startTime": 5622.006930251566
+      },
+      {
+       "url": "https://torontoplumber.com/",
+       "duration": 72,
+       "startTime": 1715.0069302515676
+      },
+      {
+       "startTime": 10381.107418899295,
+       "duration": 65,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/js/image-carousel.6167d20b95b33386757b.bundle.min.js"
+      },
+      {
+       "startTime": 1827.0069302515676,
+       "duration": 57,
+       "url": "https://torontoplumber.com/"
+      },
+      {
+       "duration": 56,
+       "url": "https://torontoplumber.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1",
+       "startTime": 8146.081430455917
+      }
+     ],
+     "debugData": {
+      "tasks": [
+       {
+        "duration": 130,
+        "startTime": 5465,
+        "urlIndex": 0,
+        "other": 130,
+        "scriptEvaluation": 0
+       },
+       {
+        "other": 121,
+        "duration": 121,
+        "startTime": 5622,
+        "scriptEvaluation": 0,
+        "urlIndex": 0
+       },
+       {
+        "paintCompositeRender": 0,
+        "urlIndex": 1,
+        "startTime": 1715,
+        "other": 72,
+        "scriptEvaluation": 0,
+        "styleLayout": 0,
+        "duration": 72
+       },
+       {
+        "other": 65,
+        "urlIndex": 2,
+        "startTime": 10381.1,
+        "duration": 65,
+        "scriptEvaluation": 0
+       },
+       {
+        "other": 57,
+        "duration": 57,
+        "startTime": 1827,
+        "urlIndex": 1,
+        "styleLayout": 0,
+        "paintCompositeRender": 0
+       },
+       {
+        "duration": 56,
+        "scriptEvaluation": 0,
+        "other": 56,
+        "urlIndex": 3,
+        "startTime": 8146.1
+       }
+      ],
+      "urls": [
+       "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K",
+       "https://torontoplumber.com/",
+       "https://torontoplumber.com/wp-content/plugins/elementor/assets/js/image-carousel.6167d20b95b33386757b.bundle.min.js",
+       "https://torontoplumber.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1"
+      ],
+      "type": "debugdata"
+     },
+     "type": "table",
+     "headings": [
+      {
+       "valueType": "url",
+       "key": "url",
+       "label": "URL"
+      },
+      {
+       "valueType": "ms",
+       "key": "startTime",
+       "label": "Start Time",
+       "granularity": 1
+      },
+      {
+       "valueType": "ms",
+       "key": "duration",
+       "label": "Duration",
+       "granularity": 1
+      }
+     ]
+    }
+   },
+   "cumulative-layout-shift": {
+    "id": "cumulative-layout-shift",
+    "title": "Cumulative Layout Shift",
+    "score": 1,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "0",
+    "details": {
+     "items": [
+      {
+       "newEngineResultDiffered": false,
+       "cumulativeLayoutShiftMainFrame": 0.00007086659511109076
+      }
+     ],
+     "type": "debugdata"
+    },
+    "numericValue": 0.00007086659511109076,
+    "numericUnit": "unitless"
+   },
+   "legacy-javascript-insight": {
+    "id": "legacy-javascript-insight",
+    "title": "Legacy JavaScript",
+    "score": 0.5,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 11 KiB",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "debugData": {
+      "type": "debugdata",
+      "wastedBytes": 10983
+     },
+     "headings": [
+      {
+       "key": "url",
+       "subItemsHeading": {
+        "valueType": "source-location",
+        "key": "location"
+       },
+       "valueType": "url",
+       "label": "URL"
+      },
+      {
+       "subItemsHeading": {
+        "key": "signal"
+       },
+       "key": null,
+       "valueType": "code"
+      },
+      {
+       "key": "wastedBytes",
+       "valueType": "bytes",
+       "label": "Wasted bytes"
+      }
+     ],
+     "type": "table",
+     "items": [
+      {
+       "wastedBytes": 10983,
+       "subItems": {
+        "items": [
+         {
+          "location": {
+           "column": 19367,
+           "type": "source-location",
+           "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+           "urlProvider": "network",
+           "line": 0
+          },
+          "signal": "Array.prototype.at"
+         },
+         {
+          "location": {
+           "type": "source-location",
+           "column": 19137,
+           "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+           "line": 0,
+           "urlProvider": "network"
+          },
+          "signal": "Array.prototype.findLast"
+         }
+        ],
+        "type": "subitems"
+       },
+       "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+      }
+     ]
+    }
+   },
+   "unused-javascript": {
+    "id": "unused-javascript",
+    "title": "Reduce unused JavaScript",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 71 KiB",
+    "metricSavings": {
+     "LCP": 300,
+     "FCP": 0
+    },
+    "details": {
+     "items": [
+      {
+       "wastedPercent": 42.55638925219706,
+       "wastedBytes": 72818,
+       "totalBytes": 171109,
+       "url": "https://www.googletagmanager.com/gtag/js?id=GT-TNH47F5K"
+      }
+     ],
+     "overallSavingsBytes": 72818,
+     "headings": [
+      {
+       "key": "url",
+       "valueType": "url",
+       "subItemsHeading": {
+        "key": "source",
+        "valueType": "code"
+       },
+       "label": "URL"
+      },
+      {
+       "key": "totalBytes",
+       "valueType": "bytes",
+       "label": "Transfer Size",
+       "subItemsHeading": {
+        "key": "sourceBytes"
+       }
+      },
+      {
+       "key": "wastedBytes",
+       "label": "Est Savings",
+       "subItemsHeading": {
+        "key": "sourceWastedBytes"
+       },
+       "valueType": "bytes"
+      }
+     ],
+     "type": "opportunity",
+     "debugData": {
+      "metricSavings": {
+       "LCP": 300,
+       "FCP": 0
+      },
+      "type": "debugdata"
+     },
+     "sortedBy": [
+      "wastedBytes"
+     ],
+     "overallSavingsMs": 300
+    },
+    "numericValue": 300,
+    "numericUnit": "millisecond"
+   },
+   "cls-culprits-insight": {
+    "id": "cls-culprits-insight",
+    "title": "Layout shift culprits",
+    "score": 1,
+    "scoreDisplayMode": "informative",
+    "metricSavings": {
+     "CLS": 0
+    },
+    "details": {
+     "items": [
+      {
+       "items": [
+        {
+         "score": 0.00007086659511109076,
+         "node": {
+          "value": "Total",
+          "type": "text"
+         }
+        },
+        {
+         "score": 0.00007086659511109076,
+         "node": {
+          "nodeLabel": "div.elementor > section.elementor-section > div.elementor-container > div.elementor-column",
+          "type": "node",
+          "snippet": "<div class=\"elementor-column elementor-col-50 elementor-top-column elementor-element e…\" data-id=\"7567f34f\" data-element_type=\"column\" data-e-type=\"column\">"
+         }
+        }
+       ],
+       "headings": [
+        {
+         "key": "node",
+         "label": "Element",
+         "subItemsHeading": {
+          "key": "extra"
+         },
+         "valueType": "node"
+        },
+        {
+         "valueType": "numeric",
+         "subItemsHeading": {
+          "key": "cause",
+          "valueType": "text"
+         },
+         "granularity": 0.001,
+         "key": "score",
+         "label": "Layout shift score"
+        }
+       ],
+       "type": "table"
+      }
+     ],
+     "type": "list"
+    }
+   },
+   "redirects": {
+    "id": "redirects",
+    "title": "Avoid multiple page redirects",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 780 ms",
+    "metricSavings": {
+     "LCP": 800,
+     "FCP": 800
+    },
+    "details": {
+     "type": "opportunity",
+     "headings": [
+      {
+       "label": "URL",
+       "key": "url",
+       "valueType": "url"
+      },
+      {
+       "label": "Time Spent",
+       "key": "wastedMs",
+       "valueType": "timespanMs"
+      }
+     ],
+     "items": [
+      {
+       "url": "https://www.torontoplumber.com/",
+       "wastedMs": 780
+      },
+      {
+       "url": "https://torontoplumber.com/",
+       "wastedMs": 0
+      }
+     ],
+     "overallSavingsMs": 780
+    },
+    "numericValue": 780,
+    "numericUnit": "millisecond"
+   },
+   "render-blocking-insight": {
+    "id": "render-blocking-insight",
+    "title": "Render-blocking requests",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 2,620 ms",
+    "metricSavings": {
+     "LCP": 2600,
+     "FCP": 2600
+    },
+    "details": {
+     "type": "table",
+     "items": [
+      {
+       "wastedMs": 165,
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/css/post-11.css?ver=1788482988",
+       "totalBytes": 0
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/css/widget-image-box.min.css?ver=4.2.4",
+       "wastedMs": 165,
+       "totalBytes": 1233
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/css/frontend.min.css?ver=4.2.4",
+       "totalBytes": 7481,
+       "wastedMs": 821
+      },
+      {
+       "wastedMs": 165,
+       "totalBytes": 984,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/css/widget-image.min.css?ver=4.2.4"
+      },
+      {
+       "wastedMs": 821,
+       "totalBytes": 13418,
+       "url": "https://torontoplumber.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/fontawesome.css?ver=5.15.3"
+      },
+      {
+       "url": "https://torontoplumber.com/wp-content/themes/hello-elementor/assets/css/theme.css?ver=3.5.1",
+       "totalBytes": 2178,
+       "wastedMs": 165
+      }
+     ],
+     "headings": [
+      {
+       "label": "URL",
+       "valueType": "url",
+       "key": "url"
+      },
+      {
+       "label": "Transfer Size",
+       "valueType": "bytes",
+       "key": "totalBytes"
+      },
+      {
+       "label": "Duration",
+       "key": "wastedMs",
+       "valueType": "timespanMs"
+      }
+     ]
+    }
+   },
+   "interactive": {
+    "id": "interactive",
+    "title": "Time to Interactive",
+    "score": 0.28,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "9.8 s",
+    "numericValue": 9775.149622366283,
+    "numericUnit": "millisecond"
+   },
+   "largest-contentful-paint": {
+    "id": "largest-contentful-paint",
+    "title": "Largest Contentful Paint",
+    "score": 0,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "9.6 s",
+    "numericValue": 9630.097889803392,
+    "numericUnit": "millisecond"
+   },
+   "layout-shifts": {
+    "id": "layout-shifts",
+    "title": "Avoid large layout shifts",
+    "score": 1,
+    "scoreDisplayMode": "informative",
+    "displayValue": "1 layout shift found",
+    "metricSavings": {
+     "CLS": 0
+    },
+    "details": {
+     "type": "table",
+     "items": [
+      {
+       "node": {
+        "nodeLabel": "div.elementor > section.elementor-section > div.elementor-container > div.elementor-column",
+        "snippet": "<div class=\"elementor-column elementor-col-50 elementor-top-column elementor-element e…\" data-id=\"7567f34f\" data-element_type=\"column\" data-e-type=\"column\">",
+        "type": "node"
+       },
+       "score": 0.00007086659511109076
+      }
+     ],
+     "headings": [
+      {
+       "subItemsHeading": {
+        "key": "extra"
+       },
+       "key": "node",
+       "label": "Element",
+       "valueType": "node"
+      },
+      {
+       "valueType": "numeric",
+       "granularity": 0.001,
+       "subItemsHeading": {
+        "valueType": "text",
+        "key": "cause"
+       },
+       "key": "score",
+       "label": "Layout shift score"
+      }
+     ]
+    }
+   },
+   "server-response-time": {
+    "id": "server-response-time",
+    "title": "Initial server response time was short",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Root document took 20 ms",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "headings": [
+      {
+       "valueType": "url",
+       "label": "URL",
+       "key": "url"
+      },
+      {
+       "label": "Time Spent",
+       "key": "responseTime",
+       "valueType": "timespanMs"
+      }
+     ],
+     "overallSavingsMs": 0,
+     "type": "opportunity",
+     "items": [
+      {
+       "responseTime": 24,
+       "url": "https://torontoplumber.com/"
+      }
+     ]
+    },
+    "numericValue": 24,
+    "numericUnit": "millisecond"
+   },
+   "mainthread-work-breakdown": {
+    "id": "mainthread-work-breakdown",
+    "title": "Minimizes main-thread work",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "1.5 s",
+    "metricSavings": {
+     "TBT": 150
+    },
+    "details": {
+     "items": [
+      {
+       "groupLabel": "Script Evaluation",
+       "group": "scriptEvaluation",
+       "duration": 587.8463999999958
+      },
+      {
+       "duration": 327.81119999999464,
+       "groupLabel": "Other",
+       "group": "other"
+      },
+      {
+       "groupLabel": "Style & Layout",
+       "group": "styleLayout",
+       "duration": 319.58879999999994
+      },
+      {
+       "group": "scriptParseCompile",
+       "duration": 149.5488,
+       "groupLabel": "Script Parsing & Compilation"
+      },
+      {
+       "groupLabel": "Rendering",
+       "duration": 72.10080000000005,
+       "group": "paintCompositeRender"
+      },
+      {
+       "groupLabel": "Parse HTML & CSS",
+       "duration": 68.4648,
+       "group": "parseHTML"
+      }
+     ],
+     "sortedBy": [
+      "duration"
+     ],
+     "headings": [
+      {
+       "valueType": "text",
+       "label": "Category",
+       "key": "groupLabel"
+      },
+      {
+       "valueType": "ms",
+       "key": "duration",
+       "granularity": 1,
+       "label": "Time Spent"
+      }
+     ],
+     "type": "table"
+    },
+    "numericValue": 1542.8195999999907,
+    "numericUnit": "millisecond"
+   },
+   "duplicated-javascript-insight": {
+    "id": "duplicated-javascript-insight",
+    "title": "Duplicated JavaScript",
+    "score": 1,
+    "scoreDisplayMode": "metricSavings",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "items": [],
+     "debugData": {
+      "type": "debugdata",
+      "wastedBytes": 0
+     },
+     "headings": [
+      {
+       "valueType": "code",
+       "subItemsHeading": {
+        "key": "url",
+        "valueType": "url"
+       },
+       "key": "source",
+       "label": "Source"
+      },
+      {
+       "label": "Duplicated bytes",
+       "key": "wastedBytes",
+       "valueType": "bytes",
+       "granularity": 10,
+       "subItemsHeading": {
+        "key": "sourceTransferBytes"
+       }
+      }
+     ],
+     "type": "table"
+    }
+   },
+   "first-contentful-paint": {
+    "id": "first-contentful-paint",
+    "title": "First Contentful Paint",
+    "score": 0.1,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "5.0 s",
+    "numericValue": 4982.039727392372,
+    "numericUnit": "millisecond"
+   },
+   "cache-insight": {
+    "id": "cache-insight",
+    "title": "Use efficient cache lifetimes",
+    "score": 0.5,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 40 KiB",
+    "metricSavings": {
+     "LCP": 0,
+     "FCP": 0
+    },
+    "details": {
+     "headings": [
+      {
+       "key": "url",
+       "label": "Request",
+       "valueType": "url"
+      },
+      {
+       "key": "cacheLifetimeMs",
+       "label": "Cache TTL",
+       "valueType": "ms",
+       "displayUnit": "duration"
+      },
+      {
+       "displayUnit": "kb",
+       "key": "totalBytes",
+       "granularity": 1,
+       "label": "Transfer Size",
+       "valueType": "bytes"
+      }
+     ],
+     "skipSumming": [
+      "cacheLifetimeMs"
+     ],
+     "items": [
+      {
+       "totalBytes": 25109,
+       "cacheLifetimeMs": 0,
+       "wastedBytes": 25109,
+       "url": "https://cdn.trustindex.io/loader.js?ver=1"
+      },
+      {
+       "wastedBytes": 6048,
+       "totalBytes": 15120,
+       "cacheLifetimeMs": 86400000,
+       "url": "https://lh3.googleusercontent.com/a-/ACNPEu9Pzo_Z-xMlx6LmV_fg23DD1hR4yhTQBZNZP3s7=w80-h80-c-c-rp-w80-h80-mo-br100"
+      },
+      {
+       "url": "https://lh3.googleusercontent.com/a-/ACNPEu-wl2ki2cOoOsVmYg1ELq6lH7jZpGQzOdNTJbBGYw=w80-h80-c-c-rp-w80-h80-mo-ba3-br100",
+       "wastedBytes": 5452.400000000001,
+       "cacheLifetimeMs": 86400000,
+       "totalBytes": 13631
+      },
+      {
+       "wastedBytes": 4190,
+       "totalBytes": 10475,
+       "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+       "cacheLifetimeMs": 86400000
+      }
+     ],
+     "debugData": {
+      "type": "debugdata",
+      "wastedBytes": 40799.4
+     },
+     "type": "table",
+     "sortedBy": [
+      "wastedBytes"
+     ]
+    }
+   },
+   "image-delivery-insight": {
+    "id": "image-delivery-insight",
+    "title": "Improve image delivery",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 141 KiB",
+    "metricSavings": {
+     "LCP": 450,
+     "FCP": 0
+    },
+    "details": {
+     "debugData": {
+      "wastedBytes": 144556,
+      "type": "debugdata"
+     },
+     "items": [
+      {
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/repair-plumbing-in-toronto-pztkp67xtqezqfd50697gkdbonw2qre14h3ko2j3ig.webp",
+       "subItems": {
+        "items": [
+         {
+          "wastedBytes": 39259,
+          "reason": "This image file is larger than it needs to be (700x500) for its displayed dimensions (332x237). Use responsive images to reduce the image download size."
+         }
+        ],
+        "type": "subitems"
+       },
+       "node": {
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/repair-plum…\" alt=\"A plumber using a wrench to adjust a valve on a gas boiler system with vis…\">",
+        "type": "node",
+        "nodeLabel": "A plumber using a wrench to adjust a valve on a gas boiler system with visible …"
+       },
+       "wastedBytes": 39259,
+       "totalBytes": 50652
+      },
+      {
+       "subItems": {
+        "items": [
+         {
+          "wastedBytes": 30627,
+          "reason": "This image file is larger than it needs to be (700x500) for its displayed dimensions (332x237). Use responsive images to reduce the image download size."
+         }
+        ],
+        "type": "subitems"
+       },
+       "node": {
+        "type": "node",
+        "nodeLabel": "A plumber specializing in water damage restoration, wearing a blue t-shirt and …",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-wor…\" alt=\"A plumber specializing in water damage restoration, wearing a blue t-shirt…\">"
+       },
+       "totalBytes": 39516,
+       "wastedBytes": 30627,
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-work-gta-toronto-plumber-pztktqpp1qo666q7bncx2wuzn3db5sj2339jnhr79k.webp"
+      },
+      {
+       "totalBytes": 38562,
+       "subItems": {
+        "type": "subitems",
+        "items": [
+         {
+          "reason": "This image file is larger than it needs to be (700x500) for its displayed dimensions (332x237). Use responsive images to reduce the image download size.",
+          "wastedBytes": 29888
+         }
+        ]
+       },
+       "node": {
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restora…\" alt=\"A group of plumbers wearing helmets and work gear, posing happily with too…\">",
+        "type": "node",
+        "nodeLabel": "A group of plumbers wearing helmets and work gear, posing happily with tools an…"
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/GTA-restoration-team-1-pzrzoi816cgxy4z74wayejrmwt81hyg1kpvc6u1fgo.jpg",
+       "wastedBytes": 29888
+      },
+      {
+       "wastedBytes": 23015,
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/Professional-plumber-pztlbml5395l32qxvvod0wdqk17qmgj6vm55e18ivc.webp",
+       "subItems": {
+        "items": [
+         {
+          "reason": "This image file is larger than it needs to be (700x500) for its displayed dimensions (332x237). Use responsive images to reduce the image download size.",
+          "wastedBytes": 23015
+         }
+        ],
+        "type": "subitems"
+       },
+       "totalBytes": 29694,
+       "node": {
+        "nodeLabel": "A plumber using a wrench to tighten a fitting on a pipe in a well-lit boiler ro…",
+        "type": "node",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/Professiona…\" alt=\"A plumber using a wrench to tighten a fitting on a pipe in a well-lit boil…\">"
+       }
+      },
+      {
+       "totalBytes": 28084,
+       "wastedBytes": 21767,
+       "node": {
+        "type": "node",
+        "snippet": "<img decoding=\"async\" class=\"swiper-slide-image\" src=\"https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-tor…\" alt=\"A plumber wearing red gloves uses a wrench to adjust or fix something unde…\">",
+        "nodeLabel": "A plumber wearing red gloves uses a wrench to adjust or fix something underneat…"
+       },
+       "subItems": {
+        "type": "subitems",
+        "items": [
+         {
+          "reason": "This image file is larger than it needs to be (700x500) for its displayed dimensions (332x237). Use responsive images to reduce the image download size.",
+          "wastedBytes": 21767
+         }
+        ]
+       },
+       "url": "https://torontoplumber.com/wp-content/uploads/elementor/thumbs/plumber-toronto-pztkf67r46q67rw2ecn3fl7s636huoou2z8lv3cvpk.webp"
+      }
+     ],
+     "type": "table",
+     "headings": [
+      {
+       "valueType": "node",
+       "key": "node"
+      },
+      {
+       "label": "URL",
+       "subItemsHeading": {
+        "key": "reason",
+        "valueType": "text"
+       },
+       "valueType": "url",
+       "key": "url"
+      },
+      {
+       "key": "totalBytes",
+       "label": "Resource Size",
+       "valueType": "bytes"
+      },
+      {
+       "key": "wastedBytes",
+       "label": "Est Savings",
+       "valueType": "bytes",
+       "subItemsHeading": {
+        "valueType": "bytes",
+        "key": "wastedBytes"
+       }
+      }
+     ]
+    }
+   },
+   "document-latency-insight": {
+    "id": "document-latency-insight",
+    "title": "Document request latency",
+    "score": 0,
+    "scoreDisplayMode": "metricSavings",
+    "displayValue": "Est savings of 1,460 ms",
+    "metricSavings": {
+     "LCP": 1450,
+     "FCP": 1450
+    },
+    "details": {
+     "items": {
+      "serverResponseIsFast": {
+       "value": true,
+       "label": "Server responds quickly (observed 24 ms)"
+      },
+      "noRedirects": {
+       "label": "Had redirects (1 redirects, +1458 ms)",
+       "value": false
+      },
+      "usesCompression": {
+       "label": "Applies text compression",
+       "value": true
+      }
+     },
+     "type": "checklist",
+     "debugData": {
+      "serverResponseTime": 24,
+      "redirectDuration": 1458,
+      "type": "debugdata",
+      "uncompressedResponseBytes": 0,
+      "wastedBytes": 0
+     }
+    }
+   },
+   "dom-size-insight": {
+    "id": "dom-size-insight",
+    "title": "Optimize DOM size",
+    "score": 1,
+    "scoreDisplayMode": "informative",
+    "metricSavings": {
+     "INP": 0
+    },
+    "details": {
+     "type": "table",
+     "headings": [
+      {
+       "key": "statistic",
+       "valueType": "text",
+       "label": "Statistic"
+      },
+      {
+       "valueType": "node",
+       "key": "node",
+       "label": "Element"
+      },
+      {
+       "valueType": "numeric",
+       "key": "value",
+       "label": "Value"
+      }
+     ],
+     "debugData": {
+      "maxDepth": 25,
+      "maxChildren": 35,
+      "totalElements": 804,
+      "type": "debugdata"
+     },
+     "items": [
+      {
+       "value": {
+        "granularity": 1,
+        "value": 804,
+        "type": "numeric"
+       },
+       "statistic": "Total elements"
+      },
+      {
+       "statistic": "DOM depth",
+       "node": {
+        "type": "node",
+        "nodeLabel": "div.ti-inner > div.ti-review-header > div.ti-platform-icon > span.ti-tooltip",
+        "snippet": "<span class=\"ti-tooltip\">"
+       },
+       "value": {
+        "value": 25,
+        "type": "numeric",
+        "granularity": 1
+       }
+      },
+      {
+       "node": {
+        "snippet": "<body class=\"home wp-singular page-template-default page page-id-11 wp-embed-responsive…\" data-elementor-device-mode=\"mobile\">",
+        "nodeLabel": "body.home",
+        "type": "node"
+       },
+       "value": {
+        "value": 35,
+        "granularity": 1,
+        "type": "numeric"
+       },
+       "statistic": "Most children"
+      }
+     ]
+    },
+    "numericValue": 804,
+    "numericUnit": "element"
+   },
+   "total-blocking-time": {
+    "id": "total-blocking-time",
+    "title": "Total Blocking Time",
+    "score": 0.93,
+    "scoreDisplayMode": "numeric",
+    "displayValue": "160 ms",
+    "numericValue": 164.5,
+    "numericUnit": "millisecond"
+   }
+  }
+ }
+}

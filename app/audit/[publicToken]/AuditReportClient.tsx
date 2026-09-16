@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import FormField from "@/components/ui/FormField";
-import Input from "@/components/ui/Input";
-import Textarea from "@/components/ui/Textarea";
-import Button from "@/components/ui/Button";
 import StatusBadge, { statusFromScore, type StatusLevel } from "@/components/ui/StatusBadge";
-import { IconMapPin, IconCalendarCheck, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers, IconTrendingUp } from "@/components/icons";
+import { IconMapPin, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers, IconTrendingUp } from "@/components/icons";
 import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
+import type { PerfRow } from "@/lib/audit/view/performanceView";
+import V2Report from "./V2Report";
+import ConsultationSidebar from "./ConsultationSidebar";
 
 // Same status→accent-color mapping as the landing page's sample preview —
 // used as a left-border "severity" indicator on each findings row, the way
@@ -57,6 +56,7 @@ const BUCKET_LABEL: Record<string, string> = { this_week: "Do this week", this_m
 
 type V2Finding = {
   id: string;
+  findingKey: string;
   pillar: string;
   section: string;
   severity: string;
@@ -67,7 +67,7 @@ type V2Finding = {
   expectedValue: string | null;
   whyItMatters: string;
   recommendedFix: string;
-  developerDetails: Array<{ checkId: string; title: string; severity: string; affectedPageCount: number; detected: string | null; expected: string; fix: string; developerFix: string | null; urls: Array<{ url: string; detected?: string; expected?: string }> }> | null;
+  developerDetails: Array<{ checkId: string; title: string; severity: string; dataSource?: string; device?: string | null; affectedPageCount: number; detected: string | null; expected: string; fix: string; developerFix: string | null; urls: Array<{ url: string; detected?: string; expected?: string }> }> | null;
   impact: number;
   effort: number;
   confidence: number;
@@ -86,6 +86,10 @@ type V2Payload = {
   crawlStats: { pagesCrawled?: number; pagesDiscovered?: number; budgetHit?: string; durationMs?: number } | null;
   findings: V2Finding[];
   pages: Array<{ url: string; statusCode: number | null; title: string | null; indexable: boolean | null; wordCount: number | null; depth: number | null }>;
+  /** Phase 2A: PageSpeed rows per representative URL × device (empty when the stage did not run). */
+  performance?: PerfRow[];
+  checks?: Array<{ checkId: string; pillar: string; status: string }>;
+  progress?: { stages: Array<{ key: string; status: string; detail?: string }> } | null;
 };
 
 type ProgressView = {
@@ -137,21 +141,6 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Offline visit request state
-  const [address, setAddress] = useState("");
-  const [preferredWindow, setPreferredWindow] = useState("");
-  const [notes, setNotes] = useState("");
-  const [visitSubmitted, setVisitSubmitted] = useState(false);
-  const [visitLoading, setVisitLoading] = useState(false);
-  const [visitError, setVisitError] = useState("");
-
-  // Online booking state
-  const [meetingTime, setMeetingTime] = useState("");
-  const [meetingNotes, setMeetingNotes] = useState("");
-  const [bookingSubmitted, setBookingSubmitted] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingError, setBookingError] = useState("");
-
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
@@ -178,61 +167,6 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       if (timer) clearTimeout(timer);
     };
   }, [publicToken]);
-
-  const handleInPersonRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (visitLoading) return;
-    setVisitLoading(true);
-    setVisitError("");
-
-    try {
-      const res = await fetch(`/api/audit/${publicToken}/request-visit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, preferredWindow, notes }),
-      });
-      if (!res.ok) {
-        const errJson = await res.json();
-        throw new Error(errJson.error || "Failed to submit request");
-      }
-      setVisitSubmitted(true);
-    } catch (err: unknown) {
-      setVisitError(err instanceof Error ? err.message : "Error submitting visit request");
-    } finally {
-      setVisitLoading(false);
-    }
-  };
-
-  const handleOnlineBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (bookingLoading) return;
-    if (!meetingTime || Number.isNaN(new Date(meetingTime).getTime())) {
-      setBookingError("Please pick a date and time");
-      return;
-    }
-    setBookingLoading(true);
-    setBookingError("");
-
-    try {
-      const res = await fetch(`/api/audit/${publicToken}/book-meeting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // meetingTime comes from a datetime-local input ("2026-08-08T23:56") —
-        // no seconds or timezone, which fails the API's z.string().datetime()
-        // validation. Convert to a real ISO string (UTC) before sending.
-        body: JSON.stringify({ scheduledTime: new Date(meetingTime).toISOString(), notes: meetingNotes }),
-      });
-      if (!res.ok) {
-        const errJson = await res.json();
-        throw new Error(errJson.error || "Failed to schedule meeting");
-      }
-      setBookingSubmitted(true);
-    } catch (err: unknown) {
-      setBookingError(err instanceof Error ? err.message : "Error scheduling meeting");
-    } finally {
-      setBookingLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -323,21 +257,52 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   const CATEGORY_META = categoryMeta(ind);
   const isV2 = data.engine === "CRAWL_V2" && Boolean(data.v2);
   const v2 = data.v2;
+  const checkedAtLabel = new Date(checkedAt).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+
+  if (isV2 && v2) {
+    const perfStage = v2.progress?.stages.find((st) => st.key === "performance");
+    return (
+      <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-16">
+        <main className="mx-auto grid max-w-[1200px] gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <V2Report
+            ind={ind}
+            publicToken={publicToken}
+            data={{
+              business: { name: business.name, website: business.website, city: business.city },
+              checkedAtLabel,
+              headline: narrative.headline,
+              dek: narrative.dek,
+              summary,
+              scores: v2.scores,
+              severityCounts: v2.severityCounts,
+              crawlStats: v2.crawlStats,
+              findings: v2.findings,
+              performance: v2.performance ?? [],
+              checksRun: v2.checks?.filter((c) => c.status === "PASS" || c.status === "FAIL").length ?? 0,
+              stageStatus: perfStage?.status,
+              stageDetail: perfStage?.detail,
+            }}
+          />
+          <ConsultationSidebar publicToken={publicToken} ind={ind} />
+        </main>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 p-3 backdrop-blur-sm lg:hidden">
+          <a href="#consultation" className="flex h-12 items-center justify-center rounded-full bg-primary text-body-small font-bold text-primary-foreground transition-colors hover:bg-primary-hover">Talk to us about this report</a>
+        </div>
+      </div>
+    );
+  }
 
   const orderedFindings = (isV2 ? CATEGORY_ORDER_V2 : CATEGORY_ORDER)
     .map((cat) => findings.find((f) => f.category === cat))
     .filter((f): f is Finding => Boolean(f));
-  const strongest = orderedFindings.length > 0
-    ? orderedFindings.reduce((a, b) => (a.score >= b.score ? a : b))
+  // Only pillars that were actually measured can be "strongest" or the "biggest opportunity".
+  const measuredFindings = orderedFindings.filter((f) => !isV2 || f.findings.measured !== false);
+  const strongest = measuredFindings.length > 0
+    ? measuredFindings.reduce((a, b) => (a.score >= b.score ? a : b))
     : null;
-  const biggestOpportunity = orderedFindings.length > 0
-    ? orderedFindings.reduce((a, b) => (a.score <= b.score ? a : b))
+  const biggestOpportunity = measuredFindings.length > 0
+    ? measuredFindings.reduce((a, b) => (a.score <= b.score ? a : b))
     : null;
-  const checkedAtLabel = new Date(checkedAt).toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   const localFinding = findings.find((f) => f.category === "LOCAL_VISIBILITY");
   const ownRank = localFinding?.findings.ownRank as number | null | undefined;
@@ -439,12 +404,15 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                 {orderedFindings.map((f) => {
                   const meta = CATEGORY_META[f.category];
                   const Icon = meta?.Icon ?? IconMapPin;
+                  // v2 pillars that were not measured (e.g. PageSpeed unavailable) carry a
+                  // placeholder score for the legacy shape — show "not measured", never a number.
+                  const measured = !isV2 || f.findings.measured !== false;
                   const status = statusFromScore(f.score);
                   return (
                     <div
                       key={f.category}
                       className="rounded-xl border border-border bg-surface p-5 shadow-sm"
-                      style={{ borderLeftWidth: 4, borderLeftColor: STATUS_ACCENT[status] }}
+                      style={{ borderLeftWidth: 4, borderLeftColor: measured ? STATUS_ACCENT[status] : "var(--color-border)" }}
                     >
                       <div className="flex items-start gap-3.5">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
@@ -457,10 +425,16 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                               <p className="text-metadata text-muted-foreground">{f.title}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
-                              <span className="text-body font-bold text-foreground">
-                                {f.score}<span className="text-metadata font-normal text-muted-foreground">/100</span>
-                              </span>
-                              <StatusBadge status={status} />
+                              {measured ? (
+                                <>
+                                  <span className="text-body font-bold text-foreground">
+                                    {f.score}<span className="text-metadata font-normal text-muted-foreground">/100</span>
+                                  </span>
+                                  <StatusBadge status={status} />
+                                </>
+                              ) : (
+                                <span className="inline-flex items-center whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-[0.75rem] font-semibold leading-none text-muted-foreground">Not measured</span>
+                              )}
                             </div>
                           </div>
                           <p className="mt-2.5 text-body-small leading-relaxed text-foreground">{f.detail}</p>
@@ -520,7 +494,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
                   <div key={bucket} className="space-y-3">
                     <h3 className="px-1 text-metadata font-bold uppercase tracking-wider text-muted-foreground">{BUCKET_LABEL[bucket]}</h3>
                     {items.map((f) => (
-                      <details key={f.id} className="group rounded-xl border border-border bg-surface p-5 shadow-sm">
+                      <details key={f.id} id={`finding-${f.id}`} className="group scroll-mt-24 rounded-xl border border-border bg-surface p-5 shadow-sm">
                         <summary className="flex cursor-pointer list-none items-start justify-between gap-4 marker:content-none">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -644,111 +618,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         </div>
 
         {/* Right Column: Consultation actions */}
-        <div id="consultation" className="scroll-mt-6 space-y-8">
-          {/* Online consultation */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
-              <IconCalendarCheck className="h-5 w-5" />
-            </span>
-            <h3 className="text-body font-bold text-foreground">Talk it through, 15 minutes on video</h3>
-            <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              We&apos;ll screen-share this report together and show you exactly what a {ind.customer} sees when they search for a {ind.searchKeyword} near you — no pitch, just the facts.
-            </p>
-
-            {bookingSubmitted ? (
-              <div className="mt-6 rounded-xl border border-primary/20 bg-accent-soft p-4 text-center text-body-small font-semibold text-primary">
-                Meeting request sent! Calendar details are on their way to your email.
-              </div>
-            ) : (
-              <form onSubmit={handleOnlineBooking} className="mt-6 space-y-4" noValidate>
-                {bookingError && (
-                  <div role="alert" className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-center text-metadata font-semibold text-danger">
-                    {bookingError}
-                  </div>
-                )}
-                <FormField id="meeting-time" label="Select Date & Time" required optionalLabel={false}>
-                  <Input
-                    id="meeting-time"
-                    type="datetime-local"
-                    required
-                    value={meetingTime}
-                    onChange={(e) => setMeetingTime(e.target.value)}
-                  />
-                </FormField>
-                <FormField id="meeting-notes" label="Notes / Special Requests">
-                  <Textarea
-                    id="meeting-notes"
-                    rows={3}
-                    placeholder="e.g. Discuss my maps ranking specifically..."
-                    value={meetingNotes}
-                    onChange={(e) => setMeetingNotes(e.target.value)}
-                  />
-                </FormField>
-                <Button type="submit" fullWidth loading={bookingLoading} disabled={bookingLoading}>
-                  Schedule My Video Review
-                </Button>
-              </form>
-            )}
-          </div>
-
-          {/* In-person visit */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
-              <IconMapPin className="h-5 w-5" />
-            </span>
-            <h3 className="text-body font-bold text-foreground">Or we&apos;ll come to you</h3>
-            <p className="mt-2 text-body-small leading-relaxed text-muted-foreground">
-              A local consultant visits your {ind.business} and walks your whole team through the findings in person.
-            </p>
-
-            {visitSubmitted ? (
-              <div className="mt-6 rounded-xl border border-primary/20 bg-accent-soft p-4 text-center text-body-small font-semibold text-primary">
-                Visit request received! We&apos;ll confirm a timing window shortly.
-              </div>
-            ) : (
-              <form onSubmit={handleInPersonRequest} className="mt-6 space-y-4" noValidate>
-                {visitError && (
-                  <div role="alert" className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-center text-metadata font-semibold text-danger">
-                    {visitError}
-                  </div>
-                )}
-                <FormField id="visit-address" label="Clinic Address" required optionalLabel={false}>
-                  <Input
-                    id="visit-address"
-                    type="text"
-                    required
-                    autoComplete="street-address"
-                    placeholder="e.g. 123 Main St, Suite 4"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </FormField>
-                <FormField id="visit-window" label="Preferred Window" required optionalLabel={false}>
-                  <Input
-                    id="visit-window"
-                    type="text"
-                    required
-                    placeholder="e.g. Tuesday morning, 9-11am"
-                    value={preferredWindow}
-                    onChange={(e) => setPreferredWindow(e.target.value)}
-                  />
-                </FormField>
-                <FormField id="visit-notes" label="Notes">
-                  <Textarea
-                    id="visit-notes"
-                    rows={2}
-                    placeholder="Anything our consultant should know before visiting?"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </FormField>
-                <Button type="submit" variant="secondary" fullWidth loading={visitLoading} disabled={visitLoading}>
-                  Submit Visit Request
-                </Button>
-              </form>
-            )}
-          </div>
-        </div>
+        <ConsultationSidebar publicToken={publicToken} ind={ind} compact={false} />
       </main>
 
       {/* Mobile sticky CTA — the consultation forms sit at the bottom of a long report;

@@ -52,14 +52,63 @@ export interface DiagnosticItem {
 export interface Diagnostic {
   id: string;
   title: string;
-  /** Lighthouse score 0–1 (null for informative audits) */
+  /** Lighthouse score 0–1 (null for informative / not-applicable audits) */
   score: number | null;
   displayValue: string | null;
   numericValue: number | null;
   numericUnit: string | null;
+  /** Legacy `details.overallSavingsMs`, else the largest ms-valued `metricSavings` entry (Lighthouse ≥ 12 insights). */
   savingsMs: number | null;
+  /** Legacy `details.overallSavingsBytes`, else `debugData.wastedBytes`, else the sum of item `wastedBytes`. */
   savingsBytes: number | null;
+  /** Lighthouse `metricSavings` as reported ({ LCP, FCP, TBT, INP, CLS }) — ms except CLS. */
+  metricSavings: Record<string, number> | null;
+  /** Checklist insights (document-latency, lcp-discovery): key → passed. */
+  checklist: Record<string, boolean> | null;
+  /** Sums over *all* items (before the cap), so thresholds don't depend on MAX_ITEMS. */
+  totals: { count: number; bytes: number; wastedBytes: number; wastedMs: number; ms: number };
   items: DiagnosticItem[]; // capped
+}
+
+/** One failing (or partially failing) audit inside a Lighthouse category — enough to explain the score, never the raw audit. */
+export interface CategoryAuditSummary {
+  id: string;
+  title: string;
+  /** 0–1 */
+  score: number | null;
+  displayValue: string | null;
+  weight: number;
+}
+
+/**
+ * A Lighthouse category other than Performance (Accessibility, Best
+ * Practices, SEO). `score` is Google's 0–100; `passed`/`applicable` count the
+ * weighted, scored audits behind it; `failed` lists the ones that cost points.
+ */
+export interface CategoryResult {
+  score: number | null;
+  passed: number;
+  applicable: number;
+  failed: CategoryAuditSummary[];
+}
+
+/**
+ * Lighthouse 13's "Agentic Browsing" category (`category=agentic-browsing`).
+ * Its audits are binary / not-applicable, so the honest presentation is
+ * "passed X of Y applicable checks" — the 0–1 category score is kept only
+ * because Google reports it. Marked by Google as under development.
+ */
+export interface AgenticResult {
+  score: number | null;
+  passed: number;
+  applicable: number;
+  checks: Array<CategoryAuditSummary & { mode: string | null; group: string | null }>;
+}
+
+export interface CategoryScores {
+  accessibility: CategoryResult | null;
+  bestPractices: CategoryResult | null;
+  seo: CategoryResult | null;
 }
 
 export interface PerfResult {
@@ -73,13 +122,27 @@ export interface PerfResult {
   lab: LabData | null;
   diagnostics: Diagnostic[];
   lcpElement: { snippet: string; url: string | null } | null;
+  /** Google's other Lighthouse categories for the same run (null per category when not returned). */
+  categories: CategoryScores;
+  /** Agentic Browsing category when Google returned it (null otherwise — never inferred). */
+  agentic: AgenticResult | null;
   lighthouseVersion: string | null;
   analysisUtc: string | null;
   ms: number;
 }
 
-/** Lighthouse audits we normalize (diagnostics/opportunities). Everything else is dropped. */
+/** Lighthouse categories requested from PSI. `agentic-browsing` exists on PSI's Lighthouse 13; older backends reject it and we retry without it. */
+export const PSI_CATEGORIES = ["performance", "accessibility", "best-practices", "seo", "agentic-browsing"] as const;
+export const noCategories = (): CategoryScores => ({ accessibility: null, bestPractices: null, seo: null });
+
+/**
+ * Lighthouse audits we normalize (diagnostics/opportunities). Everything else
+ * is dropped. PSI moved to Lighthouse 13 (2026), which replaced most legacy
+ * opportunity audits with `*-insight` audits; both generations are listed so
+ * the checks work whichever one Google serves (verified live on LH 13.4.1).
+ */
 export const DIAGNOSTIC_IDS = [
+  // Lighthouse ≤ 12 (legacy) audits
   "render-blocking-resources",
   "unused-javascript",
   "unused-css-rules",
@@ -107,6 +170,20 @@ export const DIAGNOSTIC_IDS = [
   "redirects",
   "layout-shifts",
   "legacy-javascript",
+  // Lighthouse ≥ 13 insight audits (successors of the above)
+  "render-blocking-insight", // ← render-blocking-resources
+  "cache-insight", // ← uses-long-cache-ttl
+  "document-latency-insight", // ← uses-text-compression + redirects + server-response-time (checklist)
+  "third-parties-insight", // ← third-party-summary
+  "dom-size-insight", // ← dom-size
+  "font-display-insight", // ← font-display
+  "image-delivery-insight", // ← uses-optimized-images / modern-image-formats / uses-responsive-images
+  "lcp-breakdown-insight", // ← largest-contentful-paint-element (carries the LCP node)
+  "lcp-discovery-insight", // ← lcp-lazy-loaded + prioritize-lcp-image (checklist)
+  "legacy-javascript-insight", // ← legacy-javascript
+  "duplicated-javascript-insight",
+  "unsized-images",
+  "cls-culprits-insight",
 ] as const;
 
 const MAX_ITEMS = 5;
@@ -162,6 +239,79 @@ function parseLab(lhr: Json): LabData | null {
   };
 }
 
+const MS_SAVINGS_KEYS = ["LCP", "FCP", "TBT", "INP", "TTI", "SI"]; // CLS is unitless and excluded
+
+/**
+ * Rows from an audit's `details`, whatever its shape: `table`/`opportunity`
+ * (items), `list` (sections that are tables, nodes or checklists — flattened),
+ * `checklist` (no rows). Also returns any checklist found along the way.
+ */
+function collectRows(details: Json | null): { rows: Json[]; checklist: Record<string, boolean> | null } {
+  if (!details) return { rows: [], checklist: null };
+  let checklist: Record<string, boolean> | null = null;
+  const readChecklist = (d: Json) => {
+    const items = obj(d.items);
+    if (!items) return;
+    for (const [k, v] of Object.entries(items)) {
+      const val = obj(v)?.value;
+      if (typeof val === "boolean") checklist = { ...(checklist ?? {}), [k]: val };
+    }
+  };
+  if (details.type === "checklist") {
+    readChecklist(details);
+    return { rows: [], checklist };
+  }
+  if (details.type === "list" && Array.isArray(details.items)) {
+    const rows: Json[] = [];
+    for (const section of details.items as unknown[]) {
+      const sec = obj(section);
+      if (!sec) continue;
+      if (sec.type === "checklist") readChecklist(sec);
+      else if (sec.type === "node") rows.push({ node: sec });
+      else if (Array.isArray(sec.items)) rows.push(...(sec.items as unknown[]).map(obj).filter((r): r is Json => Boolean(r)));
+      else if (obj(sec.value) && Array.isArray(obj(sec.value)!.items)) rows.push(...(obj(sec.value)!.items as unknown[]).map(obj).filter((r): r is Json => Boolean(r)));
+    }
+    return { rows, checklist };
+  }
+  // table / opportunity: plain rows. A row that is itself a table (the legacy
+  // LCP-element audit nests its node one level down) is flattened.
+  const rows: Json[] = [];
+  for (const r of Array.isArray(details.items) ? (details.items as unknown[]).map(obj).filter((r): r is Json => Boolean(r)) : []) {
+    if (Array.isArray(r.items) && !r.node && !r.url) rows.push(...(r.items as unknown[]).map(obj).filter((x): x is Json => Boolean(x)));
+    else rows.push(r);
+  }
+  return { rows, checklist };
+}
+
+const SECRET_PARAMS = /^(key|api_?key|token|access_token|auth|signature|sig|secret|password)$/i;
+
+/** Third-party resource URLs on the audited site can embed that site's own API keys — never store or republish them. */
+function scrubUrl(u: string | null): string | null {
+  if (!u || !u.includes("?")) return u;
+  try {
+    const parsed = new URL(u);
+    let touched = false;
+    for (const k of [...parsed.searchParams.keys()]) if (SECRET_PARAMS.test(k)) { parsed.searchParams.set(k, "[redacted]"); touched = true; }
+    return touched ? parsed.toString() : u;
+  } catch {
+    return u;
+  }
+}
+
+function parseItem(o: Json): DiagnosticItem {
+  const entity = obj(o.entity);
+  const node = obj(o.node);
+  const source = obj(o.source);
+  return {
+    url: scrubUrl(str(o.url)) ?? str(o.entity) ?? str(entity?.text) ?? scrubUrl(str(source?.url)) ?? undefined,
+    label: str(o.label) ?? str(o.groupLabel) ?? str(o.statistic) ?? str(o.entity) ?? str(node?.snippet)?.slice(0, 160) ?? str(entity?.text) ?? str(o.reason) ?? undefined,
+    bytes: num(o.totalBytes) ?? num(o.transferSize) ?? undefined,
+    wastedBytes: num(o.wastedBytes) ?? undefined,
+    wastedMs: num(o.wastedMs) ?? num(o.blockingTime) ?? undefined,
+    ms: num(o.duration) ?? num(o.total) ?? num(o.mainThreadTime) ?? num(o.reflowTime) ?? undefined,
+  };
+}
+
 function parseDiagnostics(lhr: Json): { diagnostics: Diagnostic[]; lcpElement: PerfResult["lcpElement"] } {
   const audits = obj(lhr.audits) ?? {};
   const out: Diagnostic[] = [];
@@ -170,25 +320,25 @@ function parseDiagnostics(lhr: Json): { diagnostics: Diagnostic[]; lcpElement: P
     const a = obj(audits[id]);
     if (!a) continue;
     const details = obj(a.details);
-    const rawItems = Array.isArray(details?.items) ? (details!.items as unknown[]) : [];
-    const items: DiagnosticItem[] = rawItems.slice(0, MAX_ITEMS).map((it) => {
-      const o = obj(it) ?? {};
-      const entity = obj(o.entity);
-      const node = obj(o.node);
-      return {
-        url: str(o.url) ?? str(entity?.text) ?? undefined,
-        label: str(o.label) ?? str(o.groupLabel) ?? str(node?.snippet)?.slice(0, 160) ?? str(entity?.text) ?? undefined,
-        bytes: num(o.totalBytes) ?? num(o.transferSize) ?? undefined,
-        wastedBytes: num(o.wastedBytes) ?? undefined,
-        wastedMs: num(o.wastedMs) ?? num(o.blockingTime) ?? undefined,
-        ms: num(o.duration) ?? num(o.total) ?? num(o.mainThreadTime) ?? undefined,
-      };
-    });
-    if (id === "largest-contentful-paint-element" && rawItems.length) {
-      const first = obj(rawItems[0]);
-      const inner = first && Array.isArray(first.items) ? obj((first.items as unknown[])[0]) : first;
-      const node = inner ? obj(inner.node) : null;
-      if (node?.snippet) lcpElement = { snippet: String(node.snippet).slice(0, 300), url: str(inner?.url) ?? null };
+    const { rows, checklist } = collectRows(details);
+    const all = rows.map(parseItem);
+    const totals: Diagnostic["totals"] = { count: all.length, bytes: 0, wastedBytes: 0, wastedMs: 0, ms: 0 };
+    for (const it of all) {
+      totals.bytes += it.bytes ?? 0;
+      totals.wastedBytes += it.wastedBytes ?? 0;
+      totals.wastedMs += it.wastedMs ?? 0;
+      totals.ms += it.ms ?? 0;
+    }
+    const metricSavingsRaw = obj(a.metricSavings);
+    const metricSavings = metricSavingsRaw ? Object.fromEntries(Object.entries(metricSavingsRaw).filter(([, v]) => num(v) !== null) as Array<[string, number]>) : null;
+    const msSavings = metricSavings ? Math.max(0, ...Object.entries(metricSavings).filter(([k]) => MS_SAVINGS_KEYS.includes(k)).map(([, v]) => v)) : null;
+    const debug = details ? obj(details.debugData) : null;
+
+    // LCP element: legacy audit carries it as items[0].items[0].node; the LH13 breakdown insight as a node section.
+    if ((id === "largest-contentful-paint-element" || id === "lcp-breakdown-insight") && !lcpElement) {
+      const nodeRow = rows.find((r) => obj(r.node)?.snippet);
+      const node = nodeRow ? obj(nodeRow.node) : null;
+      if (node?.snippet) lcpElement = { snippet: String(node.snippet).slice(0, 300), url: scrubUrl(str(nodeRow?.url)) };
     }
     out.push({
       id,
@@ -197,12 +347,63 @@ function parseDiagnostics(lhr: Json): { diagnostics: Diagnostic[]; lcpElement: P
       displayValue: str(a.displayValue),
       numericValue: num(a.numericValue),
       numericUnit: str(a.numericUnit),
-      savingsMs: num(details?.overallSavingsMs),
-      savingsBytes: num(details?.overallSavingsBytes),
-      items,
+      savingsMs: num(details?.overallSavingsMs) ?? msSavings,
+      savingsBytes: num(details?.overallSavingsBytes) ?? num(debug?.wastedBytes) ?? (all.some((it) => it.wastedBytes !== undefined) ? totals.wastedBytes : null),
+      metricSavings,
+      checklist,
+      totals,
+      items: all.slice(0, MAX_ITEMS),
     });
   }
   return { diagnostics: out, lcpElement };
+}
+
+const MAX_FAILED_AUDITS = 12;
+
+function auditSummary(audits: Json, id: string, weight: number): CategoryAuditSummary | null {
+  const a = obj(audits[id]);
+  if (!a) return null;
+  return { id, title: str(a.title) ?? id, score: num(a.score), displayValue: str(a.displayValue), weight };
+}
+
+/** Accessibility / Best Practices / SEO: Google's score plus the weighted audits that failed. */
+function parseCategory(lhr: Json, id: string): CategoryResult | null {
+  const cats = obj(lhr.categories);
+  const cat = cats ? obj(cats[id]) : null;
+  if (!cat) return null;
+  const audits = obj(lhr.audits) ?? {};
+  const refs = Array.isArray(cat.auditRefs) ? (cat.auditRefs as unknown[]).map(obj).filter((r): r is Json => Boolean(r)) : [];
+  const scored = refs
+    .map((r) => ({ id: str(r.id) ?? "", weight: num(r.weight) ?? 0 }))
+    .filter((r) => r.id && r.weight > 0)
+    .map((r) => auditSummary(audits, r.id, r.weight))
+    .filter((a): a is CategoryAuditSummary => Boolean(a) && a!.score !== null);
+  const failed = scored.filter((a) => (a.score ?? 1) < 1).sort((a, b) => b.weight - a.weight || (a.score ?? 0) - (b.score ?? 0));
+  const score = num(cat.score);
+  return { score: score === null ? null : Math.round(score * 100), passed: scored.length - failed.length, applicable: scored.length, failed: failed.slice(0, MAX_FAILED_AUDITS) };
+}
+
+/** Agentic Browsing: every audit in the category with its mode, so the UI can say "X of Y applicable checks passed" and list the rest as not applicable. */
+function parseAgentic(lhr: Json): AgenticResult | null {
+  const cats = obj(lhr.categories);
+  const cat = cats ? obj(cats["agentic-browsing"]) : null;
+  if (!cat) return null;
+  const audits = obj(lhr.audits) ?? {};
+  const refs = Array.isArray(cat.auditRefs) ? (cat.auditRefs as unknown[]).map(obj).filter((r): r is Json => Boolean(r)) : [];
+  const checks = refs
+    .map((r) => {
+      const id = str(r.id) ?? "";
+      const base = id ? auditSummary(audits, id, num(r.weight) ?? 0) : null;
+      if (!base) return null;
+      const a = obj(audits[id])!;
+      return { ...base, mode: str(a.scoreDisplayMode), group: str(r.group) };
+    })
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  // Applicable = audits Lighthouse actually scored (binary/numeric); notApplicable/manual/informative are listed but not counted.
+  const applicable = checks.filter((c) => c.score !== null && c.mode !== "notApplicable" && c.mode !== "manual" && c.mode !== "informative");
+  // Lighthouse's own pass line: binary audits pass at 1, numeric audits (e.g. CLS) pass in the green band (≥ 0.9).
+  const passed = applicable.filter((c) => (c.mode === "numeric" ? (c.score ?? 0) >= 0.9 : (c.score ?? 0) >= 1)).length;
+  return { score: num(cat.score), passed, applicable: applicable.length, checks };
 }
 
 /** Pure normalizer — exported for tests and for re-normalizing stored data. */
@@ -210,19 +411,26 @@ export function normalizePsiResponse(url: string, strategy: Strategy, body: unkn
   const root = obj(body);
   const lhr = root ? obj(root.lighthouseResult) : null;
   if (!root || !lhr) {
-    return { url, finalUrl: null, strategy, status: "unavailable", error: "response has no lighthouseResult", errorCode: "malformed", field: noField(), lab: null, diagnostics: [], lcpElement: null, lighthouseVersion: null, analysisUtc: null, ms };
+    return { url, finalUrl: null, strategy, status: "unavailable", error: "response has no lighthouseResult", errorCode: "malformed", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms };
   }
   const runtimeError = obj(lhr.runtimeError);
   if (runtimeError && str(runtimeError.code) && runtimeError.code !== "NO_ERROR") {
-    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: `Lighthouse runtime error ${runtimeError.code}: ${str(runtimeError.message) ?? ""}`.trim(), errorCode: "rejected", field: noField(), lab: null, diagnostics: [], lcpElement: null, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: `Lighthouse runtime error ${runtimeError.code}: ${str(runtimeError.message) ?? ""}`.trim(), errorCode: "rejected", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
   }
   const lab = parseLab(lhr);
+  const categories: CategoryScores = { accessibility: parseCategory(lhr, "accessibility"), bestPractices: parseCategory(lhr, "best-practices"), seo: parseCategory(lhr, "seo") };
+  const agentic = parseAgentic(lhr);
   if (!lab || lab.performanceScore === null) {
-    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: "Lighthouse result has no performance score", errorCode: "malformed", field: noField(), lab, diagnostics: [], lcpElement: null, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+    // Lighthouse can fail a single metric (e.g. NO_LCP) and leave the performance category unscored while
+    // Accessibility / Best Practices / SEO / Agentic are perfectly valid. Performance is "unavailable" for
+    // this run — never a 0 — but the other categories are kept.
+    const audits = obj(lhr.audits) ?? {};
+    const metricError = ["largest-contentful-paint", "total-blocking-time", "first-contentful-paint", "speed-index", "cumulative-layout-shift"].map((id) => str(obj(audits[id])?.errorMessage)).find(Boolean);
+    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: metricError ? `Lighthouse could not measure performance for this page (${metricError})` : "Lighthouse result has no performance score", errorCode: metricError ? "rejected" : "malformed", field: noField(), lab, diagnostics: [], lcpElement: null, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
   }
   const field = parseField(root.loadingExperience, "url") ?? parseField(root.originLoadingExperience, "origin") ?? noField();
   const { diagnostics, lcpElement } = parseDiagnostics(lhr);
-  return { url, finalUrl: str(lhr.finalUrl), strategy, status: "ok", field, lab, diagnostics, lcpElement, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+  return { url, finalUrl: str(lhr.finalUrl), strategy, status: "ok", field, lab, diagnostics, lcpElement, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
 }
 
 export type PsiFetchImpl = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<Response>;
@@ -232,33 +440,51 @@ export interface PsiOptions {
   timeoutMs?: number;
   fetchImpl?: PsiFetchImpl;
   endpoint?: string;
+  /** Lighthouse categories to request (default: all of PSI_CATEGORIES). */
+  categories?: string[];
 }
 
 const DEFAULT_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 
 export async function runPageSpeed(url: string, strategy: Strategy, opts: PsiOptions = {}): Promise<PerfResult> {
   const started = Date.now();
-  const timeoutMs = opts.timeoutMs ?? 60_000;
+  const timeoutMs = opts.timeoutMs ?? 75_000;
   const fetchImpl = opts.fetchImpl ?? ((u, init) => fetch(u, init));
-  const q = new URLSearchParams({ url, strategy, category: "performance" });
+  const categories = opts.categories ?? [...PSI_CATEGORIES];
+  const q = new URLSearchParams({ url, strategy });
+  for (const c of categories) q.append("category", c);
   if (opts.apiKey) q.set("key", opts.apiKey);
   const endpoint = `${opts.endpoint ?? DEFAULT_ENDPOINT}?${q.toString()}`;
 
-  const unavailable = (error: string, errorCode: PerfErrorCode): PerfResult => ({ url, finalUrl: null, strategy, status: "unavailable", error, errorCode, field: noField(), lab: null, diagnostics: [], lcpElement: null, lighthouseVersion: null, analysisUtc: null, ms: Date.now() - started });
+  const unavailable = (error: string, errorCode: PerfErrorCode): PerfResult => ({ url, finalUrl: null, strategy, status: "unavailable", error, errorCode, field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms: Date.now() - started });
 
+  // The key travels only in the request URL. Nothing below may echo the
+  // endpoint, and any message that could carry it (a fetch error quoting the
+  // URL) is redacted before it reaches the stored/returned result.
+  const redact = (s: string) => (opts.apiKey ? s.split(opts.apiKey).join("[redacted]") : s);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(endpoint, { signal: controller.signal, headers: { Accept: "application/json" } });
+    // Quota first, before touching the body: Google's 429 is not always JSON.
+    if (res.status === 429) return unavailable("PageSpeed API quota exceeded (HTTP 429)", "rate_limited");
     let body: unknown = null;
     try {
       body = await res.json();
     } catch {
       return unavailable(`non-JSON response (HTTP ${res.status})`, "malformed");
     }
-    if (res.status === 429) return unavailable("PageSpeed API quota exceeded (HTTP 429)", "rate_limited");
     if (!res.ok) {
-      const msg = str(obj(obj(body)?.error)?.message) ?? `HTTP ${res.status}`;
+      const error = obj(obj(body)?.error);
+      const msg = redact(str(error?.message) ?? `HTTP ${res.status}`);
+      // A PSI backend that predates a category (e.g. agentic-browsing) rejects the whole request: retry once without it.
+      if (res.status === 400 && /Invalid value at 'category'/i.test(msg) && categories.length > 1) {
+        const remaining = Date.now() - started;
+        const kept = categories.filter((c) => !msg.includes(`"${c}"`));
+        if (kept.length && kept.length < categories.length) return runPageSpeed(url, strategy, { ...opts, categories: kept, timeoutMs: Math.max(15_000, timeoutMs - remaining) });
+      }
+      // Daily quota / per-minute limits also arrive as 403 RESOURCE_EXHAUSTED (reason rateLimitExceeded / quotaExceeded / dailyLimitExceeded).
+      if (isQuotaError(res.status, error)) return unavailable(`PageSpeed API quota exceeded (HTTP ${res.status}): ${msg}`, "rate_limited");
       // 400/500 from PSI usually means Lighthouse could not load the URL (blocked, DNS, timeout on their side).
       return unavailable(`PageSpeed API error: ${msg}`, res.status === 400 || res.status === 500 ? "rejected" : "http_error");
     }
@@ -266,10 +492,20 @@ export async function runPageSpeed(url: string, strategy: Strategy, opts: PsiOpt
   } catch (err) {
     const e = err as Error;
     if (e.name === "AbortError") return unavailable(`PageSpeed request timed out after ${timeoutMs} ms`, "timeout");
-    return unavailable(e.message || "network error", "network");
+    return unavailable(redact(e.message || "network error"), "network");
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Google API quota signals other than a plain 429. */
+function isQuotaError(status: number, error: Json | null): boolean {
+  if (status !== 403 && status !== 429) return false;
+  if (!error) return false;
+  if (str(error.status) === "RESOURCE_EXHAUSTED") return true;
+  const reasons = Array.isArray(error.errors) ? (error.errors as unknown[]).map((e) => str(obj(e)?.reason) ?? "") : [];
+  if (reasons.some((r) => /quota|rateLimit|dailyLimit|userRateLimit/i.test(r))) return true;
+  return /quota|rate limit/i.test(str(error.message) ?? "");
 }
 
 /** Thresholds per Google's Core Web Vitals guidance. */

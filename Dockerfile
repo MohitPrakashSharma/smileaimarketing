@@ -39,7 +39,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 
 # Shared with the worker container via a named volume — worker writes
 # audit PDFs here (lib/pdfGenerator.ts), web serves them statically.
-RUN mkdir -p /app/public/reports && chown -R nextjs:nodejs /app/public
+RUN mkdir -p /app/public/reports /app/storage/reports && chown -R nextjs:nodejs /app/public /app/storage
 
 USER nextjs
 

@@ -100,6 +100,38 @@ export const POOR_MOBILE: PsiFixtureOptions = {
 
 export const NO_CRUX: PsiFixtureOptions = { score: 0.71, lcpMs: 3100, cls: 0.05, tbtMs: 350, field: null };
 
+/**
+ * Lighthouse 13 (PSI since 2026) shapes: the legacy opportunity audits are gone
+ * and replaced by `*-insight` audits with `metricSavings`, `debugData`,
+ * `checklist` and `list` details. Modelled on live responses (LH 13.4.1).
+ */
+export const POOR_MOBILE_LH13: PsiFixtureOptions = {
+  score: 0.31,
+  lcpMs: 6200,
+  fcpMs: 3400,
+  cls: 0.31,
+  tbtMs: 1450,
+  siMs: 7800,
+  field: null,
+  omitAudits: ["render-blocking-resources", "uses-long-cache-ttl", "third-party-summary", "dom-size", "largest-contentful-paint-element"],
+  audits: {
+    "render-blocking-insight": { title: "Render blocking requests", score: 0, scoreDisplayMode: "metricSavings", displayValue: "Est savings of 2,620 ms", metricSavings: { LCP: 2600, FCP: 2600 }, details: { type: "table", items: [{ url: "https://x.test/post-11.css", totalBytes: 0, wastedMs: 165 }, { url: "https://x.test/frontend.min.css", totalBytes: 7481, wastedMs: 821 }] } },
+    "cache-insight": { title: "Use efficient cache lifetimes", score: 0.5, scoreDisplayMode: "metricSavings", displayValue: "Est savings of 1,464 KiB", metricSavings: { LCP: 0, FCP: 0 }, details: { type: "table", items: Array.from({ length: 9 }, (_, i) => ({ url: `https://x.test/asset-${i}.js`, cacheLifetimeMs: 0, totalBytes: 170000, wastedBytes: 166600 })), debugData: { type: "debugdata", wastedBytes: 1499400 } } },
+    "document-latency-insight": { title: "Document request latency", score: 0, scoreDisplayMode: "metricSavings", displayValue: "Est savings of 1,460 ms", metricSavings: { LCP: 1450, FCP: 1450 }, details: { type: "checklist", items: { serverResponseIsFast: { value: false, label: "Server responded slowly (observed 1400 ms)" }, noRedirects: { value: false, label: "Had redirects (1 redirects, +1458 ms)" }, usesCompression: { value: false, label: "No compression applied" } }, debugData: { type: "debugdata", serverResponseTime: 1400, redirectDuration: 1458, uncompressedResponseBytes: 210000, wastedBytes: 160000 } } },
+    "third-parties-insight": { title: "3rd parties", score: 1, scoreDisplayMode: "informative", details: { type: "table", isEntityGrouped: true, items: [{ entity: "Chat Widget Inc", transferSize: 900000, mainThreadTime: 1100, subItems: { type: "subitems", items: [{ url: "https://chat.test/w.js", transferSize: 900000, mainThreadTime: 1100 }] } }, { entity: "Tag Manager", transferSize: 171796, mainThreadTime: 199.5 }] } },
+    "dom-size-insight": { title: "Optimize DOM size", score: 1, scoreDisplayMode: "informative", numericValue: 3400, numericUnit: "element", metricSavings: { INP: 0 }, details: { type: "table", items: [{ statistic: "Total elements", value: { type: "numeric", value: 3400, granularity: 1 } }, { statistic: "DOM depth", node: { type: "node", snippet: "<span>" }, value: { type: "numeric", value: 25 } }], debugData: { type: "debugdata", totalElements: 3400 } } },
+    "font-display-insight": { title: "Font display", score: 0, scoreDisplayMode: "metricSavings", displayValue: "Est savings of 170 ms", metricSavings: { FCP: 150, INP: 0 }, details: { type: "table", skipSumming: ["wastedMs"], items: [{ url: "https://x.test/eicons.woff", wastedMs: 170 }, { url: "https://x.test/fa.woff2", wastedMs: 160 }] } },
+    "image-delivery-insight": { title: "Improve image delivery", score: 0, scoreDisplayMode: "metricSavings", displayValue: "Est savings of 141 KiB", metricSavings: { LCP: 450, FCP: 0 }, details: { type: "table", items: [{ url: "https://x.test/hero.jpg", node: { type: "node", snippet: '<img class="swiper-slide-image" src="https://x.test/hero.jpg">' }, totalBytes: 50652, wastedBytes: 39259, subItems: { type: "subitems", items: [{ wastedBytes: 39259, reason: "Increasing the image compression factor could improve this image's download size." }] } }, { url: "https://x.test/team.png", totalBytes: 130000, wastedBytes: 105297 }], debugData: { type: "debugdata", wastedBytes: 144556 } } },
+    "lcp-breakdown-insight": { title: "LCP breakdown", score: 0, scoreDisplayMode: "numeric", metricSavings: { LCP: 0 }, details: { type: "list", items: [{ type: "table", items: [{ label: "Time to first byte", subpart: "timeToFirstByte", duration: 24.188 }, { label: "Element render delay", subpart: "elementRenderDelay", duration: 4300.979 }] }, { type: "node", nodeLabel: "Hero", snippet: '<img class="hero" src="https://x.test/hero.jpg">' }] } },
+    "lcp-discovery-insight": { title: "LCP request discovery", score: 0, scoreDisplayMode: "metricSavings", metricSavings: { LCP: 900 }, details: { type: "list", items: [{ type: "node", snippet: '<img class="hero" src="https://x.test/hero.jpg">' }, { type: "checklist", items: { priorityHinted: { value: false, label: "fetchpriority=high should be applied" }, requestDiscoverable: { value: true, label: "Request is discoverable in initial document" }, eagerlyLoaded: { value: false, label: "lazy load not applied" } } }] } },
+    "legacy-javascript-insight": { title: "Legacy JavaScript", score: 0.5, scoreDisplayMode: "metricSavings", metricSavings: { LCP: 0, FCP: 0 }, details: { type: "table", items: [{ url: "https://x.test/polyfills.js", wastedBytes: 120000 }] } },
+    "server-response-time": { title: "Initial server response time was short", score: 1, numericValue: 24, details: { type: "opportunity", overallSavingsMs: 0, items: [] } },
+    "unused-javascript": { title: "Reduce unused JavaScript", score: 0.5, details: { type: "opportunity", overallSavingsBytes: 1092110, items: [{ url: "https://x.test/vendor.js", totalBytes: 800000, wastedBytes: 600000 }] } },
+    "mainthread-work-breakdown": { title: "Minimize main-thread work", numericValue: 6100, score: 0, details: { type: "table", items: [{ groupLabel: "Script Evaluation", duration: 3900 }] } },
+    "total-byte-weight": { title: "Avoid enormous network payloads", numericValue: 5400000, score: 0.1, details: { type: "table", items: [] } },
+  },
+};
+
 /** Route-level mock: URL (+strategy) → response/behaviour. */
 export type PsiRoute = { body?: unknown; status?: number; hang?: boolean; text?: string };
 

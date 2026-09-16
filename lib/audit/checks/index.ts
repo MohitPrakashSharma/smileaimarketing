@@ -35,14 +35,18 @@ export function buildCheckContext(crawl: CrawlResult, business: { name: string; 
   };
 }
 
+/** Denominator for `scope: "performance"` checks: pages PageSpeed actually measured (either device). */
+export function performanceDenominator(ctx: CheckContext): number {
+  return Math.max(1, new Set(ctx.performance.filter((r) => r.status === "ok").map((r) => r.url)).size);
+}
+
 /**
  * Runs every check for the given pillars. A check that throws is recorded
  * as SKIPPED with the error — one broken check must never sink the audit.
  */
 export function runChecks(ctx: CheckContext, pillars: Pillar[] = ["TECHNICAL", "CONTENT"]): CheckRun[] {
   const crawledDenominator = Math.max(1, ctx.indexablePages.length || ctx.htmlPages.length);
-  const testedMobile = ctx.performance.filter((r) => r.strategy === "mobile" && r.status === "ok").length;
-  const perfDenominator = Math.max(1, testedMobile);
+  const perfDenominator = performanceDenominator(ctx);
   const homeUrls = new Set([ctx.homepage?.url, ctx.homepage?.finalUrl].filter(Boolean) as string[]);
   const keyUrls = new Set(ctx.keyPages.map((p) => p.url));
 

@@ -1,6 +1,6 @@
 import type { CheckContext } from "../checks/types";
 import { selectRepresentativePages, type SelectedPage } from "../pages/select";
-import { runPageSpeed, type PerfResult, type PsiOptions, type Strategy } from "../providers/pagespeed";
+import { runPageSpeed, noField, noCategories, type PerfResult, type PsiOptions, type Strategy } from "../providers/pagespeed";
 
 /**
  * Performance stage: pick representative pages, run PageSpeed Insights for
@@ -32,7 +32,7 @@ export async function runPerformanceStage(ctx: CheckContext, opts: PerformanceSt
   for (const page of selected) jobs.push({ page, strategy: "desktop" });
 
   const results: PerfResult[] = [];
-  const maxDuration = opts.maxDurationMs ?? 150_000;
+  const maxDuration = opts.maxDurationMs ?? 210_000; // five Lighthouse categories ≈ 30–40 s per run
   const concurrency = Math.max(1, opts.concurrency ?? 3);
   let next = 0;
   let done = 0;
@@ -43,10 +43,10 @@ export async function runPerformanceStage(ctx: CheckContext, opts: PerformanceSt
       if (!job) return;
       const elapsed = Date.now() - started;
       if (elapsed > maxDuration) {
-        results.push({ url: job.page.url, finalUrl: null, strategy: job.strategy, status: "unavailable", error: "performance stage time budget exhausted before this run started", errorCode: "timeout", field: { available: false, source: null, overall: null, lcp: null, inp: null, cls: null, fcp: null, ttfb: null }, lab: null, diagnostics: [], lcpElement: null, lighthouseVersion: null, analysisUtc: null, ms: 0 });
+        results.push({ url: job.page.url, finalUrl: null, strategy: job.strategy, status: "unavailable", error: "performance stage time budget exhausted before this run started", errorCode: "timeout", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms: 0 });
       } else {
         const remaining = Math.max(15_000, maxDuration - elapsed);
-        results.push(await runPageSpeed(job.page.url, job.strategy, { ...opts.psi, timeoutMs: Math.min(opts.psi?.timeoutMs ?? 60_000, remaining) }));
+        results.push(await runPageSpeed(job.page.url, job.strategy, { ...opts.psi, timeoutMs: Math.min(opts.psi?.timeoutMs ?? 75_000, remaining) }));
       }
       done++;
       await opts.onProgress?.(done, jobs.length, `${done}/${jobs.length} PageSpeed runs`);

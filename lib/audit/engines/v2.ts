@@ -57,7 +57,7 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
 
   await prisma.audit.update({
     where: { id: auditId },
-    data: { engine: "CRAWL_V2", startedAt: new Date(), completedAt: null, errorMessage: null, configJson: json({ maxPages, maxDurationMs, trigger: opts.trigger }), progressJson: json(progress), overallScore: null, technicalScore: null, contentScore: null, searchScore: null, localScore: null, scoreBreakdownJson: Prisma.JsonNull },
+    data: { engine: "CRAWL_V2", startedAt: new Date(), completedAt: null, errorMessage: null, configJson: json({ maxPages, maxDurationMs, trigger: opts.trigger }), progressJson: json(progress), overallScore: null, technicalScore: null, contentScore: null, performanceScore: null, searchScore: null, localScore: null, scoreBreakdownJson: Prisma.JsonNull },
   });
   await prisma.auditPage.deleteMany({ where: { auditId } });
   await prisma.auditFinding.deleteMany({ where: { auditId } });
@@ -103,26 +103,42 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
     await writeProgress(advance(progress, "performance", { findingsSoFar: findings.length }, `${contentRuns.filter((r) => r.outcome.status === "FAIL").length} issues in ${contentRuns.length} checks`), true);
 
     // --- performance (PageSpeed Insights on representative pages) ---
+    // The stage is isolated: any unexpected error (provider, persistence)
+    // leaves the pillar "not measured" and the audit continues — PageSpeed
+    // enriches the SEO audit, it never blocks it.
     let perfResults: PerfResult[] = [];
     let perfSelected: SelectedPage[] = [];
     if (env.AUDIT_PSI_ENABLED && ctx.htmlPages.length > 0) {
-      const perf = await runPerformanceStage(ctx, {
-        maxPages: opts.trigger === "admin" ? env.AUDIT_PSI_MAX_PAGES_ADMIN : env.AUDIT_PSI_MAX_PAGES,
-        // PAGESPEED_API_KEY, else the existing Google key (works once the PageSpeed Insights API is enabled on its project), else keyless.
-        psi: { apiKey: env.PAGESPEED_API_KEY ?? env.GOOGLE_PLACES_API_KEY },
-        onProgress: async (done, total, detail) => writeProgress(setStageDetail(progress, "performance", detail), done === total),
-      });
-      perfResults = perf.results;
-      perfSelected = perf.selected;
-      await persistPerformance(auditId, perf.results, perf.selected);
-      ctx.performance = perfResults;
-      const perfRuns = runChecks(ctx, ["PERFORMANCE"]);
-      await persistChecks(auditId, perfRuns);
-      allRuns = [...allRuns, ...perfRuns];
-      findings = buildFindings(allRuns, ctx);
-      await persistFindings(auditId, findings);
-      const okRuns = perfResults.filter((r) => r.status === "ok").length;
-      progress = setStageDetail(progress, "performance", okRuns ? `${okRuns}/${perfResults.length} PageSpeed runs · ${perfSelected.length} page${perfSelected.length === 1 ? "" : "s"}` : "PageSpeed unavailable — not measured", okRuns ? "done" : "skipped");
+      try {
+        const perf = await runPerformanceStage(ctx, {
+          maxPages: opts.trigger === "admin" ? env.AUDIT_PSI_MAX_PAGES_ADMIN : env.AUDIT_PSI_MAX_PAGES,
+          // PAGESPEED_API_KEY, else the existing Google key (works once the PageSpeed Insights API is enabled on its project), else keyless.
+          psi: { apiKey: env.PAGESPEED_API_KEY ?? env.GOOGLE_PLACES_API_KEY },
+          onProgress: async (done, total, detail) => writeProgress(setStageDetail(progress, "performance", detail), done === total),
+        });
+        perfResults = perf.results;
+        perfSelected = perf.selected;
+        await persistPerformance(auditId, perf.results, perf.selected);
+        ctx.performance = perfResults;
+        const perfRuns = runChecks(ctx, ["PERFORMANCE"]);
+        await persistChecks(auditId, perfRuns);
+        allRuns = [...allRuns, ...perfRuns];
+        findings = buildFindings(allRuns, ctx);
+        await persistFindings(auditId, findings);
+        const okRuns = perfResults.filter((r) => r.status === "ok").length;
+        progress = setStageDetail(progress, "performance", okRuns ? `${okRuns}/${perfResults.length} PageSpeed runs · ${perfSelected.length} page${perfSelected.length === 1 ? "" : "s"}` : "PageSpeed unavailable — not measured", okRuns ? "done" : "skipped");
+      } catch (err) {
+        console.warn(`[Audit v2] performance stage failed for ${auditId}: ${err instanceof Error ? err.message : String(err)}`);
+        // Roll the pillar back to "not measured": no performance runs in the ledger, findings rebuilt without them.
+        ctx.performance = [];
+        perfResults = [];
+        perfSelected = [];
+        allRuns = allRuns.filter((r) => r.def.pillar !== "PERFORMANCE");
+        await prisma.auditCheckResult.deleteMany({ where: { auditId, pillar: "PERFORMANCE" } });
+        findings = buildFindings(allRuns, ctx);
+        await persistFindings(auditId, findings);
+        progress = setStageDetail(progress, "performance", "PageSpeed unavailable — not measured", "skipped");
+      }
     } else {
       progress = setStageDetail(progress, "performance", ctx.htmlPages.length ? "disabled" : "no pages to test", "skipped");
     }
@@ -183,6 +199,7 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
     await pdfQueue.add(
       "generate-pdf",
       {
+        engine: "CRAWL_V2",
         auditId,
         publicToken: completed.publicToken,
         businessName: business.name,
@@ -323,7 +340,7 @@ function buildDeterministicSummary(name: string, crawl: CrawlResult, findings: F
   const high = findings.filter((f) => f.severity === "HIGH").length;
   const top = findings[0];
   const parts = [
-    `We crawled ${crawl.stats.pagesCrawled} page${crawl.stats.pagesCrawled === 1 ? "" : "s"} of ${name}'s website and ran ${scores.technical.checksRun + scores.content.checksRun} checks.`,
+    `We crawled ${crawl.stats.pagesCrawled} page${crawl.stats.pagesCrawled === 1 ? "" : "s"} of ${name}'s website and ran ${scores.technical.checksRun + scores.content.checksRun + scores.performance.checksRun} checks.`,
     scores.overall !== null ? `Overall SEO health is ${scores.overall}/100 (technical ${scores.technical.score ?? "—"}, content ${scores.content.score ?? "—"}, performance ${scores.performance.score ?? "not measured"}).` : "",
     findings.length ? `${findings.length} finding${findings.length === 1 ? "" : "s"} were verified — ${crit} critical, ${high} high.` : "No problems were found in the checks we ran.",
     top ? `The first thing to fix: ${top.title.toLowerCase()}.` : "",
@@ -348,11 +365,21 @@ async function persistPerformance(auditId: string, results: PerfResult[], select
       labJson: r.lab ? json(r.lab) : undefined,
       diagnosticsJson: json(r.diagnostics),
       lcpElementJson: r.lcpElement ? json(r.lcpElement) : undefined,
+      // Kept even when performance itself was unavailable (a NO_LCP-style metric error leaves the other categories valid).
+      categoriesJson: r.categories.accessibility || r.categories.bestPractices || r.categories.seo ? json(r.categories) : undefined,
+      agenticJson: r.agentic ? json(r.agentic) : undefined,
       lighthouseVersion: r.lighthouseVersion,
-      analysisUtc: r.analysisUtc ? new Date(r.analysisUtc) : null,
+      analysisUtc: validDate(r.analysisUtc),
     })),
     skipDuplicates: true,
   });
+}
+
+/** A timestamp Google returned, or null — an unparsable string must not fail the insert. */
+function validDate(v: string | null): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 async function persistAi(auditId: string, outcomes: AiPageOutcome[]) {

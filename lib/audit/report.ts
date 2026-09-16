@@ -1,5 +1,4 @@
 import type { Audit, AuditFinding, AuditPage, AuditCheckResult, AuditPerformance, AuditAiPageAnalysis } from "@prisma/client";
-import { industryFromCategory, cap } from "@/lib/industry";
 import { gradeFor } from "./scoring";
 import { bucketFor, SEVERITY_ORDER } from "./priority";
 import type { AuditProgress } from "./progress";
@@ -68,6 +67,11 @@ export interface V2ReportPayload {
     lab: unknown;
     lcpElement: unknown;
     diagnostics: unknown;
+    /** Google's Accessibility / Best Practices / SEO for the same run; null on audits stored before they were collected. */
+    categories: unknown;
+    agentic: unknown;
+    lighthouseVersion: string | null;
+    analysisUtc: string | null;
   }>;
   /** Phase 2A: per-page AI analyses (validated, scrubbed) — provenance visible via status/model. */
   ai: Array<{ url: string; pageType: string | null; selectionReason: string | null; status: string; errorCode: string | null; error: string | null; model: string | null; result: unknown; scrubbedCount: number }>;
@@ -133,7 +137,7 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
         device: f.device,
         metric: f.metric,
       })),
-    performance: performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson })),
+    performance: performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson, categories: p.categoriesJson ?? null, agentic: p.agenticJson ?? null, lighthouseVersion: p.lighthouseVersion, analysisUtc: p.analysisUtc ? p.analysisUtc.toISOString() : null })),
     ai: ai.map((a) => ({ url: a.url, pageType: a.pageType, selectionReason: a.selectionReason, status: a.status, errorCode: a.errorCode, error: a.error, model: a.model, result: a.resultJson, scrubbedCount: Array.isArray(a.scrubbedJson) ? (a.scrubbedJson as unknown[]).length : 0 })),
     pages: pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.title, indexable: p.indexable, wordCount: p.wordCount, depth: p.depth, fetchMs: p.fetchMs })),
     checks: checks.map((c) => ({ checkId: c.checkId, pillar: c.pillar, status: c.status, severity: c.severity, affectedPageCount: c.affectedPageCount, pageShare: c.pageShare, weight: c.weight, penalty: c.penalty, reason: c.reason })),
@@ -154,7 +158,6 @@ export interface LegacyCard {
 const SEVERITY_LABEL: Record<Severity, string> = { CRITICAL: "Critical", HIGH: "High", MEDIUM: "Medium", LOW: "Low", OPPORTUNITY: "Opportunity" };
 
 export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages: AuditPage[], business: { name: string; city: string; category: string }) {
-  const ind = industryFromCategory(business.category);
   const counts = severityCounts(findings);
   const sorted = findings.slice().sort((a, b) => b.priorityScore - a.priorityScore);
   const crawled = pages.filter((p) => p.statusCode !== null).length;
@@ -186,7 +189,7 @@ export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages:
     ? { line1: "Solid Foundations.", line2: "Nothing Urgent Found." }
     : counts.CRITICAL > 0
       ? { line1: `${counts.CRITICAL} Critical Issue${counts.CRITICAL === 1 ? "" : "s"}`, line2: `Are Holding ${business.name} Back.` }
-      : { line1: "Here's Exactly", line2: `What's Costing You ${cap(ind.customers)}.` };
+      : { line1: "Here's Exactly", line2: "What To Fix First." };
   const dek = top
     ? `We crawled ${crawled} page${crawled === 1 ? "" : "s"} of ${business.name}'s site and verified ${findings.length} finding${findings.length === 1 ? "" : "s"}. The biggest: ${top.title.toLowerCase()}.`
     : `We crawled ${crawled} page${crawled === 1 ? "" : "s"} and found nothing that needs urgent attention.`;

@@ -1,0 +1,308 @@
+import { PDFDocument } from "pdf-lib";
+import type { V2ReportPayload } from "../report";
+import { buildPerformanceView, metricsFor, googleChecksFor, testDateLabel, type PerfRow } from "../view/performanceView";
+import { primaryAction, type FindingLike } from "../view/findingView";
+import { buildBusinessMessage, plainEvidence } from "../view/message";
+import { PILLAR_DEFS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../view/pillars";
+import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
+import type { ReportPdfInput } from "./technicalPdf";
+
+/**
+ * Customer report PDF — the version a practice owner reads. Same stored data
+ * as the web report, presented in plain English:
+ *
+ *   1. Cover + personalised message      (business, date, scope, our score, message)
+ *   2. Website health                      (our pillars; Google's five checks per tested page)
+ *   3. Problems and recommendations        (the most consequential findings, one card each)
+ *   4. Action plan                         (five priority actions — a checklist, not a repeat)
+ *   5. Complete findings summary           (every stored finding, grouped by area)
+ *
+ * No raw HTML, check identifiers, code or long diagnostic lists here — those
+ * live in the technical report, which the closing note points to. Every
+ * finding is accounted for; nothing is dropped to save pages.
+ *
+ * `CUSTOMER_PDF_LAYOUT` is part of the stored file name — bump it whenever the
+ * layout changes so cached files are regenerated.
+ */
+
+export const CUSTOMER_PDF_LAYOUT = "cust-r1";
+
+type Finding = V2ReportPayload["findings"][number];
+const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
+const pathOnly = (url: string) => {
+  try {
+    const p = new URL(url).pathname;
+    return p === "/" ? "homepage" : p.replace(/\/$/, "");
+  } catch {
+    return url;
+  }
+};
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const SEVERITY_WORD: Record<string, string> = { CRITICAL: "Critical", HIGH: "High", MEDIUM: "Medium", LOW: "Low", OPPORTUNITY: "Suggestion" };
+const severityLevel = (s: string): Level | null => (s === "CRITICAL" || s === "HIGH" ? "attention" : s === "MEDIUM" ? "opportunity" : null);
+
+/** Plain-language "what we found" for a finding: measurement + the pages it was seen on (paths only, capped). */
+function whatWeFound(f: Finding, pagesCrawled: number): { measured: string; pages: string } {
+  const raw = plainEvidence({ ...f, developerDetails: f.developerDetails as FindingLike["developerDetails"] }, pagesCrawled);
+  const measured = /[.!?]$/.test(raw) ? raw : `${raw.charAt(0).toUpperCase()}${raw.slice(1)}.`;
+  const urls = [...new Set(f.affectedUrls.map(pathOnly))];
+  const shown = urls.slice(0, 4);
+  const pages = urls.length ? `${shown.join(", ")}${urls.length > shown.length ? ` and ${urls.length - shown.length} more` : ""}` : "";
+  return { measured, pages };
+}
+
+/** Fix lines without developer-only phrasing (code, selectors, HTTP headers stay in the technical report). */
+function ownerFixLines(f: Finding): string[] {
+  const lines = f.recommendedFix
+    .split("\n")
+    .map((l) => l.replace(/^•\s*/, "").trim())
+    .filter((l) => l && !/[<>{}`]|Cache-Control|@font-face|fetchpriority|srcset|<link|rel=|\.css|\.js/i.test(l));
+  // The intro line and a bullet often say the same thing — keep the first phrasing only
+  // (two lines sharing more than half of their meaningful words count as the same advice).
+  const words = (l: string) => new Set(l.toLowerCase().replace(/[^a-z ]/g, "").split(" ").filter((w) => w.length > 3));
+  const kept: Set<string>[] = [];
+  return lines.filter((l) => {
+    const w = words(l);
+    const dup = kept.some((k) => {
+      let common = 0;
+      for (const x of w) if (k.has(x)) common++;
+      return common / Math.max(1, Math.min(w.size, k.size)) > 0.5;
+    });
+    if (!dup) kept.push(w);
+    return !dup;
+  });
+}
+const clean = (s: string) => s.replace(/`/g, "").replace(/<([a-z-]+)>/g, "$1"); // Lighthouse titles quote tags in markdown — plain words for the owner
+
+export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutput> {
+  const { payload, business } = input;
+  const doc = await PDFDocument.create();
+  doc.setTitle(`SEO Audit — ${business.name}`);
+  doc.setAuthor("Smile AI Marketing");
+  doc.setCreationDate(input.completedAt);
+  const f = await loadFonts(doc);
+  const date = dateLabel(input.completedAt);
+  const fl = new Flow(doc, f, { business: business.name, date, url: input.reportUrl, kind: "SEO AUDIT" });
+  const scores = payload.scores;
+  const findings = payload.findings;
+  const sc = payload.severityCounts;
+  const pagesCrawled = ((payload.crawlStats as { pagesCrawled?: number } | null)?.pagesCrawled ?? 0) as number;
+  const checksRun = payload.checks.filter((c) => c.status === "PASS" || c.status === "FAIL").length;
+  const rows = payload.performance as PerfRow[];
+  const view = buildPerformanceView(rows);
+  const message = buildBusinessMessage({ businessName: business.name, website: business.website, customersWord: business.customersWord, pagesCrawled, checksRun, scores, severityCounts: sc, findings: findings.map((x) => ({ ...x, developerDetails: x.developerDetails as FindingLike["developerDetails"] })), performance: rows });
+
+  // ───────── 1. Cover + personalised message ─────────
+  fl.gap(6);
+  fl.text("SEO AUDIT REPORT", { font: f.bold, size: 8, color: C.accent });
+  fl.gap(4);
+  fl.text(business.name, { font: f.bold, size: 24, color: C.dark, lineHeight: 28 });
+  fl.text(`${input.headline.line1} ${input.headline.line2}`, { font: f.bold, size: 12, color: C.secondary });
+  fl.gap(6);
+  fl.text(`${business.website}${business.city ? ` · ${business.city}` : ""} · Audited ${date}`, { size: 9.5, color: C.secondary });
+  const scopeBits = [`${pagesCrawled} page${pagesCrawled === 1 ? "" : "s"} crawled`, `${checksRun} checks`];
+  if (view.pages.length) scopeBits.push(`Google PageSpeed on ${view.pages.length} page${view.pages.length === 1 ? "" : "s"}`);
+  fl.text(`Scope: ${scopeBits.join(" · ")}`, { size: 9.5, color: C.secondary });
+  fl.gap(14);
+  {
+    const overall = scores?.overall ?? null;
+    const level = overall === null ? null : auditLevel(overall);
+    const r = 36;
+    const top = fl.y;
+    fl.ring(fl.left + r + 6, top - r - 4, r, overall, level, { stroke: 7, numberSize: 27, caption: "SEO health" });
+    const x = fl.left + r * 2 + 28;
+    fl.text(overall === null ? "Overall SEO health: not measured" : `Overall SEO health: ${overall}/100 — ${AUDIT_LEVEL_LABEL[level!]}`, { x, font: f.bold, size: 12 });
+    fl.text("Our audit score. It starts at 100 and loses points for every verified issue across the crawled pages. This is not a Google score — Google's own checks are on the next page.", { x, size: 8.5, color: C.muted });
+    fl.gap(6);
+    const crit = sc.CRITICAL ?? 0;
+    const high = sc.HIGH ?? 0;
+    const stats: Array<[string, string]> = [[String(findings.length), "verified findings"], [String(crit), crit === 1 ? "critical issue" : "critical issues"], [String(high), "high priority"], [String((sc.MEDIUM ?? 0) + (sc.LOW ?? 0)), "medium & low"]];
+    const w = (fl.right - x) / 4;
+    const sy = fl.y;
+    stats.forEach(([v, l], i) => {
+      if (!fl.dryRun) {
+        fl.page.drawText(v, { x: x + i * w, y: sy - 16, size: 16, font: f.bold, color: i === 1 && crit ? C.attention : C.ink });
+        fl.page.drawText(pdfSafe(l), { x: x + i * w, y: sy - 27, size: 7, font: f.regular, color: C.muted });
+      }
+      fl.transcript.push(`${v} ${l}`);
+    });
+    fl.y = Math.min(fl.y - 34, top - (r * 2 + 30));
+  }
+  fl.gap(10);
+  fl.section(message.heading);
+  for (const p of message.paragraphs) {
+    fl.text(p, { size: 10, lineHeight: 14.5 });
+    fl.gap(5);
+  }
+
+  // ───────── 2. Website health ─────────
+  fl.newPage();
+  fl.section("Website health", "Two different measurements, side by side: our SEO audit (all crawled pages, five areas) and Google's own five checks (one page and one device per test).");
+  fl.text("Our SEO audit — by area", { font: f.bold, size: 11, color: C.dark });
+  fl.gap(4);
+  for (const p of PILLAR_DEFS) {
+    const score = scores ? scores[p.key] : null;
+    const mine = findings.filter((x) => x.pillar === p.pillar);
+    const level = score === null ? null : auditLevel(score);
+    fl.keepTogether(() => {
+      const top = fl.y;
+      fl.text(p.label, { font: f.bold, size: 10, maxWidth: fl.usable - 150 });
+      fl.text(score === null ? p.notMeasured(business.city) : mine.length ? `${mine.length} finding${mine.length === 1 ? "" : "s"} — ${mine.slice(0, 2).map((x) => lower(x.title)).join("; ")}${mine.length > 2 ? "; and more" : "."}` : "No problems found in the checks we ran.", { size: 8.5, color: C.muted, maxWidth: fl.usable - 150 });
+      if (!fl.dryRun) {
+        fl.page.drawText(score === null ? "Not measured" : `${score}/100`, { x: fl.right - 140, y: top - 12, size: 12, font: f.bold, color: score === null ? C.faint : C.ink });
+        if (level) fl.pill(AUDIT_LEVEL_LABEL[level], level, fl.right - 72, top - 1);
+        fl.transcript.push(`${p.label}: ${score === null ? "Not measured" : `${score}/100 (${AUDIT_LEVEL_LABEL[level!]})`}`);
+      }
+      fl.gap(2);
+      fl.rule();
+      fl.gap(3);
+    });
+  }
+  fl.gap(8);
+  fl.text("Google's website checks", { font: f.bold, size: 11, color: C.dark });
+  const perfStage = payload.progress?.stages.find((s) => s.key === "performance");
+  if (!view.okRuns) {
+    fl.text(rows.length ? "Google PageSpeed Insights could not test this site during the audit, so Google's checks are not available for this report and do not affect your score." : `Google's checks were not run for this audit${perfStage?.detail ? ` (${perfStage.detail})` : ""}.`, { size: 9.5, color: C.muted });
+  } else {
+    fl.text("Google tests one page on one device at a time. Performance, Accessibility, Best Practices and Google SEO are 0–100 scores; Agentic Browsing is a short pass/fail checklist for AI assistants that Google marks as experimental. Google's SEO check covers ten technical basics — it is not the same as our SEO audit above.", { size: 8.5, color: C.muted });
+    fl.gap(6);
+    for (const pg of view.pages) {
+      for (const device of ["mobile", "desktop"] as const) {
+        const row = pg[device];
+        if (!row) continue;
+        const checks = googleChecksFor(row);
+        const when = testDateLabel(row.analysisUtc);
+        fl.keepTogether(() => {
+          fl.text(`${pg.path} · ${device === "mobile" ? "Mobile" : "Desktop"}${when ? ` · tested ${when}` : ""}`, { font: f.bold, size: 10 });
+          fl.gap(6);
+          const slot = fl.usable / 5;
+          const r = 17;
+          const top = fl.y;
+          checks.forEach((c, i) => {
+            const cx = fl.left + slot * i + slot / 2;
+            const cy = top - r - 2;
+            if (c.kind === "score") fl.ring(cx, cy, r, c.available ? c.score : null, c.available && c.score !== null ? googleLevel(c.score) : null, { stroke: 4, numberSize: 12 });
+            else if (!fl.dryRun) {
+              const lvl: Level | null = c.available ? (c.passed === c.applicable ? "healthy" : "opportunity") : null;
+              fl.page.drawCircle({ x: cx, y: cy, size: r, borderColor: lvl ? LEVEL_COLOR[lvl] : C.track, borderWidth: 4 });
+              const lbl = c.available ? `${c.passed}/${c.applicable}` : "-";
+              fl.page.drawText(lbl, { x: cx - f.bold.widthOfTextAtSize(lbl, 10) / 2, y: cy - 2, size: 10, font: f.bold, color: c.available ? C.ink : C.faint });
+              fl.page.drawText("PASSED", { x: cx - f.bold.widthOfTextAtSize("PASSED", 4.5) / 2, y: cy - 9, size: 4.5, font: f.bold, color: C.muted });
+            }
+            if (!fl.dryRun) {
+              const name = pdfSafe(c.label);
+              fl.page.drawText(name, { x: cx - f.bold.widthOfTextAtSize(name, 7.5) / 2, y: cy - r - 12, size: 7.5, font: f.bold, color: C.ink });
+              const status = c.kind === "score" ? (c.available ? LEVEL_LABEL[googleLevel(c.score!)] : "Not collected") : c.available ? (c.passed === c.applicable ? "All passed" : "Some failed") : "Not collected";
+              fl.page.drawText(status, { x: cx - f.regular.widthOfTextAtSize(status, 6.5) / 2, y: cy - r - 20, size: 6.5, font: f.regular, color: C.muted });
+              fl.transcript.push(`${c.label}: ${c.kind === "score" ? (c.available ? `${c.score}/100 (${status})` : "not collected") : c.available ? `${c.passed} of ${c.applicable} checks passed` : "not collected"}`);
+            }
+          });
+          fl.y = top - (r * 2 + 30);
+          // one plain-English line per page × device
+          const perf = checks[0];
+          const m = perf.available ? Object.fromEntries(metricsFor(row).map((x) => [x.key, x])) : null;
+          const bits: string[] = [];
+          if (perf.available) bits.push(`Google scores this page ${perf.score}/100 for speed on ${device}${m?.lcp?.value != null ? ` — its main content appears after ${m.lcp.display}${m.lcp.source === "field" ? " for real visitors" : " in Google's simulated test"} (target 2.5 s)` : ""}`);
+          else bits.push(`Google could not measure speed for this page on ${device}`);
+          const cats = checks.slice(1, 4).filter((c) => c.available);
+          if (cats.length) {
+            const fails = cats.flatMap((c) => c.failed.map((a) => clean(a.title)));
+            bits.push(fails.length ? `Google's other checks flagged: ${fails.slice(0, 4).join("; ")}${fails.length > 4 ? "; and more" : ""}` : "Google's accessibility, best-practice and basic SEO checks all passed");
+          }
+          const ag = checks[4];
+          if (ag.available && ag.applicable !== null && ag.passed !== ag.applicable) bits.push(`Agentic Browsing: ${ag.applicable - (ag.passed ?? 0)} of ${ag.applicable} checks failed`);
+          fl.text(bits.map((b) => (/[.!?]$/.test(b) ? b : `${b}.`)).join(" "), { size: 8.5, color: C.secondary });
+          fl.gap(8);
+        });
+      }
+    }
+    if (view.failedRuns.length) fl.text(`${view.failedRuns.length} of ${view.totalRuns} Google test runs could not complete and are simply not shown.`, { size: 8, color: C.muted });
+    if (scores?.performance != null) fl.text(`Why our Performance score (${scores.performance}/100) is lower than Google's: our score deducts points for every verified performance issue across all ${view.pages.length} tested page${view.pages.length === 1 ? "" : "s"} on both devices; Google's number is for one page on one device.`, { size: 8, color: C.muted });
+  }
+
+  // ───────── 3. Problems and recommendations ─────────
+  const featured = (() => {
+    const byPriority = findings.slice(0, 5);
+    const criticals = findings.filter((x) => x.severity === "CRITICAL" && !byPriority.includes(x));
+    return [...byPriority, ...criticals];
+  })();
+  fl.ensure(320);
+  fl.section("Problems and recommendations", `The ${featured.length} findings that matter most, in priority order. Every one is a verified measurement from this audit; all ${findings.length} findings are listed in the summary at the end.`);
+  featured.forEach((fd, i) => {
+    const like = toLike(fd);
+    const { measured, pages } = whatWeFound(fd, pagesCrawled);
+    const fixes = ownerFixLines(fd);
+    fl.keepTogether(() => {
+      const top = fl.y;
+      const startPage = fl.page;
+      const w = fl.pill(SEVERITY_WORD[fd.severity] ?? fd.severity, severityLevel(fd.severity), fl.left, top);
+      if (!fl.dryRun) fl.page.drawText(pdfSafe(`${PILLAR_LABEL[fd.pillar] ?? fd.pillar} · affects ${fd.affectedPageCount} page${fd.affectedPageCount === 1 ? "" : "s"} · ${fd.owner === "developer" ? "needs a developer" : fd.owner === "owner" ? "you can do this yourself" : "we can handle this"}`), { x: fl.left + w + 6, y: top - 8.4, size: 7.5, font: f.regular, color: C.muted });
+      fl.y = top - 14;
+      fl.text(`${i + 1}. ${fd.title}`, { font: f.bold, size: 12 });
+      fl.gap(2);
+      fl.kv("What we found", `${measured}${pages ? ` Seen on: ${pages}.` : ""}`, { labelWidth: 78, size: 9.5 });
+      fl.kv("Why it matters", fd.whyItMatters, { labelWidth: 78, size: 9.5 });
+      fl.kv("What to do", fixes[0] ?? primaryAction(like), { labelWidth: 78, size: 9.5 });
+      for (const line of fixes.slice(1, 4)) fl.text(`• ${line}`, { size: 9, x: fl.left + 78, color: C.secondary });
+      fl.text(`Priority: ${BUCKET_LABEL[fd.bucket] ?? fd.bucket} · effort ${fd.effort}/5`, { size: 8, color: C.muted, x: fl.left + 78 });
+      if (!fl.dryRun && fl.page === startPage) fl.page.drawRectangle({ x: fl.left - 8, y: fl.y - 2, width: 2.5, height: top - fl.y + 2, color: SEVERITY_COLOR[fd.severity] ?? C.muted });
+      fl.gap(8);
+      fl.rule();
+      fl.gap(8);
+    });
+  });
+  if (!featured.length) fl.text("Nothing crossed our thresholds — the site is in good shape on the checks we ran.", { size: 10 });
+
+  // ───────── 4. Action plan ─────────
+  const plan = findings.slice(0, 5);
+  fl.section("Action plan", "Five priority actions, in order. Each is explained in the section above; this is the checklist.");
+  plan.forEach((fd, i) => {
+    fl.keepTogether(() => {
+      const top = fl.y;
+      if (!fl.dryRun) {
+        fl.page.drawCircle({ x: fl.left + 9, y: top - 9, size: 9, color: C.accentSoft });
+        fl.page.drawText(String(i + 1), { x: fl.left + 9 - f.bold.widthOfTextAtSize(String(i + 1), 9) / 2, y: top - 12.2, size: 9, font: f.bold, color: C.accent });
+      }
+      fl.text(fd.title, { font: f.bold, size: 10.5, x: fl.left + 26 });
+      fl.text(`${primaryAction(toLike(fd))} ${OWNER_LABEL[fd.owner] ? `(${OWNER_LABEL[fd.owner]}${fd.effort >= 4 ? "; a larger job" : ""})` : ""}`, { size: 9, x: fl.left + 26, color: C.secondary });
+      fl.text(`${BUCKET_LABEL[fd.bucket] ?? fd.bucket}`, { size: 8, x: fl.left + 26, color: C.muted });
+      fl.gap(6);
+    });
+  });
+  if (!plan.length) fl.text("No actions required from this audit.", { size: 10 });
+  fl.gap(4);
+  fl.text("Next steps: work through the list top to bottom, re-run the audit after the first two items, and share the technical report with whoever maintains the website.", { size: 9, color: C.secondary });
+
+  // ───────── 5. Complete findings summary ─────────
+  fl.section(`All ${findings.length} findings`, "Everything the audit verified, grouped by area. Full measurements, affected URLs and developer instructions for each item are in the technical report and the online report.");
+  for (const p of PILLAR_DEFS) {
+    const mine = findings.filter((x) => x.pillar === p.pillar);
+    if (!mine.length) continue;
+    fl.ensure(70);
+    fl.text(`${p.label} (${mine.length})`, { font: f.bold, size: 10, color: C.dark });
+    fl.gap(3);
+    for (const fd of mine) {
+      const { measured, pages } = whatWeFound(fd, pagesCrawled);
+      fl.keepTogether(() => {
+        const top = fl.y;
+        const w = fl.pill(SEVERITY_WORD[fd.severity] ?? fd.severity, severityLevel(fd.severity), fl.left, top, 6.5);
+        fl.y = top;
+        fl.text(fd.title, { font: f.bold, size: 9.5, x: fl.left + w + 6 });
+        fl.text(`${measured}${pages ? ` · ${pages}` : ""}`, { size: 8.5, color: C.secondary, x: fl.left + w + 6 });
+        fl.text(`${primaryAction(toLike(fd))} · ${BUCKET_LABEL[fd.bucket]?.toLowerCase() ?? fd.bucket} · ${OWNER_LABEL[fd.owner] ?? fd.owner}`, { size: 8, color: C.muted, x: fl.left + w + 6 });
+        fl.gap(5);
+      });
+    }
+    fl.gap(4);
+  }
+
+  fl.gap(8);
+  fl.rule();
+  fl.gap(6);
+  fl.text(`Online report (interactive, with every measurement): ${input.reportUrl}`, { font: f.bold, size: 9, color: C.accent });
+  fl.text("A separate technical report with full evidence, affected URLs and developer instructions is available from the same page. This report is based only on data collected during the audit; scores describe how the site measured on the audit date and are not predictions of rankings, traffic or revenue.", { size: 8, color: C.muted });
+
+  fl.finish();
+  const bytes = await doc.save();
+  return { bytes, pageCount: fl.pages.length, transcript: fl.transcript.join("\n") };
+}

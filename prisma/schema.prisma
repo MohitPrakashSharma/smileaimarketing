@@ -420,6 +420,8 @@ model AuditPerformance {
   labJson           Json? // normalized Lighthouse metrics + performance score
   diagnosticsJson   Json? // normalized audits: [{ id, title, score, displayValue, numericValue, savingsMs, savingsBytes, items[≤5] }]
   lcpElementJson    Json? // { snippet, url } when Lighthouse reports the LCP element
+  categoriesJson    Json? // Google's other Lighthouse categories for this run: { accessibility, bestPractices, seo } → { score 0–100, passed, applicable, failed[] } (null = not returned)
+  agenticJson       Json? // Lighthouse 13 "Agentic Browsing": { score, passed, applicable, checks[] } — presented as passed/applicable, never as a percentage
   lighthouseVersion String?
   analysisUtc       DateTime?
   fetchedAt         DateTime  @default(now())

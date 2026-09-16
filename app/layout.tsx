@@ -76,7 +76,9 @@ export default function RootLayout({
       lang="en"
       className={`${manrope.variable} ${outfit.variable}`}
     >
-      <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
+      {/* suppressHydrationWarning: browser extensions (Grammarly etc.) inject attributes on <body>
+          before React hydrates, which otherwise logs a hydration-mismatch error on every page. */}
+      <body className="min-h-screen flex flex-col bg-background text-foreground antialiased" suppressHydrationWarning>
         <AnalyticsProvider />
         {children}
       </body>

@@ -24,7 +24,7 @@ COPY --chown=worker:nodejs tsconfig.json ./
 
 # Shared with the web container via a named volume so worker-generated
 # audit PDFs (lib/pdfGenerator.ts writes to public/reports) are servable.
-RUN mkdir -p /app/public/reports && chown -R worker:nodejs /app/public
+RUN mkdir -p /app/public/reports /app/storage/reports && chown -R worker:nodejs /app/public /app/storage
 
 USER worker
 

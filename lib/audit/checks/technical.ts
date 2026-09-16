@@ -265,7 +265,7 @@ const TECHNICAL_CHECKS: CheckDefinition[] = [
     pillar: "TECHNICAL", section: "B2", title: "Pages more than 3 clicks from the homepage",
     severity: "MEDIUM", weight: 6, impact: 3, effort: 3, confidence: 85,
     expected: "Important pages reachable within 3 clicks",
-    why: "Pages buried deep in the site are crawled less often and rank worse — they look unimportant to search engines.",
+    why: "Pages buried deep in the site are crawled less often and given less weight — they look unimportant to search engines.",
     fix: "Link to your key pages from the main navigation, footer or homepage.",
     run: (ctx) => {
       if (ctx.crawl.stats.budgetHit !== "none") return skipped("crawl budget hit — link graph incomplete, depth unreliable");
@@ -429,7 +429,7 @@ const TECHNICAL_CHECKS: CheckDefinition[] = [
     pillar: "TECHNICAL", section: "B4", title: "Missing mobile viewport tag",
     severity: "CRITICAL", weight: 30, impact: 5, effort: 1, confidence: 98,
     expected: "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> on every page",
-    why: "Without a viewport tag, phones render the desktop layout shrunk down. Google indexes the mobile version of your site first, so this hurts every ranking.",
+    why: "Without a viewport tag, phones render the desktop layout shrunk down. Google indexes the mobile version of your site first, so mobile problems affect how every page is assessed.",
     fix: "Add the standard mobile viewport tag to your site template.",
     developerFix: "Add `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">` to the <head> in the base template.",
     run: (ctx) => fail(ctx.htmlPages.filter((p) => p.facts && !p.facts.viewport).map((p) => ({ url: p.url, detected: "no viewport meta", expected: "width=device-width, initial-scale=1" }))),

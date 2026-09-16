@@ -3,6 +3,8 @@
 # dependencies
 /node_modules
 /public/reports
+# private, generated report PDFs (served only through /api/audit/[token]/pdf)
+/storage
 /.pnp
 .pnp.*
 .yarn/*

@@ -40,6 +40,12 @@ const boolFlag = (defaultValue: boolean) =>
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
+  // Public address printed in customer documents (PDFs). Falls back to APP_BASE_URL
+  // only when that is not a localhost / private address — a dev URL never reaches a customer.
+  REPORT_PUBLIC_BASE_URL: optionalUrl,
+  // Where generated v2 report PDFs are stored (must be outside public/, writable by web AND worker,
+  // and shared between them in production — see docker-compose.prod.yml). Default: <cwd>/storage/reports.
+  REPORTS_PRIVATE_DIR: optionalNonEmpty,
 
   DATABASE_URL: z.string().url({ message: "DATABASE_URL must be a valid postgresql:// connection string" }),
   REDIS_URL: z.string().url({ message: "REDIS_URL must be a valid redis:// connection string" }),
@@ -146,6 +152,22 @@ function loadEnv(): Env {
 }
 
 export const env = loadEnv();
+
+const PRODUCTION_SITE_URL = "https://smileaimarketing.com";
+const isPrivateHost = (u: string) => {
+  try {
+    const h = new URL(u).hostname;
+    return h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0" || h.endsWith(".local") || /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  } catch {
+    return true;
+  }
+};
+
+/** Base URL for links placed in customer-facing documents. Never a development address. */
+export function publicReportBaseUrl(): string {
+  const candidate = env.REPORT_PUBLIC_BASE_URL ?? env.APP_BASE_URL;
+  return (isPrivateHost(candidate) ? PRODUCTION_SITE_URL : candidate).replace(/\/$/, "");
+}
 
 /** Masks a secret for safe display in logs/diagnostics: keeps only the last 4 characters. */
 export function maskSecret(value: string | undefined | null): string {
