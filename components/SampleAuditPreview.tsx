@@ -28,7 +28,7 @@ const CATEGORIES: {
     Icon: IconStar,
     label: "Patient Trust",
     score: 78,
-    explanation: "Your reviews and reputation are already working in your favor.",
+    explanation: "Your reviews and reputation are already working in your favour.",
   },
   {
     Icon: IconMonitor,
@@ -56,12 +56,12 @@ export default function SampleAuditPreview() {
     <section id="sample-audit" className="scroll-mt-[var(--header-height)] bg-background">
       <div className="container-site section-space">
         <div className="mx-auto max-w-2xl text-center">
-          <Eyebrow className="justify-center">Sample audit preview</Eyebrow>
+          <Eyebrow className="justify-center">Sample audit</Eyebrow>
           <h2 className="mt-5 text-heading-2 text-foreground">
-            Your practice, through a patient&apos;s eyes.
+            What your audit report looks like.
           </h2>
           <p className="mt-5 text-body-large text-muted-foreground">
-            We review the same journey a prospective patient takes — from searching locally to choosing a practice and requesting an appointment.
+            A sample Practice Growth Review for a fictional Toronto clinic. Yours will use your practice&apos;s real data and follow the same journey a prospective patient takes — from searching locally to requesting an appointment.
           </p>
         </div>
 
@@ -146,7 +146,7 @@ export default function SampleAuditPreview() {
 
         <Reveal delay={0.15} className="mt-12 text-center">
           <Button type="button" onClick={handleScrollToAudit} arrow>
-            Get My Free Practice Audit
+            Get Your Free Website Audit
           </Button>
         </Reveal>
       </div>

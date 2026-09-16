@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Book a Consultation",
   description:
-    "Book a free 15-minute online review with Smile AI Marketing to walk through your practice's growth audit and what's worth fixing first.",
+    "Book a free 15-minute consultation with Smile AI Marketing to walk through your dental practice's audit findings and agree on what's worth fixing first.",
   alternates: { canonical: "/book-consultation" },
 };
 

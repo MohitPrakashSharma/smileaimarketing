@@ -1,15 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { IconStar, IconUsers, IconTrendingUp, IconSearch, IconMonitor, IconPhoneWave } from "@/components/icons";
+import { IconStar, IconCheck, IconSearch, IconMonitor, IconPhoneWave, IconClock } from "@/components/icons";
 import { ButtonLink } from "@/components/ui/Button";
-import { Reveal, AnimatedCounter } from "@/components/ui/Reveal";
-import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
-
-const TRUST_STATS: { Icon: typeof IconUsers; value: string; label: string }[] = [
-  { Icon: IconUsers, value: "100+", label: "Dental Practices Helped" },
-  { Icon: IconTrendingUp, value: "2–5X", label: "More Qualified Leads" },
-  { Icon: IconStar, value: "5-Star", label: "Client Rated" },
+import { Reveal } from "@/components/ui/Reveal";
+// Facts a practice owner can verify on this site — not performance claims.
+const TRUST_POINTS: { Icon: typeof IconCheck; title: string; detail: string }[] = [
+  { Icon: IconCheck, title: "Dental-only", detail: "We only work with dental practices." },
+  { Icon: IconSearch, title: "Evidence first", detail: "Your free audit uses public data, not promises." },
+  { Icon: IconClock, title: "About 2 minutes", detail: "From website to a plain-English report." },
 ];
 
 // Product-style preview built from our own report UI — same categories and
@@ -36,32 +35,32 @@ export default function Hero() {
         <div className="max-w-2xl">
           <Reveal>
             <span className="inline-flex items-center gap-2 text-eyebrow text-primary-ink">
-              <span aria-hidden>🍁</span> Built for dental practices in {TARGET_CITY}, {TARGET_PROVINCE}
+              <span aria-hidden>🍁</span> Dental marketing for Canadian practices
             </span>
           </Reveal>
           <Reveal delay={0.06}>
             <h1 className="mt-6 text-display-lg text-foreground">
-              See where your dental practice is missing{" "}
-              <span className="text-accent-gradient whitespace-nowrap">new patient</span> opportunities.
+              Grow your dental practice with{" "}
+              <span className="text-accent-gradient">smarter digital marketing.</span>
             </h1>
           </Reveal>
           <Reveal delay={0.12}>
-            <p className="mt-6 max-w-lg text-body-large text-muted-foreground">
-              A clear review of what&apos;s costing you new patients — and what to fix first.
+            <p className="mt-6 max-w-xl text-body-large text-muted-foreground">
+              We help Canadian dental clinics get found in local search, attract more qualified patient enquiries, and turn their websites into a dependable source of new patients. It starts with a free audit of your website and local visibility.
             </p>
           </Reveal>
 
           <Reveal delay={0.18}>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <ButtonLink href="#seo-audit" arrow>
-                Get My Free Practice Audit
+                Get Your Free Website Audit
               </ButtonLink>
-              <ButtonLink href="#sample-audit" variant="secondary">
-                View Sample Audit
+              <ButtonLink href="/book-consultation" variant="secondary">
+                Book a Consultation
               </ButtonLink>
             </div>
             <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-metadata">
-              {["No Google account access required", "No obligation"].map((item) => (
+              {["No Google account access needed", "No obligation", "Takes about 2 minutes"].map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
                   <span>{item}</span>
@@ -70,22 +69,19 @@ export default function Hero() {
             </ul>
           </Reveal>
 
-          {/* Trust stats */}
+          {/* Why practices can trust the process — verifiable, not performance claims */}
           <Reveal delay={0.24}>
-            <dl className="mt-12 grid grid-cols-3 gap-4 border-t border-border pt-8 sm:gap-6">
-              {TRUST_STATS.map((stat) => (
-                <div key={stat.label}>
-                  <dt className="sr-only">{stat.label}</dt>
-                  <dd className="font-display text-[clamp(1.5rem,2.4vw,2rem)] font-bold tracking-[-0.02em] text-foreground">
-                    {stat.value === "100+" ? <AnimatedCounter value={100} suffix="+" /> : stat.value}
-                  </dd>
-                  <dd className="mt-1 flex items-start gap-1.5 text-metadata" aria-hidden>
-                    <stat.Icon className="mt-0.5 hidden h-3.5 w-3.5 shrink-0 text-primary sm:block" />
-                    {stat.label}
-                  </dd>
-                </div>
+            <ul className="mt-12 grid gap-5 border-t border-border pt-8 sm:grid-cols-3 sm:gap-6">
+              {TRUST_POINTS.map((point) => (
+                <li key={point.title} className="flex items-start gap-3 sm:block">
+                  <point.Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mb-2" />
+                  <div>
+                    <p className="font-display text-[1.0625rem] font-semibold text-foreground">{point.title}</p>
+                    <p className="mt-0.5 text-metadata">{point.detail}</p>
+                  </div>
+                </li>
               ))}
-            </dl>
+            </ul>
           </Reveal>
         </div>
 
@@ -140,33 +136,13 @@ export default function Hero() {
             </ul>
           </Reveal>
 
-          {/* Result cards */}
+          {/* What the audit checks, in the patient's order */}
           <Reveal
             delay={0.5}
-            className="card-elevated absolute -right-3 top-8 w-40 p-4 sm:-right-8 sm:w-44"
+            className="card-elevated absolute -right-3 top-8 w-44 p-4 sm:-right-8 sm:w-48"
           >
-            <p className="text-metadata">Appointments Booked</p>
-            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-primary-ink">
-              <AnimatedCounter value={120} prefix="+" suffix="%" />
-            </p>
-          </Reveal>
-
-          <Reveal
-            delay={0.6}
-            className="card-elevated absolute -right-3 top-[42%] w-40 p-4 sm:-right-8 sm:w-44"
-          >
-            <p className="text-metadata">New Patients</p>
-            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-foreground">
-              <AnimatedCounter value={150} prefix="+" suffix="%" />
-            </p>
-          </Reveal>
-
-          <Reveal
-            delay={0.7}
-            className="card-elevated absolute -left-3 top-10 w-28 p-4 sm:-left-8"
-          >
-            <p className="text-metadata">ROI</p>
-            <p className="mt-1 font-display text-[1.625rem] font-bold tracking-[-0.02em] text-foreground">2.7x</p>
+            <p className="text-eyebrow !text-[0.6875rem] text-muted-foreground">Checked publicly</p>
+            <p className="mt-1.5 text-body-small font-semibold text-foreground">No logins. Just what a patient sees when they search.</p>
           </Reveal>
         </div>
 

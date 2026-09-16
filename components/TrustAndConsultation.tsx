@@ -7,24 +7,24 @@ import { ButtonLink } from "@/components/ui/Button";
 import Eyebrow from "@/components/Eyebrow";
 
 const TRUST_POINTS = [
-  "No login required, ever",
-  "Told what to fix first, not just what's wrong",
+  "No logins or account access, ever",
+  "You're told what to fix first, not just what's wrong",
   "Any estimate is clearly marked as one",
 ];
 
 const CONSULTATION_OPTIONS = [
   {
     Icon: IconCalendarCheck,
-    title: "15-minute online review",
-    description: "We'll sit down together, walk through what we found, and figure out what's actually worth fixing first.",
-    ctaText: "Book Online Review",
+    title: "15-minute online consultation",
+    description: "We'll share your report on screen, walk through what we found, and agree on what's actually worth fixing first.",
+    ctaText: "Book a Consultation",
     ctaHref: "/book-consultation",
   },
   {
     Icon: IconMapPin,
-    title: "Request a clinic visit",
-    description: "We'll come to your practice and walk your team through it in person, where we're able to.",
-    ctaText: "Request a Visit",
+    title: "In-person visit to your practice",
+    description: "Where we're able to, we'll come to your clinic and walk your whole team through the findings in person.",
+    ctaText: "Request an In-Person Visit",
     ctaHref: "/book-consultation?type=in-person",
   },
 ];
@@ -47,9 +47,9 @@ export default function TrustAndConsultation() {
               />
             </div>
             <div className="p-6 sm:p-8">
-              <h2 className="text-heading-3 text-foreground">Clear findings. Human review.</h2>
+              <h2 className="text-heading-3 text-foreground">Clear findings, reviewed by a person.</h2>
               <p className="mt-3 text-body-small text-muted-foreground">
-                Data helps identify the opportunity. A conversation helps determine what actually makes sense for your practice.
+                The audit finds the opportunities. A short conversation helps decide what actually makes sense for your practice, your team and your budget.
               </p>
               <ul className="mt-6 space-y-3">
                 {TRUST_POINTS.map((point) => (
@@ -67,7 +67,7 @@ export default function TrustAndConsultation() {
           {/* Consultation options */}
           <div className="flex flex-col">
             <Eyebrow>Consultation</Eyebrow>
-            <h2 className="mt-5 text-heading-2 text-foreground">Review your results your way.</h2>
+            <h2 className="mt-5 text-heading-2 text-foreground">Talk it through with our team — your way.</h2>
             <RevealGroup className="mt-8 grid flex-1 gap-4 sm:grid-cols-2" stagger={0.1}>
               {CONSULTATION_OPTIONS.map((opt) => (
                 <motion.div

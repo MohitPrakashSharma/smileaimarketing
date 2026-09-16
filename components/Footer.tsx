@@ -5,6 +5,8 @@ import { Wordmark } from "@/components/Wordmark";
 import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
 
 const SECTION_LINKS = [
+  { href: "#seo-audit", label: "Free Website Audit" },
+  { href: "#services", label: "What We Do" },
   { href: "#how-it-works", label: "How It Works" },
   { href: "#sample-audit", label: "Sample Audit" },
   { href: "#trust-consultation", label: "Consultation" },
@@ -14,6 +16,7 @@ const SECTION_LINKS = [
 const PAGE_LINKS = [
   { href: "/services", label: "Services" },
   { href: "/case-studies", label: "Case Studies" },
+  { href: "/book-consultation", label: "Book a Consultation" },
   { href: "/privacy", label: "Privacy Policy" },
 ];
 
@@ -40,7 +43,7 @@ export default function Footer() {
           <div>
             <Wordmark full className="!text-[1.5rem]" />
             <p className="mt-4 max-w-xs text-body-small text-muted-foreground">
-              Dental marketing agency for local growth.
+              Digital marketing for Canadian dental practices — local visibility, qualified patient enquiries and websites that convert.
             </p>
           </div>
 
@@ -77,7 +80,7 @@ export default function Footer() {
 
         <div className="flex flex-col gap-2 border-t border-border py-6 text-metadata sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Smile AI Marketing. All rights reserved.</p>
-          <p>Built for dental practices in {TARGET_CITY}, {TARGET_PROVINCE}.</p>
+          <p>Serving dental practices across Canada, starting in {TARGET_CITY}, {TARGET_PROVINCE}.</p>
         </div>
       </div>
     </footer>

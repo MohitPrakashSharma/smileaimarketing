@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Free Dental Practice Audit",
+  title: "Free Dental Website Audit",
   description:
-    "Get a free, plain-English audit of your dental practice's Google visibility, website, reviews, and booking journey — see what's costing you new patients in under 2 minutes.",
+    "A free, plain-English audit of your dental practice's local search visibility, website, reviews and booking journey. See what to fix first in about two minutes — no logins required.",
   alternates: { canonical: "/free-dental-audit" },
 };
 

@@ -8,9 +8,9 @@ export default function FAQ() {
       <div className="container-site section-space">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
           <div>
-            <Eyebrow>Common questions</Eyebrow>
+            <Eyebrow>Questions</Eyebrow>
             <h2 className="mt-5 text-heading-2 text-foreground">
-              Questions before you start?
+              Questions dentists ask before they start.
             </h2>
           </div>
           <FaqList items={FAQS} />
