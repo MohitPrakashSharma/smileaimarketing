@@ -5,20 +5,20 @@ import Eyebrow from "@/components/Eyebrow";
 
 const STEPS = [
   {
-    title: "Tell us about your practice",
-    detail: "Website and city. No passwords or Google account access.",
+    title: "Enter your website and city",
+    detail: "That's all we need. No passwords, no Google account access, nothing to install.",
   },
   {
-    title: "We review your local market",
-    detail: "Local search visibility, competitors, reputation, website and booking experience.",
+    title: "We review how patients find you",
+    detail: "Local search visibility, nearby competitors, reviews, and your website and booking experience.",
   },
   {
-    title: "Receive your Practice Growth Review",
-    detail: "What's working, where opportunities exist, and what deserves attention first.",
+    title: "Get your Practice Growth Review",
+    detail: "A plain-English report: what's working, where the opportunities are, and what to fix first. Sent to your email so you can come back to it.",
   },
   {
     title: "Review the findings",
-    detail: "Optionally go through them with a specialist, in plain English.",
+    detail: "If you'd like, book a 15-minute call or an in-person visit and we'll walk through the findings with you. No pitch, no obligation.",
   },
 ];
 
@@ -29,7 +29,7 @@ export default function HowItWorks() {
         <div className="max-w-2xl">
           <Eyebrow tone="dark">The process</Eyebrow>
           <h2 className="mt-4 text-heading-2 text-foreground">
-            Your practice checkup in four simple steps.
+            From your website to a plan in four steps.
           </h2>
         </div>
 
@@ -65,7 +65,7 @@ export default function HowItWorks() {
 
         <Reveal delay={0.2} className="mt-10 max-w-lg">
           <p className="text-body-small text-muted-foreground">
-            No jargon, no long forms — just a clear look at what&apos;s affecting new patient calls.
+            No jargon and no long forms — just a clear picture of what&apos;s affecting new patient enquiries.
           </p>
         </Reveal>
       </div>

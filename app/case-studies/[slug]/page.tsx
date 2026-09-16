@@ -165,7 +165,7 @@ export default async function CaseStudyDetailPage({
             <div className="band-dark mt-12 flex flex-col gap-6 rounded-[var(--radius-large)] p-8 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-heading-3 text-foreground">Curious what an audit finds for your practice?</p>
               <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "shrink-0" })}>
-                <span>Audit My Practice</span>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>

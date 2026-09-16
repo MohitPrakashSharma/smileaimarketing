@@ -109,7 +109,7 @@ export default async function ServiceDetailPage({
               <p className="mt-5 max-w-[46rem] text-body-large text-muted-foreground">{service.subhead}</p>
 
               <Link href="/free-dental-audit" className={buttonClasses({ className: "mt-9" })}>
-                <span>Audit My Practice</span>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>
@@ -158,11 +158,11 @@ export default async function ServiceDetailPage({
             {/* Final CTA */}
             <div className="band-dark mt-12 flex flex-col gap-6 rounded-[var(--radius-large)] p-8 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-heading-3 text-foreground">See where your practice actually stands.</p>
-                <p className="mt-2 text-body text-muted-foreground">Free audit — just your website and city.</p>
+                <p className="text-heading-3 text-foreground">See where your practice actually stands in local search.</p>
+                <p className="mt-2 text-body text-muted-foreground">Free website audit — just your website and city, no logins. Results in about two minutes.</p>
               </div>
               <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "shrink-0" })}>
-                <span>Audit My Practice</span>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>

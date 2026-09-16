@@ -39,14 +39,14 @@ export default function PatientJourney() {
           <div className="max-w-xl">
             <Eyebrow>Why this matters</Eyebrow>
             <h2 className="mt-4 text-heading-2 text-foreground">
-              How a patient actually finds a dentist.
+              How patients actually choose a dentist.
             </h2>
             <p className="mt-4 text-body-large text-muted-foreground">
-              Four steps, every time. Your audit checks each one — this is where practices quietly lose patients along the way.
+              Four steps, every time. Your free audit checks each one, because this is where practices quietly lose new patients.
             </p>
             <Reveal delay={0.2} className="mt-6 hidden lg:block">
               <p className="text-body-small text-muted-foreground">
-                Your free checkup reviews exactly where {`${TARGET_CITY}`}-area patients are dropping off in this journey today.
+                Your free audit shows exactly where {`${TARGET_CITY}`}-area patients are dropping off in this journey today.
               </p>
             </Reveal>
           </div>
@@ -81,7 +81,7 @@ export default function PatientJourney() {
 
           <Reveal delay={0.2} className="lg:hidden">
             <p className="text-body-small text-muted-foreground">
-              Your free checkup reviews exactly where {`${TARGET_CITY}`}-area patients are dropping off in this journey today.
+              Your free audit shows exactly where {`${TARGET_CITY}`}-area patients are dropping off in this journey today.
             </p>
           </Reveal>
         </div>

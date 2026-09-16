@@ -31,11 +31,11 @@ const SITE_URL = "https://smileaimarketing.com";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Smile AI Marketing | Dental Marketing Agency for Local Growth",
+    default: "Smile AI Marketing | Digital Marketing for Canadian Dental Practices",
     template: "%s | Smile AI Marketing",
   },
   description:
-    "Smile AI Marketing helps dental clinics improve local visibility, generate qualified patient enquiries, and turn more searches into booked appointments — dental-only marketing, no long-term contracts.",
+    "Smile AI Marketing helps Canadian dental practices get found in local search, attract more qualified patient enquiries, and turn their websites into a dependable source of new patients. Start with a free website audit.",
   keywords: [
     "dental marketing",
     "dental marketing agency",
@@ -51,16 +51,16 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE_URL,
     siteName: "Smile AI Marketing",
-    title: "Smile AI Marketing | Dental Marketing Agency for Local Growth",
+    title: "Smile AI Marketing | Digital Marketing for Canadian Dental Practices",
     description:
-      "More local patients, fewer empty chairs — local visibility, qualified enquiries, and booked appointments for dental clinics.",
+      "Local search visibility, qualified patient enquiries and better websites for Canadian dental clinics. Start with a free website audit.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Smile AI Marketing" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Smile AI Marketing | Dental Marketing Agency for Local Growth",
+    title: "Smile AI Marketing | Digital Marketing for Canadian Dental Practices",
     description:
-      "More local patients, fewer empty chairs — for dental clinics.",
+      "Local search visibility, qualified patient enquiries and better websites for Canadian dental clinics.",
     images: ["/opengraph-image"],
   },
   robots: { index: true, follow: true },
