@@ -143,8 +143,8 @@ function BookConsultationForm() {
   };
 
   return (
-    <div className="card-elevated w-full max-w-lg p-6 sm:p-10">
-      <div className="space-y-4">
+    <div className="card-elevated w-full max-w-2xl p-6 sm:p-8">
+      <div className="space-y-3">
         <Eyebrow>{isInPerson ? "In-Person Visit" : "Online Consultation"}</Eyebrow>
         <h1 className="text-heading-2 text-foreground">
           {isInPerson ? "Request Your In-Person Visit" : "Book Your 15\u2011Minute Review"}
@@ -162,83 +162,89 @@ function BookConsultationForm() {
         </div>
       )}
 
-      <form onSubmit={handleBooking} onChange={handleBookingStart} className="mt-8 space-y-5" noValidate>
+      <form onSubmit={handleBooking} onChange={handleBookingStart} className="mt-6 space-y-4" noValidate>
         {!publicToken && (
           <>
-            <FormField id="website" label="Clinic Website" required optionalLabel={false}>
-              <Input
-                id="website"
-                type="text"
-                required
-                inputMode="url"
-                autoComplete="url"
-                placeholder="e.g. website.com"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-              />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="website" label="Clinic Website" required optionalLabel={false}>
+                <Input
+                  id="website"
+                  type="text"
+                  required
+                  inputMode="url"
+                  autoComplete="url"
+                  placeholder="e.g. website.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </FormField>
 
-            <FormField id="city" label="City" required optionalLabel={false}>
-              <Input
-                id="city"
-                type="text"
-                required
-                autoComplete="address-level2"
-                placeholder="e.g. Toronto"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </FormField>
+              <FormField id="city" label="City" required optionalLabel={false}>
+                <Input
+                  id="city"
+                  type="text"
+                  required
+                  autoComplete="address-level2"
+                  placeholder="e.g. Toronto"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </FormField>
+            </div>
 
-            <FormField id="full-name" label="Your Name" required optionalLabel={false}>
-              <Input
-                id="full-name"
-                type="text"
-                required
-                autoComplete="name"
-                placeholder="e.g. Dr. John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </FormField>
-            <FormField id="email" label="Email" required optionalLabel={false}>
-              <Input
-                id="email"
-                type="email"
-                required
-                inputMode="email"
-                autoComplete="email"
-                placeholder="e.g. owner@website.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="full-name" label="Your Name" required optionalLabel={false}>
+                <Input
+                  id="full-name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  placeholder="e.g. Dr. John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </FormField>
+              <FormField id="email" label="Email" required optionalLabel={false}>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="e.g. owner@website.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </FormField>
+            </div>
           </>
         )}
 
         {isInPerson ? (
           <>
-            <FormField id="address" label="Clinic Address" required optionalLabel={false}>
-              <Input
-                id="address"
-                type="text"
-                required
-                autoComplete="street-address"
-                placeholder="e.g. 123 Main St, Suite 4"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </FormField>
-            <FormField id="preferred-window" label="Preferred Window" required optionalLabel={false}>
-              <Input
-                id="preferred-window"
-                type="text"
-                required
-                placeholder="e.g. Tuesday morning, 9-11am"
-                value={preferredWindow}
-                onChange={(e) => setPreferredWindow(e.target.value)}
-              />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="address" label="Clinic Address" required optionalLabel={false}>
+                <Input
+                  id="address"
+                  type="text"
+                  required
+                  autoComplete="street-address"
+                  placeholder="e.g. 123 Main St, Suite 4"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </FormField>
+              <FormField id="preferred-window" label="Preferred Window" required optionalLabel={false}>
+                <Input
+                  id="preferred-window"
+                  type="text"
+                  required
+                  placeholder="e.g. Tuesday morning, 9-11am"
+                  value={preferredWindow}
+                  onChange={(e) => setPreferredWindow(e.target.value)}
+                />
+              </FormField>
+            </div>
           </>
         ) : (
           <FormField id="meeting-time" label="Preferred Date & Time" required optionalLabel={false}>

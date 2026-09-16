@@ -59,7 +59,7 @@ function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
   const pct = stages.length ? Math.max(8, Math.round((doneCount / stages.length) * 100)) : ((messageIndex + 1) / SCAN_MESSAGES.length) * 100;
 
   return (
-    <div className="animate-fade-in space-y-8 py-2">
+    <div className="animate-fade-in space-y-6 py-1">
       <div>
         <Eyebrow>Audit in progress</Eyebrow>
         <h1 className="mt-4 text-heading-2 text-foreground">Running your free audit</h1>
@@ -87,7 +87,7 @@ function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
       {stages.length > 0 && (
         <ol className="divide-y divide-border-subtle rounded-[var(--radius-medium)] border border-border-subtle bg-background-alt" aria-live="polite">
           {stages.map((s) => (
-            <li key={s.key} className={`flex items-center gap-3 px-4 py-3 text-body-small ${s.status === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
+            <li key={s.key} className={`flex items-center gap-3 px-4 py-2.5 text-body-small ${s.status === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
                   s.status === "done" ? "bg-primary text-primary-foreground" : s.status === "running" ? "border-2 border-primary/30 border-t-primary animate-spin" : s.status === "skipped" ? "bg-border text-muted-foreground" : s.status === "failed" ? "bg-danger/10 text-danger" : "border border-border"
@@ -325,7 +325,7 @@ function AuditWizardForm() {
   };
 
   return (
-    <div className="card-elevated w-full max-w-xl p-6 sm:p-10">
+    <div className="card-elevated w-full max-w-2xl p-6 sm:p-8">
       {step !== "processing" && (
         <div className="mb-8">
           <ProgressSteps steps={STEP_LABELS} current={STEP_INDEX[step]} />
@@ -334,7 +334,7 @@ function AuditWizardForm() {
 
       {/* STEP 1: Practice details */}
       {step === "details" && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
             <Eyebrow>Free Practice Audit</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
@@ -351,7 +351,7 @@ function AuditWizardForm() {
             </div>
           )}
 
-          <form onSubmit={handleDetailsSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleDetailsSubmit} className="space-y-4" noValidate>
             <FormField id="website" label="Practice Website" required optionalLabel={false} error={websiteError}>
               <Input
                 id="website"
@@ -387,31 +387,33 @@ function AuditWizardForm() {
               </p>
             )}
 
-            <FormField id="city" label="City" required optionalLabel={false} error={cityError}>
-              <Input
-                id="city"
-                type="text"
-                required
-                autoComplete="address-level2"
-                placeholder="Detected from your website"
-                value={city}
-                onChange={(e) => {
-                  cityTouched.current = e.target.value.trim().length > 0;
-                  setCity(e.target.value);
-                  if (cityError) setCityError("");
-                }}
-                hasError={!!cityError}
-              />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="city" label="City" required optionalLabel={false} error={cityError}>
+                <Input
+                  id="city"
+                  type="text"
+                  required
+                  autoComplete="address-level2"
+                  placeholder="Detected from your website"
+                  value={city}
+                  onChange={(e) => {
+                    cityTouched.current = e.target.value.trim().length > 0;
+                    setCity(e.target.value);
+                    if (cityError) setCityError("");
+                  }}
+                  hasError={!!cityError}
+                />
+              </FormField>
 
-            <FormField id="country" label="Country" optionalLabel={false}>
-              <Select id="country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country">
-                <option value="CA">Canada</option>
-                <option value="US">United States</option>
-                <option value="UK">United Kingdom</option>
-                <option value="AU">Australia</option>
-              </Select>
-            </FormField>
+              <FormField id="country" label="Country" optionalLabel={false}>
+                <Select id="country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country">
+                  <option value="CA">Canada</option>
+                  <option value="US">United States</option>
+                  <option value="UK">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                </Select>
+              </FormField>
+            </div>
 
             <Button type="submit" fullWidth loading={loading} disabled={loading} arrow className="mt-2">
               Run My Free Dental Audit
@@ -425,7 +427,7 @@ function AuditWizardForm() {
 
       {/* STEP 3: Preview */}
       {step === "preview" && preliminary && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
             <Eyebrow>Your quick look is ready</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
@@ -504,7 +506,7 @@ function AuditWizardForm() {
 
       {/* STEP 4: Contact details */}
       {step === "contact" && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
             <Eyebrow>One last step</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
@@ -521,7 +523,7 @@ function AuditWizardForm() {
             </div>
           )}
 
-          <form onSubmit={handleContactSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleContactSubmit} className="space-y-4" noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id="firstName" label="First Name" required optionalLabel={false}>
                 <Input

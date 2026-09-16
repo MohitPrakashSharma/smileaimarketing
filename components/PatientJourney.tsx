@@ -35,16 +35,16 @@ export default function PatientJourney() {
   return (
     <section id="patient-journey" className="bg-background-alt">
       <div className="container-site section-space">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-14">
           <div className="max-w-xl">
             <Eyebrow>Why this matters</Eyebrow>
-            <h2 className="mt-5 text-heading-2 text-foreground">
+            <h2 className="mt-4 text-heading-2 text-foreground">
               How a patient actually finds a dentist.
             </h2>
-            <p className="mt-5 text-body-large text-muted-foreground">
+            <p className="mt-4 text-body-large text-muted-foreground">
               Four steps, every time. Your audit checks each one — this is where practices quietly lose patients along the way.
             </p>
-            <Reveal delay={0.2} className="mt-8 hidden lg:block">
+            <Reveal delay={0.2} className="mt-6 hidden lg:block">
               <p className="text-body-small text-muted-foreground">
                 Your free checkup reviews exactly where {`${TARGET_CITY}`}-area patients are dropping off in this journey today.
               </p>
@@ -56,23 +56,25 @@ export default function PatientJourney() {
               <motion.div
                 key={step.title}
                 variants={revealItem}
-                className="card flex flex-col p-6 sm:p-7"
+                className="card flex gap-4 p-5"
               >
-                <div className="flex items-center justify-between">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
-                    <step.Icon className="h-5 w-5" />
-                  </span>
-                  <span className="font-display text-[2rem] font-bold leading-none tracking-[-0.03em] text-border-strong">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                  <step.Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="text-heading-4 text-foreground">{step.title}</h3>
+                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-border-strong">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-body-small text-muted-foreground">{step.detail}</p>
+                  {step.callout && (
+                    <p className="badge-attention mt-3 rounded-[var(--radius-small)] border px-3 py-1.5 text-metadata font-semibold !text-[var(--color-status-attention-fg)]">
+                      {step.callout}
+                    </p>
+                  )}
                 </div>
-                <h3 className="mt-6 text-heading-4 text-foreground">{step.title}</h3>
-                <p className="mt-2 text-body-small text-muted-foreground">{step.detail}</p>
-                {step.callout && (
-                  <p className="badge-attention mt-4 rounded-[var(--radius-small)] border px-3 py-2 text-metadata font-semibold !text-[var(--color-status-attention-fg)]">
-                    {step.callout}
-                  </p>
-                )}
               </motion.div>
             ))}
           </RevealGroup>

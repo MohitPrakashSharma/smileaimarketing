@@ -133,11 +133,12 @@
      3. Layout & spacing tokens
      --------------------------------------------------------------------------- */
   --container-max-width: 80rem;                       /* 1280px */
-  --container-narrow: 46rem;                          /* editorial measure */
+  --container-narrow: 46rem;                          /* editorial prose measure */
+  --container-content: 56rem;                         /* lists, cards and forms on inner pages */
   --page-gutter: clamp(1.25rem, 4vw, 2.5rem);         /* 20 → 40 */
-  --section-space-sm: clamp(3.5rem, 6vw, 5rem);       /* 56 → 80 */
-  --section-space: clamp(5rem, 9vw, 7.5rem);          /* 80 → 120 */
-  --section-space-lg: clamp(6rem, 11vw, 9rem);        /* 96 → 144 */
+  --section-space-sm: clamp(3rem, 5vw, 4rem);         /* 48 → 64 */
+  --section-space: clamp(4rem, 7vw, 6rem);            /* 64 → 96 */
+  --section-space-lg: clamp(5rem, 8vw, 7rem);         /* 80 → 112 */
   --stack-gap: 1.5rem;
   --grid-gap: clamp(1.25rem, 2.5vw, 2rem);
   --header-height: 4.5rem;                            /* 72px */
@@ -168,7 +169,7 @@
 
   --control-height: 3rem;              /* 48px */
   --control-height-sm: 2.5rem;         /* 40px */
-  --button-height: 3.25rem;            /* 52px */
+  --button-height: 3rem;               /* 48px */
   --button-height-sm: 2.75rem;         /* 44px — touch minimum */
 
   --duration-fast: 150ms;
@@ -330,6 +331,11 @@ input:disabled {
 @utility container-narrow {
   width: 100%;
   max-width: var(--container-narrow);
+  margin-inline: auto;
+}
+@utility container-content {
+  width: 100%;
+  max-width: var(--container-content);
   margin-inline: auto;
 }
 @utility section-space {

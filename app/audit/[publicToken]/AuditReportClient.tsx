@@ -343,7 +343,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-16">
       {/* Header — a letterhead-style metadata row first, like a chart a dentist already knows how to read */}
-      <header className="border-b border-border bg-surface py-6 sm:py-8">
+      <header className="border-b border-border bg-surface py-5 sm:py-6">
         <div className="mx-auto max-w-[1200px] px-6 sm:px-8">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 border-b border-border pb-4 text-metadata">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
@@ -362,15 +362,15 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
             </span>
           </div>
 
-          <h1 className="mt-5 text-display font-extrabold leading-[1.05] tracking-tight text-foreground">
+          <h1 className="mt-4 max-w-4xl text-display font-extrabold leading-[1.05] tracking-tight text-foreground">
             {narrative.headline.line1}
             <br />
             <span className="inline-block rounded-lg bg-primary px-2 text-primary-foreground">{narrative.headline.line2}</span>
           </h1>
-          <p className="mt-3 max-w-2xl text-body leading-relaxed text-muted-foreground">{narrative.dek}</p>
+          <p className="mt-3 max-w-3xl text-body leading-relaxed text-muted-foreground">{narrative.dek}</p>
 
           {/* By the numbers */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {narrative.stats.map((s) => (
               <div key={s.label} className="rounded-xl border border-border bg-background p-3 sm:p-4">
                 <span className="block text-heading-3 font-extrabold text-primary sm:text-heading-2">{s.value}</span>
@@ -382,9 +382,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         </div>
       </header>
 
-      <main className="mx-auto mt-10 grid max-w-[1200px] gap-8 px-6 sm:px-8 lg:grid-cols-[63%_37%]">
+      <main className="mx-auto mt-8 grid max-w-[1200px] gap-6 px-6 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] lg:gap-8">
         {/* Left Column */}
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Practice Assessment — the real, plain-English synthesis of this audit */}
           {summary && (
             <div
@@ -479,14 +479,14 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
           <div className="space-y-4">
             <h2 className="px-1 text-heading-3 font-semibold text-foreground">Top priorities</h2>
             {narrative.fixCards.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+              <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
                 <p className="text-body-small leading-relaxed text-muted-foreground">
                   Nothing here scored low enough to call a real weak point — every category is holding up well.
                 </p>
               </div>
             ) : (
               narrative.fixCards.map((item, idx) => (
-                <div key={item.title} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                <div key={item.title} className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-5 shadow-sm">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-primary">
                     {idx + 1}
                   </span>
@@ -583,7 +583,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
           )}
 
           {/* Competitor Gap Panel */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
             <h2 className="text-heading-3 font-semibold text-foreground">Who&apos;s winning the {ind.customers} you&apos;re missing</h2>
             <p className="mt-1 mb-6 text-body-small text-muted-foreground">
               Your local search strength vs. nearby {ind.businesses} in {business.city}.
@@ -638,9 +638,9 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         </div>
 
         {/* Right Column: Consultation actions */}
-        <div id="consultation" className="scroll-mt-6 space-y-8">
+        <div id="consultation" className="scroll-mt-6 space-y-6">
           {/* Online consultation */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
             <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
               <IconCalendarCheck className="h-5 w-5" />
             </span>
@@ -686,7 +686,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
           </div>
 
           {/* In-person visit */}
-          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
             <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
               <IconMapPin className="h-5 w-5" />
             </span>

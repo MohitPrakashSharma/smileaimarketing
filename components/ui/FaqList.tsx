@@ -7,7 +7,7 @@ export default function FaqList({ items, className = "" }: { items: { q: string;
     <div className={`divide-y divide-border border-y border-border ${className}`}>
       {items.map((item) => (
         <details key={item.q} className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-left font-display text-[1.125rem] font-semibold text-foreground marker:content-none transition-colors duration-[var(--duration-fast)] hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring sm:py-6 sm:text-[1.25rem] [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-4 text-left font-display text-[1.125rem] font-semibold text-foreground marker:content-none transition-colors duration-[var(--duration-fast)] hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring sm:py-[1.125rem] sm:text-[1.1875rem] [&::-webkit-details-marker]:hidden">
             {item.q}
             <span
               aria-hidden
@@ -18,7 +18,7 @@ export default function FaqList({ items, className = "" }: { items: { q: string;
               </svg>
             </span>
           </summary>
-          <p className="max-w-2xl pb-6 text-body text-muted-foreground">{item.a}</p>
+          <p className="max-w-2xl pb-5 text-body text-muted-foreground">{item.a}</p>
         </details>
       ))}
     </div>

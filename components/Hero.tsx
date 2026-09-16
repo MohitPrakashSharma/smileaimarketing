@@ -30,7 +30,7 @@ const TONE_BAR: Record<string, string> = {
 export default function Hero() {
   return (
     <section id="top" className="relative overflow-hidden bg-background">
-      <div className="container-site grid items-center gap-14 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16 lg:pt-20 lg:pb-28">
+      <div className="container-site grid items-center gap-14 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14 lg:pt-16 lg:pb-20">
 
         {/* Left column: editorial headline and CTAs */}
         <div className="max-w-2xl">
@@ -40,19 +40,19 @@ export default function Hero() {
             </span>
           </Reveal>
           <Reveal delay={0.06}>
-            <h1 className="mt-6 text-display-lg text-foreground">
+            <h1 className="mt-5 text-display-lg text-foreground">
               See where your dental practice is missing{" "}
               <span className="text-accent-gradient whitespace-nowrap">new patient</span> opportunities.
             </h1>
           </Reveal>
           <Reveal delay={0.12}>
-            <p className="mt-6 max-w-lg text-body-large text-muted-foreground">
+            <p className="mt-5 max-w-lg text-body-large text-muted-foreground">
               A clear review of what&apos;s costing you new patients — and what to fix first.
             </p>
           </Reveal>
 
           <Reveal delay={0.18}>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <ButtonLink href="#seo-audit" arrow>
                 Get My Free Practice Audit
               </ButtonLink>
@@ -72,7 +72,7 @@ export default function Hero() {
 
           {/* Trust stats */}
           <Reveal delay={0.24}>
-            <dl className="mt-12 grid grid-cols-3 gap-4 border-t border-border pt-8 sm:gap-6">
+            <dl className="mt-10 grid grid-cols-3 gap-4 border-t border-border pt-6 sm:gap-6">
               {TRUST_STATS.map((stat) => (
                 <div key={stat.label}>
                   <dt className="sr-only">{stat.label}</dt>

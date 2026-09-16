@@ -36,7 +36,7 @@ export default function Footer() {
   return (
     <footer className="band-dark band-footer">
       <div className="container-site">
-        <div className="grid gap-10 py-14 sm:py-16 md:grid-cols-[1.4fr_1fr_1fr] md:gap-8">
+        <div className="grid gap-8 py-10 sm:py-12 md:grid-cols-[1.4fr_1fr_1fr] md:gap-8">
           <div>
             <Wordmark full className="!text-[1.5rem]" />
             <p className="mt-4 max-w-xs text-body-small text-muted-foreground">
@@ -46,7 +46,7 @@ export default function Footer() {
 
           <nav aria-label="Footer sections">
             <p className="text-eyebrow text-muted-foreground">On this site</p>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-3 space-y-2">
               {SECTION_LINKS.map((link) => (
                 <li key={link.href}>
                   <a
@@ -63,7 +63,7 @@ export default function Footer() {
 
           <nav aria-label="Footer pages">
             <p className="text-eyebrow text-muted-foreground">Company</p>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-3 space-y-2">
               {PAGE_LINKS.map((link) => (
                 <li key={link.href}>
                   <a href={link.href} className={linkClass}>
@@ -75,7 +75,7 @@ export default function Footer() {
           </nav>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-border py-6 text-metadata sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-t border-border py-5 text-metadata sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Smile AI Marketing. All rights reserved.</p>
           <p>Built for dental practices in {TARGET_CITY}, {TARGET_PROVINCE}.</p>
         </div>

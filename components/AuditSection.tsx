@@ -112,17 +112,17 @@ export default function AuditSection() {
   return (
     <section id="seo-audit" className="band-dark scroll-mt-[var(--header-height)]">
       <div className="container-site section-space">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,6fr)_minmax(0,6fr)] lg:gap-16">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
           <Reveal>
             <Eyebrow tone="dark">Free practice audit</Eyebrow>
-            <h2 className="mt-5 text-heading-1 text-foreground">
+            <h2 className="mt-4 text-heading-1 text-foreground">
               Run My Free Dental Audit
             </h2>
-            <p className="mt-6 max-w-lg text-body-large text-muted-foreground">
+            <p className="mt-4 max-w-lg text-body-large text-muted-foreground">
               Paste your website — we&apos;ll find your location and handle the rest.
             </p>
-            <p className="mt-8 text-eyebrow text-muted-foreground">What we review</p>
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            <p className="mt-6 text-eyebrow text-muted-foreground">What we review</p>
+            <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
               {EVALUATES.map((item) => (
                 <li key={item.label} className="flex items-center gap-3 text-body-small text-foreground-secondary">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary-ink">
@@ -137,10 +137,10 @@ export default function AuditSection() {
           <Reveal delay={0.1}>
             <form
               onSubmit={handleSubmit}
-              className="band-light rounded-[var(--radius-large)] p-6 shadow-xl sm:p-8 space-y-5"
+              className="band-light rounded-[var(--radius-large)] p-5 shadow-xl sm:p-6 space-y-4"
               noValidate
             >
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
                 <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
                   <Input
                     id="hero-website"
@@ -200,7 +200,7 @@ export default function AuditSection() {
                 </p>
               )}
 
-              <div className="pt-1">
+              <div className="pt-0.5">
                 <Button type="submit" loading={isSubmitting} fullWidth arrow>
                   {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
                 </Button>
