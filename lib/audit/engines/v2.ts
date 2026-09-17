@@ -16,6 +16,8 @@ import { initialProgress, advance, setStageDetail, failProgress, type AuditProgr
 import { legacyShapeFromV2 } from "../report";
 import type { EngineResult } from "../engine";
 import { runPerformanceStage } from "../stages/performance";
+import { compareFindings } from "../priority";
+import { scheduleCompetitorIntel } from "../competitors/stage";
 import { runAiStage, type AiPageOutcome } from "../stages/ai";
 import type { PerfResult } from "../providers/pagespeed";
 import type { SelectedPage } from "../pages/select";
@@ -153,7 +155,7 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
       });
       await persistAi(auditId, ai.outcomes);
       if (ai.findings.length) {
-        findings = [...findings, ...ai.findings].sort((a, b) => b.priorityScore - a.priorityScore);
+        findings = [...findings, ...ai.findings].sort(compareFindings);
         await persistFindings(auditId, findings);
       }
       const okAi = ai.outcomes.filter((o) => o.status === "ok").length;
@@ -213,6 +215,10 @@ export async function runV2Engine(auditId: string, opts: V2Options): Promise<Eng
       },
       { jobId: `pdf_${auditId}_${Date.now()}` }
     );
+
+    // Local comparison runs after completion, in its own job/promise, and can never
+    // fail or delay the audit (off unless AUDIT_COMPETITORS_ENABLED).
+    await scheduleCompetitorIntel(auditId).catch((err) => console.warn(`[Audit v2] could not schedule local comparison for ${auditId}: ${err instanceof Error ? err.message : String(err)}`));
 
     return { engine: "CRAWL_V2", score: scores.overall ?? 0 };
   } catch (err) {

@@ -3,9 +3,10 @@ import type { V2ReportPayload } from "../report";
 import { buildPerformanceView, metricsFor, googleChecksFor, testDateLabel, type PerfRow } from "../view/performanceView";
 import { primaryAction, type FindingLike } from "../view/findingView";
 import { buildBusinessMessage, plainEvidence } from "../view/message";
-import { PILLAR_DEFS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../view/pillars";
+import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../view/pillars";
 import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
 import type { ReportPdfInput } from "./technicalPdf";
+import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../competitors/types";
 
 /**
  * Customer report PDF — the version a practice owner reads. Same stored data
@@ -13,19 +14,22 @@ import type { ReportPdfInput } from "./technicalPdf";
  *
  *   1. Cover + personalised message      (business, date, scope, our score, message)
  *   2. Website health                      (our pillars; Google's five checks per tested page)
+ *   2b. Local comparison                   (only when verified nearby practices were measured)
  *   3. Problems and recommendations        (the most consequential findings, one card each)
  *   4. Action plan                         (five priority actions — a checklist, not a repeat)
  *   5. Complete findings summary           (every stored finding, grouped by area)
  *
  * No raw HTML, check identifiers, code or long diagnostic lists here — those
- * live in the technical report, which the closing note points to. Every
- * finding is accounted for; nothing is dropped to save pages.
+ * live in the technical report, which our team provides after a website
+ * review (the closing note links to the request form; there is no public
+ * technical download). Every finding is accounted for; nothing is dropped to
+ * save pages.
  *
  * `CUSTOMER_PDF_LAYOUT` is part of the stored file name — bump it whenever the
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r1";
+export const CUSTOMER_PDF_LAYOUT = "cust-r2"; // r2: consultation CTAs + technical report by request, evidence-led message, local comparison
 
 type Finding = V2ReportPayload["findings"][number];
 const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
@@ -44,7 +48,10 @@ const severityLevel = (s: string): Level | null => (s === "CRITICAL" || s === "H
 /** Plain-language "what we found" for a finding: measurement + the pages it was seen on (paths only, capped). */
 function whatWeFound(f: Finding, pagesCrawled: number): { measured: string; pages: string } {
   const raw = plainEvidence({ ...f, developerDetails: f.developerDetails as FindingLike["developerDetails"] }, pagesCrawled);
-  const measured = /[.!?]$/.test(raw) ? raw : `${raw.charAt(0).toUpperCase()}${raw.slice(1)}.`;
+  // Performance findings group several checks; say so, so "across 4 pages" and "affects 5 pages" read consistently.
+  const related = f.pillar === "PERFORMANCE" ? (f.developerDetails as FindingLike["developerDetails"] | null)?.filter((d) => d.affectedPageCount > 0).length ?? 0 : 0;
+  const withNote = related > 1 ? `${raw.replace(/[.!?]$/, "")} (${related - 1} related check${related === 2 ? "" : "s"} also failed)` : raw;
+  const measured = /[.!?]$/.test(withNote) ? withNote : `${withNote.charAt(0).toUpperCase()}${withNote.slice(1)}.`;
   const urls = [...new Set(f.affectedUrls.map(pathOnly))];
   const shown = urls.slice(0, 4);
   const pages = urls.length ? `${shown.join(", ")}${urls.length > shown.length ? ` and ${urls.length - shown.length} more` : ""}` : "";
@@ -73,6 +80,96 @@ function ownerFixLines(f: Finding): string[] {
   });
 }
 const clean = (s: string) => s.replace(/`/g, "").replace(/<([a-z-]+)>/g, "$1"); // Lighthouse titles quote tags in markdown — plain words for the owner
+
+/** The one conversion block in the customer PDF: a boxed invitation to review the priority fixes with our team (existing consultation page). */
+function consultationCta(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, input: ReportPdfInput) {
+  const pad = 12;
+  const inner = () => {
+    fl.text("Let's Review Your Website's Priority Fixes", { font: f.bold, size: 13, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    fl.gap(3);
+    fl.text("Book a website review with our team to understand the findings and discuss which improvements to prioritize. Fifteen minutes, no obligation — you leave knowing what to fix first.", { size: 9.5, color: C.secondary, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    fl.gap(5);
+    fl.link("Book a website review", input.consultationUrl, { size: 10.5, x: fl.left + pad });
+    fl.text(input.consultationUrl, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+  };
+  fl.keepTogether(() => {
+    // Box first (pdf-lib paints in call order), sized from a dry run of the content.
+    const h = fl.measure(inner) + pad * 2;
+    if (!fl.dryRun) fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.accent, borderWidth: 0.8, color: C.accentSoft });
+    fl.y -= pad;
+    inner();
+    fl.y -= pad;
+  });
+}
+
+/** Local comparison, adapted for print: one row per practice with the five measured columns, the evidence-backed gaps, the method note and a CTA. Only called when the comparison exists. */
+function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison, input: ReportPdfInput) {
+  const cols: ComparisonMetricKey[] = ["performanceScore", "lcpMs", "accessibility", "bestPractices", "seo"];
+  const colLabel: Record<ComparisonMetricKey, string> = { performanceScore: "Performance", lcpMs: "Main content", accessibility: "Accessibility", bestPractices: "Best Practices", seo: "Google SEO" };
+  const fmt = (key: ComparisonMetricKey, v: number | null) => (v === null ? "-" : key === "lcpMs" ? `${(v / 1000).toFixed(1)} s` : `${v}/100`);
+  const nameW = 170;
+  const colW = (fl.usable - nameW) / cols.length;
+  // Fit a string to the name column by measured width, ending with an ellipsis if needed.
+  const fit = (str: string, font: typeof f.bold, size: number, maxW = nameW - 8) => {
+    let t = pdfSafe(str);
+    if (font.widthOfTextAtSize(t, size) <= maxW) return t;
+    while (t.length > 1 && font.widthOfTextAtSize(`${t}…`, size) > maxW) t = t.slice(0, -1);
+    return pdfSafe(`${t.trimEnd()}…`);
+  };
+  fl.section(cmp.heading, "See how your website compares with other dental practices serving your area. Same Google PageSpeed test, same device (mobile), same page (the homepage). Website measurements only - not rankings, patient numbers or how well a practice is doing.");
+  const rows: Array<{ label: string; sub: string | null; entry: ComparisonEntry }> = [{ label: `${cmp.practice.name} (you)`, sub: cmp.practice.domain, entry: cmp.practice }, ...cmp.competitors.map((c) => ({ label: c.name, sub: [c.domain, c.relevance].filter(Boolean).join(" · "), entry: c }))];
+  fl.keepTogether(() => {
+    // header
+    const top = fl.y;
+    if (!fl.dryRun) {
+      fl.page.drawText("PRACTICE", { x: fl.left, y: top - 8, size: 6.5, font: f.bold, color: C.muted });
+      cols.forEach((key, i) => fl.page.drawText(pdfSafe(colLabel[key].toUpperCase()), { x: fl.left + nameW + i * colW, y: top - 8, size: 6.5, font: f.bold, color: C.muted }));
+    }
+    fl.y = top - 12;
+    fl.rule();
+    for (const r of rows) {
+      const y0 = fl.y;
+      const m = r.entry.measurement;
+      const ok = m?.status === "ok";
+      if (!fl.dryRun) {
+        fl.page.drawText(fit(r.label, f.bold, 8.5), { x: fl.left, y: y0 - 10, size: 8.5, font: f.bold, color: r.entry === cmp.practice ? C.accent : C.ink });
+        if (r.sub) fl.page.drawText(fit(r.sub, f.regular, 6.5), { x: fl.left, y: y0 - 19, size: 6.5, font: f.regular, color: C.muted });
+        cols.forEach((key, i) => {
+          const v = ok ? fmt(key, m![key]) : "unavailable";
+          fl.page.drawText(v, { x: fl.left + nameW + i * colW, y: y0 - 10, size: ok && m![key] !== null ? 9 : 7.5, font: ok && m![key] !== null ? f.bold : f.regular, color: ok && m![key] !== null ? C.ink : C.faint });
+        });
+        fl.transcript.push(`${r.label}: ${cols.map((key) => `${colLabel[key]} ${ok ? fmt(key, m![key]) : "unavailable"}`).join(", ")}`);
+      }
+      fl.y = y0 - 24;
+      fl.rule();
+    }
+  });
+  fl.gap(4);
+  const adv = cmp.gaps.filter((g) => g.direction === "competitor_better");
+  const str = cmp.gaps.filter((g) => g.direction === "practice_better");
+  if (adv.length) {
+    fl.text("Where nearby practices measured better", { font: f.bold, size: 9.5, color: C.dark });
+    for (const g of adv) fl.text(`• ${g.sentence}`, { size: 8.5, color: C.secondary });
+    fl.gap(3);
+  }
+  if (str.length) {
+    fl.text("Where your practice measured better", { font: f.bold, size: 9.5, color: C.dark });
+    for (const g of str) fl.text(`• ${g.sentence}`, { size: 8.5, color: C.secondary });
+    fl.gap(3);
+  }
+  if (!cmp.gaps.length) fl.text("No difference large enough to call out on the metrics that could be measured.", { size: 8.5, color: C.secondary });
+  if (cmp.narrative) {
+    fl.gap(3);
+    fl.text(cmp.narrative.text, { size: 9, color: C.ink });
+    fl.text("Explanation written from the measurements above; every number is from the data.", { size: 7, color: C.muted });
+  }
+  fl.gap(4);
+  fl.link("See How Your Practice Can Close the Gap", input.consultationUrl, { size: 10 });
+  fl.text("Book a website review and we will go through these gaps with you and what it would take to close them.", { size: 8.5, color: C.secondary });
+  fl.gap(4);
+  fl.text(`How this comparison was made: ${cmp.method}`, { size: 7.5, color: C.muted });
+  fl.text(cmp.attribution, { size: 7.5, color: C.muted });
+}
 
 export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutput> {
   const { payload, business } = input;
@@ -137,10 +234,10 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
 
   // ───────── 2. Website health ─────────
   fl.newPage();
-  fl.section("Website health", "Two different measurements, side by side: our SEO audit (all crawled pages, five areas) and Google's own five checks (one page and one device per test).");
+  fl.section("Website health", `Two different measurements, side by side: our SEO audit (all crawled pages, ${CUSTOMER_PILLARS.length} areas) and Google's own five checks (one page and one device per test).`);
   fl.text("Our SEO audit — by area", { font: f.bold, size: 11, color: C.dark });
   fl.gap(4);
-  for (const p of PILLAR_DEFS) {
+  for (const p of CUSTOMER_PILLARS) {
     const score = scores ? scores[p.key] : null;
     const mine = findings.filter((x) => x.pillar === p.pillar);
     const level = score === null ? null : auditLevel(score);
@@ -166,6 +263,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   } else {
     fl.text("Google tests one page on one device at a time. Performance, Accessibility, Best Practices and Google SEO are 0–100 scores; Agentic Browsing is a short pass/fail checklist for AI assistants that Google marks as experimental. Google's SEO check covers ten technical basics — it is not the same as our SEO audit above.", { size: 8.5, color: C.muted });
     fl.gap(6);
+    let siteWideField = false;
     for (const pg of view.pages) {
       for (const device of ["mobile", "desktop"] as const) {
         const row = pg[device];
@@ -202,7 +300,11 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
           const perf = checks[0];
           const m = perf.available ? Object.fromEntries(metricsFor(row).map((x) => [x.key, x])) : null;
           const bits: string[] = [];
-          if (perf.available) bits.push(`Google scores this page ${perf.score}/100 for speed on ${device}${m?.lcp?.value != null ? ` — its main content appears after ${m.lcp.display}${m.lcp.source === "field" ? " for real visitors" : " in Google's simulated test"} (target 2.5 s)` : ""}`);
+          if (perf.available) {
+            if (m?.lcp?.source === "field" && m.lcp.fieldLevel === "origin") siteWideField = true;
+            const lcpSrc = m?.lcp?.source === "field" ? (m.lcp.fieldLevel === "origin" ? " for real visitors (site-wide figure — see note below)" : " for real visitors of this page (Chrome UX Report)") : " in Google's simulated Lighthouse test";
+            bits.push(`Google scores this page ${perf.score}/100 for speed on ${device} (Lighthouse lab test)${m?.lcp?.value != null ? ` — main content appears after ${m.lcp.display}${lcpSrc}; Google's target is 2.5 s` : ""}`);
+          }
           else bits.push(`Google could not measure speed for this page on ${device}`);
           const cats = checks.slice(1, 4).filter((c) => c.available);
           if (cats.length) {
@@ -216,8 +318,15 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
         });
       }
     }
+    if (siteWideField) fl.text("Note on real-visitor figures: Google's Chrome UX Report only has site-wide data for this site, so the same real-visitor timing is reported for every page tested. The performance score and the other timings are Google's per-page lab measurements.", { size: 8, color: C.muted });
     if (view.failedRuns.length) fl.text(`${view.failedRuns.length} of ${view.totalRuns} Google test runs could not complete and are simply not shown.`, { size: 8, color: C.muted });
     if (scores?.performance != null) fl.text(`Why our Performance score (${scores.performance}/100) is lower than Google's: our score deducts points for every verified performance issue across all ${view.pages.length} tested page${view.pages.length === 1 ? "" : "s"} on both devices; Google's number is for one page on one device.`, { size: 8, color: C.muted });
+  }
+
+  // ───────── 2b. Local comparison (only with verified data) ─────────
+  if (payload.competitors) {
+    fl.ensure(260);
+    localComparisonSection(fl, f, payload.competitors, input);
   }
 
   // ───────── 3. Problems and recommendations ─────────
@@ -226,8 +335,8 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
     const criticals = findings.filter((x) => x.severity === "CRITICAL" && !byPriority.includes(x));
     return [...byPriority, ...criticals];
   })();
-  fl.ensure(320);
-  fl.section("Problems and recommendations", `The ${featured.length} findings that matter most, in priority order. Every one is a verified measurement from this audit; all ${findings.length} findings are listed in the summary at the end.`);
+  fl.ensure(220);
+  fl.section("Problems and recommendations", `The ${featured.length} findings that matter most, most serious first. For each: what we measured, why it deserves attention, and what to do. Every one is a verified measurement from this audit; all ${findings.length} findings are listed in the summary at the end.`);
   featured.forEach((fd, i) => {
     const like = toLike(fd);
     const { measured, pages } = whatWeFound(fd, pagesCrawled);
@@ -244,7 +353,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
       fl.kv("Why it matters", fd.whyItMatters, { labelWidth: 78, size: 9.5 });
       fl.kv("What to do", fixes[0] ?? primaryAction(like), { labelWidth: 78, size: 9.5 });
       for (const line of fixes.slice(1, 4)) fl.text(`• ${line}`, { size: 9, x: fl.left + 78, color: C.secondary });
-      fl.text(`Priority: ${BUCKET_LABEL[fd.bucket] ?? fd.bucket} · effort ${fd.effort}/5`, { size: 8, color: C.muted, x: fl.left + 78 });
+      fl.text(`Priority: ${BUCKET_LABEL[fd.bucket] ?? fd.bucket} · effort ${fd.effort}/5${fd.severity === "CRITICAL" && fd.effort >= 4 ? " · a larger job, but critical — start it now" : ""}`, { size: 8, color: C.muted, x: fl.left + 78 });
       if (!fl.dryRun && fl.page === startPage) fl.page.drawRectangle({ x: fl.left - 8, y: fl.y - 2, width: 2.5, height: top - fl.y + 2, color: SEVERITY_COLOR[fd.severity] ?? C.muted });
       fl.gap(8);
       fl.rule();
@@ -255,7 +364,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
 
   // ───────── 4. Action plan ─────────
   const plan = findings.slice(0, 5);
-  fl.section("Action plan", "Five priority actions, in order. Each is explained in the section above; this is the checklist.");
+  fl.section("Action plan", "Where to start: the same five findings as a checklist, most serious first. Quick wins are marked so you can bank them early; larger jobs are flagged for whoever maintains the site.");
   plan.forEach((fd, i) => {
     fl.keepTogether(() => {
       const top = fl.y;
@@ -271,11 +380,13 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   });
   if (!plan.length) fl.text("No actions required from this audit.", { size: 10 });
   fl.gap(4);
-  fl.text("Next steps: work through the list top to bottom, re-run the audit after the first two items, and share the technical report with whoever maintains the website.", { size: 9, color: C.secondary });
+  fl.text("Next steps: work through the list top to bottom and re-run the audit once the first two items are done. Each item above stays a problem for every visitor until it is fixed. Whoever maintains the website will want the full technical report — request it below and our team will provide it after the review.", { size: 9, color: C.secondary });
+  fl.gap(8);
+  consultationCta(fl, f, input);
 
   // ───────── 5. Complete findings summary ─────────
   fl.section(`All ${findings.length} findings`, "Everything the audit verified, grouped by area. Full measurements, affected URLs and developer instructions for each item are in the technical report and the online report.");
-  for (const p of PILLAR_DEFS) {
+  for (const p of CUSTOMER_PILLARS) {
     const mine = findings.filter((x) => x.pillar === p.pillar);
     if (!mine.length) continue;
     fl.ensure(70);
@@ -289,7 +400,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
         fl.y = top;
         fl.text(fd.title, { font: f.bold, size: 9.5, x: fl.left + w + 6 });
         fl.text(`${measured}${pages ? ` · ${pages}` : ""}`, { size: 8.5, color: C.secondary, x: fl.left + w + 6 });
-        fl.text(`${primaryAction(toLike(fd))} · ${BUCKET_LABEL[fd.bucket]?.toLowerCase() ?? fd.bucket} · ${OWNER_LABEL[fd.owner] ?? fd.owner}`, { size: 8, color: C.muted, x: fl.left + w + 6 });
+        fl.text(`${primaryAction(toLike(fd)).replace(/[:;,]\s*$/, "")} · ${BUCKET_LABEL[fd.bucket]?.toLowerCase() ?? fd.bucket} · ${OWNER_LABEL[fd.owner] ?? fd.owner}`, { size: 8, color: C.muted, x: fl.left + w + 6 });
         fl.gap(5);
       });
     }
@@ -299,8 +410,10 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   fl.gap(8);
   fl.rule();
   fl.gap(6);
-  fl.text(`Online report (interactive, with every measurement): ${input.reportUrl}`, { font: f.bold, size: 9, color: C.accent });
-  fl.text("A separate technical report with full evidence, affected URLs and developer instructions is available from the same page. This report is based only on data collected during the audit; scores describe how the site measured on the audit date and are not predictions of rankings, traffic or revenue.", { size: 8, color: C.muted });
+  fl.link(`Online report (interactive, with every measurement): ${input.reportUrl}`, input.reportUrl, { size: 9 });
+  fl.gap(2);
+  fl.link("Request Your Full Technical Report", input.technicalReportRequestUrl, { size: 9.5 });
+  fl.text("The full technical report — every measurement, affected URL and developer instruction — is provided by our team after a website review, not sent automatically. Use the link above to book the review and request it. This report is based only on data collected during the audit; scores describe how the site measured on the audit date and are not predictions of rankings, traffic or revenue.", { size: 8, color: C.muted });
 
   fl.finish();
   const bytes = await doc.save();

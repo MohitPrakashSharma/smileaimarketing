@@ -38,6 +38,23 @@ describe("PageSpeed normalization", () => {
     expect(r.field.inp).toBeNull();
   });
 
+  it("labels PSI's origin_fallback copy of the origin data as origin-level, never as the page's own", () => {
+    // Live PSI shape for a sub-page without its own CrUX data: loadingExperience carries the
+    // origin's metrics with id = origin and origin_fallback = true.
+    const body = psiResponse("https://example.test/blog", { field: { lcp: [2680, "AVERAGE"] } });
+    const le = (body as { loadingExperience: Record<string, unknown> }).loadingExperience;
+    le.id = "https://example.test";
+    le.origin_fallback = true;
+    (body as Record<string, unknown>).originLoadingExperience = { ...le };
+    const r = normalizePsiResponse("https://example.test/blog", "mobile", body, 1);
+    expect(r.field.available).toBe(true);
+    expect(r.field.source).toBe("origin");
+    expect(r.field.lcp?.percentile).toBe(2680);
+    // A genuine URL-level record (id = the page, no fallback flag) stays url-level.
+    const own = normalizePsiResponse("https://example.test/blog", "mobile", psiResponse("https://example.test/blog", { field: { lcp: [2100, "FAST"] } }), 1);
+    expect(own.field.source).toBe("url");
+  });
+
   it("marks CrUX unavailable without inventing anything", () => {
     const r = normalizePsiResponse(U, "mobile", psiResponse(U, NO_CRUX), 1);
     expect(r.status).toBe("ok");

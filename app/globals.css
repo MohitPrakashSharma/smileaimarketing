@@ -104,8 +104,11 @@
      in app/layout.tsx (each value already includes its metrics-matched
      "… Fallback" face).
        --font-display  Outfit   — headings and the wordmark
-       --font-copy     Poppins  — paragraphs, descriptions, navigation
-       --font-body     Manrope  — UI chrome: buttons, eyebrows, labels, meta
+       --font-copy     Poppins  — the 400 default (body, paragraphs, metadata,
+                                  form text) and 500 navigation
+       --font-body     Manrope  — 500+ UI chrome: buttons, eyebrows, labels,
+                                  and any bold weight utility on inherited text
+                                  (see "Family follows weight" below)
      --------------------------------------------------------------------------- */
   --font-stack-fallback: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-sans: var(--font-manrope), var(--font-stack-fallback);
@@ -266,7 +269,7 @@ html {
 body {
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family: var(--font-body), var(--font-stack-fallback);
+  font-family: var(--font-copy);
   font-size: var(--text-body);
   line-height: var(--leading-body);
   overflow-x: hidden;
@@ -467,17 +470,37 @@ input:disabled {
   line-height: 1;
 }
 @utility text-metadata {
-  font-family: var(--font-body);
+  font-family: var(--font-copy);
   font-size: var(--text-meta);
   line-height: 1.45;
   color: var(--color-muted-foreground);
 }
 
-/* Product surfaces (admin, audit report) keep Manrope for the body utilities:
-   they set weights the Poppins loadout doesn't carry and were designed on the
-   UI face. Marketing pages inherit the Poppins default from :root. */
+/* The admin (not public) stays on Manrope throughout: it was designed on the
+   UI face and is outside the website typography. Everything public inherits
+   the Poppins default from :root. */
 .ui-copy {
   --font-copy: var(--font-body);
+  font-family: var(--font-copy);
+}
+
+/* Family follows weight. Poppins is loaded at 400 and 500 only, so text that
+   merely inherits its face and asks for a heavier weight moves to Manrope,
+   where those weights exist — never a synthesised bold. Zero specificity: a
+   face named on the element itself (Outfit headings, the text-* UI utilities,
+   `font-copy`, the body-copy utilities) still wins. The one exception is a
+   body-copy utility paired with a bold weight, where the pairing must win. */
+@layer utilities {
+  :where(.font-medium, .font-semibold, .font-bold, .font-extrabold, .font-black) {
+    font-family: var(--font-body);
+  }
+  :is(.text-body-large, .text-body, .text-body-small, .text-metadata):is(.font-semibold, .font-bold, .font-extrabold, .font-black) {
+    font-family: var(--font-body);
+  }
+  /* 400 inside a heavier, Manrope-faced parent (e.g. "(Optional)" in a field label). */
+  :where(.font-normal) {
+    font-family: var(--font-copy);
+  }
 }
 
 /* =============================================================================

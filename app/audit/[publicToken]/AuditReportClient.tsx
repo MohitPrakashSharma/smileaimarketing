@@ -6,6 +6,7 @@ import StatusBadge, { statusFromScore, type StatusLevel } from "@/components/ui/
 import { IconMapPin, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers, IconTrendingUp } from "@/components/icons";
 import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
 import type { PerfRow } from "@/lib/audit/view/performanceView";
+import type { LocalComparison } from "@/lib/audit/competitors/types";
 import V2Report from "./V2Report";
 import ConsultationSidebar from "./ConsultationSidebar";
 
@@ -89,6 +90,7 @@ type V2Payload = {
   /** Phase 2A: PageSpeed rows per representative URL × device (empty when the stage did not run). */
   performance?: PerfRow[];
   checks?: Array<{ checkId: string; pillar: string; status: string }>;
+  competitors?: LocalComparison | null;
   progress?: { stages: Array<{ key: string; status: string; detail?: string }> } | null;
 };
 
@@ -263,7 +265,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
     const perfStage = v2.progress?.stages.find((st) => st.key === "performance");
     return (
       <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-16">
-        <main className="mx-auto grid max-w-[1200px] gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
+        <main className="mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
           <V2Report
             ind={ind}
             publicToken={publicToken}
@@ -281,6 +283,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               checksRun: v2.checks?.filter((c) => c.status === "PASS" || c.status === "FAIL").length ?? 0,
               stageStatus: perfStage?.status,
               stageDetail: perfStage?.detail,
+              comparison: v2.competitors ?? null,
             }}
           />
           <ConsultationSidebar publicToken={publicToken} ind={ind} />

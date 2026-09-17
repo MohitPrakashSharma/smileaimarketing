@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { IconCheck, IconCalendarCheck, IconMapPin } from "@/components/icons";
 import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
 import { ButtonLink } from "@/components/ui/Button";
 import Eyebrow from "@/components/Eyebrow";
+import { VisualFrame } from "@/components/visuals/primitives";
+import { RankCard, EnquiryCard } from "@/components/visuals/cards";
 
 const TRUST_POINTS = [
   "No logins or account access, ever",
@@ -36,16 +37,10 @@ export default function TrustAndConsultation() {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-10">
           {/* Trust points */}
           <Reveal className="card overflow-hidden !border-border-subtle bg-surface">
-            <div className="relative h-44 w-full sm:h-48">
-              <Image
-                src="/images/dental-operatory-calm.jpg"
-                alt="A modern dental treatment room — the kind of practice this review is built for"
-                fill
-                sizes="(min-width: 1024px) 40vw, 100vw"
-                className="object-cover"
-                quality={75}
-              />
-            </div>
+            <VisualFrame tone="soft" glow={false} flush label="Illustration: a 'dentist near me' results list and a new appointment request card." className="h-48 sm:h-52">
+              <RankCard compact className="absolute left-5 top-5" />
+              <EnquiryCard className="absolute bottom-5 right-5" />
+            </VisualFrame>
             <div className="p-6">
               <h2 className="text-heading-3 text-foreground">Clear findings, reviewed by a person.</h2>
               <p className="mt-3 text-body-small text-muted-foreground">

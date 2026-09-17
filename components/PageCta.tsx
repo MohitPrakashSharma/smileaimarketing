@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
 import { buttonClasses, ButtonArrow } from "@/components/ui/buttonStyles";
+import { CtaBackdrop } from "@/components/visuals/compositions";
 
 /**
  * Closing band for secondary pages (about, case studies). Same shape as the
@@ -17,8 +18,9 @@ export default function PageCta({
   copy?: string;
 }) {
   return (
-    <section className="band-dark">
-      <div className="container-site section-space">
+    <section className="band-dark relative overflow-hidden">
+      <CtaBackdrop />
+      <div className="container-site section-space relative">
         <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <div>
             <Eyebrow tone="dark">{eyebrow}</Eyebrow>

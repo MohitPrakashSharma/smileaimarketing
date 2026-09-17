@@ -9,13 +9,13 @@ import { useState } from "react";
  * request the server renders the PDF, which can take a few seconds.
  */
 /**
- * `kind` picks the document: "customer" (default, the readable report) or
- * "technical" (every finding with full evidence, URLs and check ids).
+ * Customer report only. The technical report is not downloadable from the
+ * public report — see RequestTechnicalReportLink.
  */
-export default function DownloadPdfButton({ publicToken, kind = "customer", variant = "primary", className = "" }: { publicToken: string; kind?: "customer" | "technical"; variant?: "primary" | "secondary" | "link"; className?: string }) {
+export default function DownloadPdfButton({ publicToken, variant = "primary", className = "" }: { publicToken: string; variant?: "primary" | "secondary" | "link"; className?: string }) {
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
-  const href = `/api/audit/${publicToken}/pdf${kind === "technical" ? "?variant=technical" : ""}`;
-  const label = kind === "technical" ? "Download technical report" : "Download PDF";
+  const href = `/api/audit/${publicToken}/pdf`;
+  const label = "Download PDF";
 
   const onClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let the browser handle new-tab clicks

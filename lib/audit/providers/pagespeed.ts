@@ -428,7 +428,12 @@ export function normalizePsiResponse(url: string, strategy: Strategy, body: unkn
     const metricError = ["largest-contentful-paint", "total-blocking-time", "first-contentful-paint", "speed-index", "cumulative-layout-shift"].map((id) => str(obj(audits[id])?.errorMessage)).find(Boolean);
     return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: metricError ? `Lighthouse could not measure performance for this page (${metricError})` : "Lighthouse result has no performance score", errorCode: metricError ? "rejected" : "malformed", field: noField(), lab, diagnostics: [], lcpElement: null, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
   }
-  const field = parseField(root.loadingExperience, "url") ?? parseField(root.originLoadingExperience, "origin") ?? noField();
+  // PSI copies the origin's CrUX data into `loadingExperience` (with
+  // `origin_fallback: true`) when the URL itself has no field data — that is a
+  // site-wide figure and must be labelled as such, not as this page's own.
+  const le = obj(root.loadingExperience);
+  const urlLevel = le && le.origin_fallback !== true && (!str(le.id) || str(le.id) === url || str(le.id) === str(lhr.finalUrl) || str(le.id)?.replace(/\/$/, "") === url.replace(/\/$/, "")) ? parseField(root.loadingExperience, "url") : null;
+  const field = urlLevel ?? parseField(root.originLoadingExperience, "origin") ?? (le && le.origin_fallback === true ? parseField(root.loadingExperience, "origin") : null) ?? noField();
   const { diagnostics, lcpElement } = parseDiagnostics(lhr);
   return { url, finalUrl: str(lhr.finalUrl), strategy, status: "ok", field, lab, diagnostics, lcpElement, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
 }

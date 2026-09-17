@@ -14,7 +14,14 @@ const rejectSchema = z.object({
   reason: z.string().optional(),
 });
 
-const patchSchema = z.discriminatedUnion("action", [approveSchema, rejectSchema]);
+// Technical-report hand-off: PENDING (requested) → CONTACTED (we reached out) →
+// DELIVERED (we shared the PDF by hand). Only for bookings that asked for it.
+const technicalReportSchema = z.object({
+  action: z.literal("technical_report_status"),
+  status: z.enum(["PENDING", "CONTACTED", "DELIVERED"]),
+});
+
+const patchSchema = z.discriminatedUnion("action", [approveSchema, rejectSchema, technicalReportSchema]);
 
 export async function PATCH(
   request: Request,
@@ -38,6 +45,17 @@ export async function PATCH(
     if (!appointment) {
       return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
     }
+
+    if (result.data.action === "technical_report_status") {
+      if (!appointment.technicalReportStatus) {
+        return NextResponse.json({ error: "This booking did not request the technical report" }, { status: 409 });
+      }
+      const updated = await prisma.appointment.update({ where: { id }, data: { technicalReportStatus: result.data.status } });
+      const note = { PENDING: "Technical report request reopened.", CONTACTED: "Lead contacted about the technical report request.", DELIVERED: "Full technical report delivered to the lead by our team." }[result.data.status];
+      await prisma.salesActivity.create({ data: { businessId: appointment.businessId, userId: admin.id, type: "NOTE", content: note } });
+      return NextResponse.json({ appointment: updated });
+    }
+
     if (appointment.status !== "REQUESTED") {
       return NextResponse.json(
         { error: `Only REQUESTED appointments can be approved or rejected (current status: ${appointment.status})` },

@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Eyebrow from "@/components/Eyebrow";
+import { CtaBackdrop, CtaCards } from "@/components/visuals/compositions";
 import { ButtonLink } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -11,14 +11,7 @@ import { Reveal } from "@/components/ui/Reveal";
 export default function FinalCTA() {
   return (
     <section id="contact" className="band-dark relative overflow-hidden">
-      <Image
-        src="/images/dental-operatory-bright.jpg"
-        alt=""
-        fill
-        sizes="100vw"
-        className="object-cover opacity-[0.12]"
-        quality={60}
-      />
+      <CtaBackdrop />
       <div className="relative container-site section-space">
         <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <Reveal>
@@ -31,13 +24,16 @@ export default function FinalCTA() {
               Start with the free website audit, or book a 15-minute consultation with our team. Either way, you&apos;ll leave knowing what to fix first.
             </p>
           </Reveal>
-          <Reveal delay={0.1} className="flex flex-col gap-3 sm:flex-row lg:justify-end">
-            <ButtonLink href="#seo-audit" arrow>
-              Get Your Free Website Audit
-            </ButtonLink>
-            <ButtonLink href="/book-consultation" variant="light">
-              Book a Consultation
-            </ButtonLink>
+          <Reveal delay={0.1} className="flex flex-col gap-6 lg:items-end">
+            <CtaCards />
+            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+              <ButtonLink href="#seo-audit" arrow>
+                Get Your Free Website Audit
+              </ButtonLink>
+              <ButtonLink href="/book-consultation" variant="light">
+                Book a Consultation
+              </ButtonLink>
+            </div>
           </Reveal>
         </div>
       </div>

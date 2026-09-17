@@ -128,6 +128,13 @@ const envSchema = z.object({
   AUDIT_AI_MAX_PAGES: z.coerce.number().int().positive().default(5),
   AUDIT_AI_MAX_PAGES_ADMIN: z.coerce.number().int().positive().default(8),
 
+  // Phase 4 — local competitor comparison. Off by default: discovery uses the
+  // Google Places API (New) Text Search (billed SKU) plus 2–3 extra PageSpeed
+  // runs per audit, and runs after the audit completes, never inside it.
+  AUDIT_COMPETITORS_ENABLED: boolFlag(false),
+  AUDIT_COMPETITORS_MAX: z.coerce.number().int().positive().max(5).default(3),
+  AUDIT_COMPETITORS_RADIUS_KM: z.coerce.number().positive().max(100).default(15),
+
   // Analytics — internal event tracking is on by default; GA4 forwarding is
   // opt-in and only activates once both GA4 vars are supplied.
   ANALYTICS_ENABLED: boolFlag(true),

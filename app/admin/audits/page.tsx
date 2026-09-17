@@ -110,6 +110,7 @@ export default function AdminAuditsPage() {
                     items={[
                       { label: "View Public Report", onClick: () => window.open(`/audit/${a.publicToken}`, "_blank") },
                       { label: "Download PDF Report", onClick: () => window.open(`/api/audit/${a.publicToken}/pdf`, "_blank") },
+                      { label: "Download Technical Report (internal)", onClick: () => window.open(`/api/admin/audits/${a.id}/technical-pdf`, "_blank") },
                       ...(a.business?.id ? [{ label: "View Lead Detail", onClick: () => (window.location.href = `/admin/businesses/${a.business?.id}`) }] : []),
                     ]}
                   />
@@ -161,6 +162,7 @@ export default function AdminAuditsPage() {
                             items={[
                               { label: "View Public Report", onClick: () => window.open(`/audit/${a.publicToken}`, "_blank") },
                               { label: "Download PDF Report", onClick: () => window.open(`/api/audit/${a.publicToken}/pdf`, "_blank") },
+                      { label: "Download Technical Report (internal)", onClick: () => window.open(`/api/admin/audits/${a.id}/technical-pdf`, "_blank") },
                               ...(a.business?.id ? [{ label: "View Lead Detail", onClick: () => (window.location.href = `/admin/businesses/${a.business?.id}`) }] : []),
                             ]}
                           />

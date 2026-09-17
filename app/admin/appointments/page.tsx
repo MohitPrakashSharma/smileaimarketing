@@ -16,16 +16,97 @@ type Appointment = {
   preferredWindow?: string;
   notes?: string;
   business?: { name: string; website: string };
-  contact?: { firstName: string; lastName: string; email: string };
+  contact?: { firstName: string; lastName: string; email: string; phone?: string | null };
+  // Set when the booking came from "Request Full Technical Report" — the PDF is shared by hand, never sent automatically.
+  technicalReportStatus?: "PENDING" | "CONTACTED" | "DELIVERED" | null;
+  technicalReportRequestedAt?: string | null;
+  audit?: { id: string; publicToken: string; engine: "LEGACY_V1" | "CRAWL_V2"; status: string; overallScore: number | null } | null;
 };
 
 const TABS = [
   { label: "Action Required", value: "ACTION_REQUIRED" },
+  { label: "Report Requests", value: "TECHNICAL_REPORT" },
   { label: "Upcoming", value: "SCHEDULED" },
   { label: "In-Person Requests", value: "IN_PERSON" },
   { label: "Completed", value: "COMPLETED" },
   { label: "Cancelled", value: "CANCELLED" },
 ];
+
+const TECH_STATUS_LABEL: Record<NonNullable<Appointment["technicalReportStatus"]>, string> = { PENDING: "Pending", CONTACTED: "Contacted", DELIVERED: "Delivered" };
+const TECH_STATUS_STYLE: Record<NonNullable<Appointment["technicalReportStatus"]>, string> = { PENDING: "bg-amber-500/10 text-amber-400", CONTACTED: "bg-sky-500/10 text-sky-400", DELIVERED: "bg-emerald-500/10 text-emerald-400" };
+
+/**
+ * Technical-report hand-off panel. The lead asked for the full report through
+ * the consultation form; our team contacts them, then downloads the PDF here
+ * and shares it manually. Nothing is emailed from this screen.
+ */
+function TechnicalReportPanel({ appointment, onUpdated }: { appointment: Appointment; onUpdated: (updated: Appointment) => void }) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const status = appointment.technicalReportStatus!;
+  const setStatus = async (next: NonNullable<Appointment["technicalReportStatus"]>) => {
+    setError("");
+    setLoading(next);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "technical_report_status", status: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update");
+      onUpdated(data.appointment);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setLoading(null);
+    }
+  };
+  const canDownload = appointment.audit?.engine === "CRAWL_V2" && appointment.audit.status === "COMPLETED";
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-bold text-foreground">
+          Full technical report requested
+          {appointment.technicalReportRequestedAt && <span className="font-normal text-muted-foreground"> · {new Date(appointment.technicalReportRequestedAt).toLocaleDateString()}</span>}
+        </p>
+        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${TECH_STATUS_STYLE[status]}`}>{TECH_STATUS_LABEL[status]}</span>
+      </div>
+      <p className="text-muted-foreground">Contact the lead, walk through the audit, then share the PDF by hand. It is never sent automatically.</p>
+      {error && <p className="font-bold text-rose-400">{error}</p>}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {canDownload ? (
+          <a href={`/api/admin/audits/${appointment.audit!.id}/technical-pdf`} className="inline-flex h-8 items-center rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover">
+            Download technical PDF (internal)
+          </a>
+        ) : (
+          <span className="text-muted-foreground">Technical PDF not available for this audit.</span>
+        )}
+        {appointment.audit && (
+          <a href={`/audit/${appointment.audit.publicToken}`} target="_blank" rel="noopener" className="inline-flex h-8 items-center rounded-full border border-border px-3 text-xs font-bold text-foreground hover:border-border-strong">
+            Open report
+          </a>
+        )}
+        <span className="mx-1 text-border">|</span>
+        {status !== "CONTACTED" && status !== "DELIVERED" && (
+          <Button variant="secondary" className="!h-8 !px-3 !text-xs" loading={loading === "CONTACTED"} disabled={loading !== null} onClick={() => setStatus("CONTACTED")}>
+            Mark contacted
+          </Button>
+        )}
+        {status !== "DELIVERED" && (
+          <Button variant="secondary" className="!h-8 !px-3 !text-xs" loading={loading === "DELIVERED"} disabled={loading !== null} onClick={() => setStatus("DELIVERED")}>
+            Mark delivered
+          </Button>
+        )}
+        {status === "DELIVERED" && (
+          <Button variant="ghost" className="!h-8 !px-3 !text-xs" loading={loading === "PENDING"} disabled={loading !== null} onClick={() => setStatus("PENDING")}>
+            Reopen
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ApprovalControls({
   appointment,
@@ -143,6 +224,7 @@ export default function AdminAppointmentsPage() {
 
   const filtered = appointments.filter((a) => {
     if (selectedTab === "ACTION_REQUIRED") return a.status === "REQUESTED";
+    if (selectedTab === "TECHNICAL_REPORT") return !!a.technicalReportStatus;
     if (selectedTab === "SCHEDULED") return a.status === "SCHEDULED";
     if (selectedTab === "IN_PERSON") return a.type === "IN_PERSON";
     if (selectedTab === "COMPLETED") return a.status === "COMPLETED";
@@ -175,6 +257,7 @@ export default function AdminAppointmentsPage() {
         {TABS.map((tab) => {
           const count = appointments.filter((a) => {
             if (tab.value === "ACTION_REQUIRED") return a.status === "REQUESTED";
+            if (tab.value === "TECHNICAL_REPORT") return a.technicalReportStatus === "PENDING" || a.technicalReportStatus === "CONTACTED";
             if (tab.value === "SCHEDULED") return a.status === "SCHEDULED";
             if (tab.value === "IN_PERSON") return a.type === "IN_PERSON";
             if (tab.value === "COMPLETED") return a.status === "COMPLETED";
@@ -214,13 +297,20 @@ export default function AdminAppointmentsPage() {
                     {a.contact ? `${a.contact.firstName} ${a.contact.lastName}` : "Contact"} &bull; {a.contact?.email}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {a.technicalReportStatus && (
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${TECH_STATUS_STYLE[a.technicalReportStatus]}`}>
+                      Technical report · {TECH_STATUS_LABEL[a.technicalReportStatus]}
+                    </span>
+                  )}
                   <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${a.type === "ONLINE" ? "bg-sky-500/10 text-sky-400" : "bg-purple-500/10 text-purple-400"}`}>
                     {a.type === "ONLINE" ? "Video Consultation" : "In-Person Visit"}
                   </span>
                   <StatusBadge status={a.status} />
                 </div>
               </div>
+
+              {a.technicalReportStatus && <TechnicalReportPanel appointment={a} onUpdated={handleUpdated} />}
 
               <div className="rounded-lg border border-border/50 bg-background p-3 text-xs text-muted-foreground space-y-1">
                 {a.type === "ONLINE" ? (

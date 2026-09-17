@@ -15,7 +15,10 @@ export async function GET(request: Request) {
           select: { name: true, website: true },
         },
         contact: {
-          select: { firstName: true, lastName: true, email: true },
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        audit: {
+          select: { id: true, publicToken: true, engine: true, status: true, overallScore: true, completedAt: true },
         },
       },
       orderBy: { createdAt: "desc" },

@@ -26,6 +26,10 @@ export interface ReportPdfInput {
   summary: string | null;
   /** Public report URL — never a development address. */
   reportUrl: string;
+  /** Existing consultation page for this audit (`/book-consultation?publicToken=…`). */
+  consultationUrl: string;
+  /** Same page in "Request Full Technical Report" mode — the report is shared by our team after the review, never sent automatically. */
+  technicalReportRequestUrl: string;
   payload: V2ReportPayload;
 }
 

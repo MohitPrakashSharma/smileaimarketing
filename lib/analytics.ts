@@ -26,6 +26,7 @@ export const EVENT_DEFINITIONS = {
   booking_start: ["type"] as const,
   booking_submit: ["type"] as const,
   booking_confirmed: ["type", "appointment_id"] as const,
+  technical_report_requested: ["type", "appointment_id"] as const,
 
   // Outbound funnel — server-tracked, from the route handler/worker that owns the transition
   business_discovered: [] as const,

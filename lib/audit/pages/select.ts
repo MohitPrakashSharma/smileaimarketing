@@ -22,7 +22,8 @@ const CONTENT_RE = /\/(blog|news|articles?|posts?|resources?|guides?|insights|ti
 const LOCATION_RE = /\/(locations?|service-areas?|areas?-we-serve|areas?-served|cities|near-me|our-offices?|branches)(\/|$)/i;
 const CONVERSION_RE = /(^|\/)(contact|contact-us|get-in-touch|book|booking|book-online|book-now|appointment|appointments|schedule|request-[a-z-]+|[a-z-]*(quote|estimate|consultation)[a-z-]*|get-started|sign-?up)(\/|$|\?)/i;
 const ABOUT_RE = /\/(about|about-us|our-team|team|our-story|meet-|who-we-are|our-practice|our-company|get-to-know|know-us|our-history)(\/|$|-)/i;
-const LEGAL_RE = /\/(privacy|privacy-policy|terms|terms-of-service|terms-and-conditions|cookie|cookies|legal|disclaimer|accessibility)(\/|$)/i;
+// Legal / policy pages are never representative of the practice (and never "service" pages): any path segment starting with privacy, terms, cookie(s), legal, disclaimer, accessibility, gdpr, refund, conditions.
+const LEGAL_RE = /\/(privacy[a-z0-9-]*|terms[a-z0-9-]*|conditions[a-z0-9-]*|cookies?[a-z0-9-]*|legal[a-z0-9-]*|disclaimers?|accessibility[a-z0-9-]*|gdpr|refund[a-z0-9-]*|returns?-policy|sitemap)(\/|$)/i;
 const SERVICE_RE = /\/(services?|treatments?|procedures?|solutions?|products?|repairs?|installation|what-we-do|our-services|specialties|practice-areas|menu|programs?|classes|pricing|plans|features?|enterprise|platform)(\/|$)/i;
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

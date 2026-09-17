@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 
 /**
  * Shared PDF plumbing for the audit reports (customer and technical):
@@ -214,6 +214,52 @@ export class Flow {
     }
     if (!this.dryRun && str.trim()) this.transcript.push(pdfSafe(str));
     return startY - this.y;
+  }
+
+  /**
+   * A clickable line: the text is drawn as usual and a URI link annotation is
+   * placed over every wrapped line, so a tap in any PDF reader opens `url` in
+   * the browser (the reader decides whether that is a new tab). The URL is
+   * also recorded in the transcript so tests can assert where a CTA points.
+   */
+  link(str: string, url: string, o: TextOpts = {}): number {
+    const font = o.font ?? this.f.bold;
+    const size = o.size ?? 9.5;
+    const color = o.color ?? C.accent;
+    const x = o.x ?? this.left;
+    const maxWidth = o.maxWidth ?? this.right - x;
+    const lh = o.lineHeight ?? size * 1.38;
+    const lines = this.wrap(str, font, size, maxWidth);
+    const startY = this.y;
+    for (const line of lines) {
+      this.ensure(lh);
+      if (!this.dryRun && line) {
+        const w = font.widthOfTextAtSize(line, size);
+        const lx = o.align === "right" ? x + maxWidth - w : x;
+        this.page.drawText(line, { x: lx, y: this.y - size, size, font, color });
+        this.page.drawLine({ start: { x: lx, y: this.y - size - 1.5 }, end: { x: lx + w, y: this.y - size - 1.5 }, thickness: 0.6, color });
+        this.addLinkAnnotation(this.page, lx, this.y - lh, w, lh, url);
+      }
+      this.y -= lh;
+    }
+    if (!this.dryRun && str.trim()) this.transcript.push(`${pdfSafe(str)} -> ${url}`);
+    return startY - this.y;
+  }
+
+  /** Makes the rectangle a clickable URI link (PDF /Link annotation with a /URI action). */
+  addLinkAnnotation(page: PDFPage, x: number, y: number, w: number, h: number, url: string) {
+    const ctx = this.doc.context;
+    const annot = ctx.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [x, y, x + w, y + h],
+      Border: [0, 0, 0],
+      A: { Type: "Action", S: "URI", URI: PDFString.of(url) },
+    });
+    const ref = ctx.register(annot);
+    const existing = page.node.lookup(PDFName.of("Annots"));
+    if (existing && "push" in existing && typeof (existing as { push: unknown }).push === "function") (existing as unknown as { push: (r: unknown) => void }).push(ref);
+    else page.node.set(PDFName.of("Annots"), ctx.obj([ref]));
   }
 
   /** Label/value pair on one line (value wraps under the label column). */

@@ -1,18 +1,23 @@
 import { measuredSummary, type FindingLike } from "./findingView";
-import { buildPerformanceView, type PerfRow } from "./performanceView";
+import type { PerfRow } from "./performanceView";
 
 /**
  * "A message for <business>" — the short personal note on the first page of
  * the customer PDF (not shown on the web report). Built deterministically from
  * the stored audit (no AI call, no randomness), so the same completed audit
  * always reads the same and every sentence traces to a stored number; ~100–130
- * words: scope, headline numbers, the problems that matter most with their
- * measurements, the recommended order, and an invitation to read on. Findings
- * are described as measurements, never as lost patients, rankings or revenue.
+ * words: practice and scope, the verified findings and their severity, the two
+ * or three problems that matter most with their measurements, what leaving
+ * them unresolved tends to mean for visitors and search visibility, and a
+ * recommendation to book a website review. Findings are described as
+ * measurements, never as lost patients, rankings or revenue; an unmeasured
+ * area (PageSpeed unavailable, no CrUX data) is never held against the site.
  */
 
 export interface MessageFinding {
   id: string;
+  /** Finding group key (e.g. "perf_mobile_load", "page:/about") — picks the specific implication sentence. */
+  findingKey?: string;
   pillar: string;
   severity: string;
   title: string;
@@ -70,38 +75,91 @@ export function plainEvidence(f: MessageFinding, pagesCrawled: number): string {
 }
 
 export function buildBusinessMessage(i: MessageInput): BusinessMessage {
-  // Three problems when the titles are short enough, otherwise two — keeps the note near 100–130 words, deterministically.
-  const three = compose(i, 3);
-  return three.wordCount > 135 ? compose(i, 2) : three;
+  // Two problems when their measurements are short enough, else one — keeps the note near 100–130 words, deterministically.
+  const two = compose(i, 2);
+  return two.wordCount <= 135 ? two : compose(i, 1);
+}
+
+/**
+ * What a specific verified problem means for the visitor or the practice —
+ * phrased as the mechanism the finding actually measures, never as lost
+ * patients, rankings or revenue. Keyed by finding group, with an area-level
+ * fallback.
+ */
+const IMPLICATION_BY_KEY: Record<string, string> = {
+  perf_mobile_load: "A slow first load on a phone gives a visitor a reason to leave before your services appear.",
+  perf_lcp: "Visitors wait for the page's main content before they can read anything.",
+  perf_js_main_thread: "Taps and scrolls lag while scripts run, so the page feels broken on a phone.",
+  perf_layout_shift: "Content that jumps while loading makes visitors tap the wrong thing.",
+  perf_caching: "Every repeat visit downloads files that the browser could have kept.",
+  perf_third_party: "Third-party scripts slow every page for every visitor.",
+  perf_desktop: "Even on a fast connection the page itself is heavy.",
+  conversion_path: "A visitor who is ready to book has to hunt for a way to call or contact you.",
+  trust_signals: "Visitors and Google cannot easily see who is behind the site or how to reach you.",
+  indexability: "Search engines may not show the affected pages at all.",
+  broken_pages_links: "Visitors and search engines hit dead ends on your own site.",
+  sitemap_robots: "Search engines get a poor map of your site, so new pages are found more slowly.",
+  titles_descriptions: "Your listing in Google results reads worse than it could, on every affected page.",
+  headings: "Search engines get a muddled outline of what each page is about.",
+  thin_duplicate_content: "Search engines have very little text to understand those pages by.",
+  images_alt: "Search engines and screen readers cannot tell what your images show.",
+  images_size: "Pages jump and load slower than they need to.",
+  internal_linking: "Your own pages do not point search engines at what matters.",
+  structured_data: "Google is not told plainly what the practice is, where it is and when it is open.",
+  https_security: "Browsers can warn visitors away before they see the site.",
+  mobile_html: "Google evaluates the mobile version of every page first, and the basics are missing.",
+  js_rendering: "Search engines and link previews can see an empty page.",
+  site_structure: "Buried pages look unimportant to search engines and are crawled less often.",
+  unreachable: "Nothing else in this report matters until the site loads.",
+};
+const IMPLICATION_BY_PILLAR: Record<string, string> = {
+  CONTENT: "It makes the affected pages harder for visitors and search engines to understand.",
+  TECHNICAL: "It can stop search engines from finding or trusting the affected pages.",
+  PERFORMANCE: "It gives visitors on a phone a reason to leave before they find what they need.",
+  CONVERSION: "It makes it harder for a visitor to take the next step.",
+  LOCAL: "It makes the practice harder to find for nearby searches.",
+  SEARCH: "It limits how often the practice appears in search.",
+};
+const AREA_WORD: Record<string, string> = { CONTENT: "on-page content", TECHNICAL: "technical health", PERFORMANCE: "page speed", CONVERSION: "the patient journey", LOCAL: "local visibility", SEARCH: "search visibility" };
+
+function implication(f: MessageFinding): string {
+  const key = f.findingKey ?? "";
+  const base = key.replace(/^page:.*$/, "page");
+  if (base === "page") return "One of your main pages is missing several on-page basics at once.";
+  return IMPLICATION_BY_KEY[base] ?? IMPLICATION_BY_PILLAR[f.pillar] ?? "";
 }
 
 function compose(i: MessageInput, maxProblems: number): BusinessMessage {
   const { scores, severityCounts: sc, findings } = i;
   const paragraphs: string[] = [];
   const site = host(i.website);
-  const perf = buildPerformanceView(i.performance);
-  const testedPages = perf.pages.length;
-
-  // Scope + headline numbers
-  let scope = `We crawled ${n(i.pagesCrawled, "page")} of ${site} and ran ${n(i.checksRun, "check")}`;
-  if (testedPages > 0) scope += `, plus Google PageSpeed tests on ${n(testedPages, "page")}`;
   const crit = sc.CRITICAL ?? 0;
   const high = sc.HIGH ?? 0;
-  const counts = [crit ? `${crit} critical` : null, high ? `${high} high-priority` : null].filter(Boolean).join(", ");
-  const result = findings.length
-    ? `${scores?.overall != null ? `The site scores ${scores.overall}/100 (our SEO health score), with` : "We verified"} ${n(findings.length, "verified finding")}${counts ? ` (${counts})` : ""}.`
-    : `${scores?.overall != null ? `The site scores ${scores.overall}/100 (our SEO health score) and n` : "N"}o issue crossed our thresholds.`;
-  paragraphs.push(`Thank you for auditing ${i.businessName} with us. ${scope}. ${result}`);
+  const counts = [crit ? `${crit} critical` : null, high ? `${high} high-priority` : null].filter(Boolean).join(" and ");
+  const total = `${n(findings.length, "verified finding")}${counts ? ` (${counts})` : ""}`;
 
-  // The problems that matter most, with their measurements
-  const top = findings.slice(0, maxProblems);
-  if (top.length) {
-    paragraphs.push(`What matters most: ${top.map((f) => `${f.title} — ${plainEvidence(f, i.pagesCrawled)}.`).join(" ")}`);
-    const order = top.slice(0, 2).map((f) => `\u201c${f.title}\u201d`);
-    const who = top[0].owner === "developer" ? " (a developer job)" : "";
-    paragraphs.push(`Start with ${order[0]}${who}${order[1] ? `, then ${order[1]}` : ""}. These are measurements from the audit date, not predictions of ${i.customersWord} or search positions; the action plan and findings that follow explain each fix.`);
+  // Verdict from the measured pillars only — an unmeasured area (PageSpeed
+  // unavailable during the audit) is never described as a weakness.
+  const measured = (["technical", "content", "performance"] as const).filter((k) => scores && scores[k] !== null).map((k) => ({ key: k, score: scores![k] as number }));
+  const weak = measured.filter((m) => m.score < 60).map((m) => AREA_WORD[m.key.toUpperCase()]);
+  const technical = scores?.technical ?? null;
+  const overall = scores?.overall ?? null;
+  let verdict: string;
+  if (!findings.length) verdict = "No issue crossed our thresholds — a strong result on the checks we ran.";
+  else if (crit > 0 || high >= 3) verdict = `Your website has issues that deserve attention now: ${total}.`;
+  else if (technical !== null && technical >= 80 && weak.length && !weak.includes("technical health")) verdict = `Your technical foundation is solid, but ${weak.join(" and ")} need${weak.length === 1 ? "s" : ""} work: ${total}.`;
+  else if (overall !== null && overall >= 80) verdict = `The site is in good shape overall, with ${total} worth attending to.`;
+  else verdict = `Our audit found ${total} that deserve attention.`;
+  paragraphs.push(`${i.businessName}: our audit crawled ${n(i.pagesCrawled, "page")} of ${site} and ran ${n(i.checksRun, "check")}. ${verdict}`);
+
+  // The most consequential problem (severity first), what it means, and a second one when the evidence supports it.
+  const [first, second] = findings.slice(0, maxProblems);
+  if (first) {
+    const imp = implication(first);
+    paragraphs.push(`Most consequential: ${first.title} — ${plainEvidence(first, i.pagesCrawled)}. ${imp}${second ? ` Also worth attention: ${second.title} — ${plainEvidence(second, i.pagesCrawled)}.` : ""}`);
+    paragraphs.push(`Until these are fixed, the same obstacles meet every visitor to the affected pages. We have identified what to prioritize — book a website review and our team will turn these findings into a practical improvement plan for your practice.`);
   } else {
-    paragraphs.push("The findings that follow list everything we checked and how the site measured on the audit date.");
+    paragraphs.push("Our recommendation: keep the site this way, and book a website review if you plan changes — we will check them against these results.");
   }
 
   const wordCount = paragraphs.join(" ").split(/\s+/).filter(Boolean).length;

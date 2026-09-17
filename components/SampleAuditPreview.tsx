@@ -71,7 +71,7 @@ export default function SampleAuditPreview() {
             <div>
               <p className="text-eyebrow text-muted-foreground">Practice Growth Review</p>
               <p className="mt-1 font-display text-[1.25rem] font-semibold text-foreground">
-                Metro Dental Care <span className="font-body text-body-small font-normal text-muted-foreground">— Toronto, ON</span>
+                Metro Dental Care <span className="font-copy text-body-small font-normal text-muted-foreground">— Toronto, ON</span>
               </p>
             </div>
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -100,7 +100,7 @@ export default function SampleAuditPreview() {
                     </div>
                   </div>
                   <span className="shrink-0 font-display text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-foreground">
-                    {c.score}<span className="font-body text-metadata font-normal tracking-normal"> / 100</span>
+                    {c.score}<span className="font-copy text-metadata font-normal tracking-normal"> / 100</span>
                   </span>
                 </div>
                 <div className="mt-3 flex items-center gap-3">

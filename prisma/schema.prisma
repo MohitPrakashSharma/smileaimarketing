@@ -108,6 +108,15 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+// A consultation booked from the "Request Full Technical Report" link. The
+// report is never sent automatically: PENDING → our team CONTACTED the lead →
+// the team DELIVERED the PDF by hand. Null on ordinary bookings.
+enum TechnicalReportStatus {
+  PENDING
+  CONTACTED
+  DELIVERED
+}
+
 model User {
   id                   String                @id @default(uuid())
   email                String                @unique
@@ -285,6 +294,7 @@ model Audit {
   checkResults       AuditCheckResult[]
   performance        AuditPerformance[]
   aiAnalyses         AuditAiPageAnalysis[]
+  appointments       Appointment[]
 
   @@index([businessId])
   @@index([publicToken])
@@ -475,9 +485,18 @@ model Competitor {
   audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
   name      String
   website   String?
-  rank      Int
+  rank      Int // V1: local-pack position. Local comparison (v2): discovery order only — never shown as a ranking.
   mapScore  Int?
   createdAt DateTime @default(now())
+
+  // --- Local comparison (lib/audit/competitors) — all nullable; V1 rows leave them empty ---
+  source          String? // "GOOGLE_PLACES" — where the business was identified
+  placeId         String? // Google place id (the one Places field that may be stored indefinitely)
+  address         String?
+  relevance       String? // why it was chosen, e.g. "pediatric dentist · Newmarket" (from Places types + locality)
+  discoveredAt    DateTime?
+  measuredAt      DateTime?
+  measurementJson Json? // our own PageSpeed measurement of the competitor homepage (mobile) — see CompetitorMeasurement
 
   @@index([auditId])
 }
@@ -578,10 +597,18 @@ model Appointment {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
+  // The audit this booking came from (report sidebar, consultation page with a
+  // publicToken, or the technical-report request link). Null for cold bookings.
+  auditId                    String?
+  audit                      Audit?                 @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  technicalReportStatus      TechnicalReportStatus? // set only when the booking asked for the full technical report
+  technicalReportRequestedAt DateTime?
+
   @@index([businessId])
   @@index([contactId])
   @@index([scheduledTime])
   @@index([status])
+  @@index([auditId])
 }
 
 model SalesActivity {

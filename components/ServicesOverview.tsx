@@ -1,73 +1,60 @@
 import Link from "next/link";
 import Eyebrow from "@/components/Eyebrow";
-import { IconMapPin, IconMonitor, IconStar } from "@/components/icons";
-import { ButtonArrow } from "@/components/ui/buttonStyles";
+import ServiceIcon from "@/components/ServiceIcon";
+import { ServiceVisual } from "@/components/visuals/ServiceVisual";
+import { ButtonArrow, buttonClasses } from "@/components/ui/buttonStyles";
+import { FEATURED_SERVICES, SERVICES } from "@/lib/services";
 
 /**
- * Answers "what does Smile AI Marketing actually do?" on the homepage. The
- * three areas mirror what the free audit reviews and what the consultation
- * covers — nothing here describes a service that isn't already offered.
+ * Answers "what does Smile AI Marketing actually do?" on the homepage. Shows
+ * the featured services from the catalogue (lib/services.ts) and points to
+ * /services for the rest — the homepage stays a summary, not a menu.
  */
-const AREAS: { Icon: typeof IconMapPin; title: string; detail: string; href: string; cta: string }[] = [
-  {
-    Icon: IconMapPin,
-    title: "Local SEO and Google visibility",
-    detail:
-      "Show up when nearby patients search for a dentist. We review your Google Business Profile, local rankings and listing details, then work on what's holding your visibility back.",
-    href: "/services/local-seo-for-dentists",
-    cta: "Local SEO for dentists",
-  },
-  {
-    Icon: IconMonitor,
-    title: "Website and booking experience",
-    detail:
-      "Make it easy for patients to trust you and get in touch. We check speed, mobile layout and how quickly a visitor can find your phone number or request an appointment.",
-    href: "/services",
-    cta: "See our services",
-  },
-  {
-    Icon: IconStar,
-    title: "Reviews and reputation",
-    detail:
-      "Let existing patients speak for you. We look at how your reviews and ratings compare with nearby practices and what would strengthen them.",
-    href: "/services",
-    cta: "See our services",
-  },
-];
-
 export default function ServicesOverview() {
+  const remaining = SERVICES.length - FEATURED_SERVICES.length;
   return (
     <section id="services" className="scroll-mt-[var(--header-height)] bg-background">
       <div className="container-site section-space">
-        <div className="max-w-2xl">
-          <Eyebrow>What we do</Eyebrow>
-          <h2 className="mt-4 text-heading-2 text-foreground">
-            Marketing built around how patients choose a dentist.
-          </h2>
-          <p className="mt-4 text-body-large text-muted-foreground">
-            We focus on the three things that decide whether a nearby patient finds your practice, trusts it and books. Your free audit checks all three, and our team can help you fix what it finds.
-          </p>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <Eyebrow>What we do</Eyebrow>
+            <h2 className="mt-4 text-heading-2 text-foreground">
+              Marketing built around how patients choose a dentist.
+            </h2>
+            <p className="mt-4 text-body-large text-muted-foreground">
+              A patient has to find your practice, understand it, use your site on their phone and get in touch. Our services strengthen each of those steps — starting with what the free audit shows is weak on your site.
+            </p>
+          </div>
+          <Link href="/services" className={buttonClasses({ variant: "secondary", className: "shrink-0 self-start lg:self-auto" })}>
+            <span>Explore All Services</span>
+            <ButtonArrow />
+          </Link>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {AREAS.map((area) => (
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {FEATURED_SERVICES.map((s) => (
             <Link
-              key={area.title}
-              href={area.href}
-              className="card group flex flex-col p-6 transition-[border-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-foreground hover:shadow-md"
+              key={s.slug}
+              href={`/services/${s.slug}`}
+              className="card group flex flex-col overflow-hidden p-6 transition-[border-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-foreground hover:shadow-md"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
-                <area.Icon className="h-5 w-5" />
+              <ServiceVisual variant={s.icon} size="mini" flush className="-mx-6 -mt-6" />
+              <span className="mt-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                <ServiceIcon icon={s.icon} />
               </span>
-              <h3 className="mt-5 text-heading-4 text-foreground">{area.title}</h3>
-              <p className="mt-2 flex-1 text-body-small text-muted-foreground">{area.detail}</p>
+              <h3 className="mt-4 text-heading-4 text-foreground">{s.title}</h3>
+              <p className="mt-2 flex-1 text-body-small text-muted-foreground">{s.short} {s.benefit}</p>
               <span className="mt-5 inline-flex items-center gap-2 text-body-small font-medium text-primary-ink">
-                {area.cta}
+                Explore service
                 <ButtonArrow />
               </span>
             </Link>
           ))}
         </div>
+        <p className="mt-5 text-body-small text-muted-foreground">
+          Plus {remaining} more — on-page and off-page SEO, content marketing and SEO audits.{" "}
+          <Link href="/services" className="link-underline font-medium text-primary-ink">See all services</Link>.
+        </p>
       </div>
     </section>
   );

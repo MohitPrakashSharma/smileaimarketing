@@ -1,3 +1,4 @@
+import { SEVERITY_ORDER } from "@/lib/audit/priority";
 import { describe, it, expect, beforeAll } from "vitest";
 import { crawlSite } from "@/lib/audit/core/crawler";
 import { Fetcher } from "@/lib/audit/core/fetch";
@@ -114,10 +115,16 @@ describe("technically broken site", () => {
     expect(a.scores.technical.penalties[0].penalty).toBeGreaterThanOrEqual(a.scores.technical.penalties[1].penalty); // sorted
     expect(a.scores.technical.penalties.find((p) => p.checkId === "tech.mobile.viewport_missing")).toMatchObject({ weight: 30, pageShare: 1, penalty: 30 });
   });
-  it("orders findings by priority with critical, site-wide, low-effort items first", () => {
+  it("orders findings by severity first, then by priority score within a severity", () => {
     const first = a.findings[0];
     expect(["CRITICAL", "HIGH"]).toContain(first.severity);
-    for (let i = 1; i < a.findings.length; i++) expect(a.findings[i - 1].priorityScore).toBeGreaterThanOrEqual(a.findings[i].priorityScore);
+    const rank = (s: string) => SEVERITY_ORDER.indexOf(s as never);
+    for (let i = 1; i < a.findings.length; i++) {
+      const prev = a.findings[i - 1];
+      const cur = a.findings[i];
+      expect(rank(prev.severity)).toBeLessThanOrEqual(rank(cur.severity));
+      if (prev.severity === cur.severity) expect(prev.priorityScore).toBeGreaterThanOrEqual(cur.priorityScore);
+    }
   });
 });
 

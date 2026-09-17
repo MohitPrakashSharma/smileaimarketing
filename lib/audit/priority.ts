@@ -50,8 +50,26 @@ export function priorityScore(i: PriorityInput): number {
 
 export type PriorityBucket = "this_week" | "this_month" | "this_quarter";
 
+/**
+ * When to do it. Effort decides the horizon, with one guard: a CRITICAL
+ * finding is never pushed out to "this quarter" — a larger job still starts
+ * this month (the reader sees "larger job" next to it).
+ */
 export function bucketFor(f: { severity: Severity; impact: number; effort: number }): PriorityBucket {
-  if (f.effort >= 4) return "this_quarter";
+  if (f.effort >= 4) return f.severity === "CRITICAL" ? "this_month" : "this_quarter";
   if (f.effort <= 2 && (f.severity === "CRITICAL" || f.severity === "HIGH" || (f.severity === "OPPORTUNITY" && f.impact >= 4))) return "this_week";
   return "this_month";
+}
+
+/**
+ * Presentation order for findings: severity first (a critical issue is always
+ * listed before a medium one, however cheap the medium one is to fix), then
+ * the priority score within a severity. The score itself is unchanged — it
+ * still decides the order *within* each severity band.
+ */
+export function compareFindings(a: { severity: Severity; priorityScore: number }, b: { severity: Severity; priorityScore: number }): number {
+  const sa = SEVERITY_ORDER.indexOf(a.severity);
+  const sb = SEVERITY_ORDER.indexOf(b.severity);
+  if (sa !== sb) return sa - sb;
+  return b.priorityScore - a.priorityScore;
 }

@@ -6,6 +6,7 @@ import { industryFromCategory, cap } from "@/lib/industry";
 import { buildV2Payload, legacyShapeFromV2 } from "../report";
 import { renderCustomerPdf, CUSTOMER_PDF_LAYOUT } from "./customerPdf";
 import { renderTechnicalPdf, TECHNICAL_PDF_LAYOUT, type ReportPdfInput } from "./technicalPdf";
+import { consultationUrl, technicalReportRequestUrl } from "../technicalReport";
 
 /**
  * Builds the v2 report PDFs from stored audit rows (never re-runs anything).
@@ -43,10 +44,13 @@ export function resolvePdfPath(stored: string): string | null {
 }
 
 /** True when the audit's stored customer PDF is the current layout and not older than the audit run. */
-export function customerPdfIsCurrent(audit: { pdfStatus: string; pdfUrl: string | null; pdfGeneratedAt: Date | null; completedAt: Date | null; publicToken: string }): boolean {
+export function customerPdfIsCurrent(audit: { pdfStatus: string; pdfUrl: string | null; pdfGeneratedAt: Date | null; completedAt: Date | null; publicToken: string; competitorGaps?: Array<{ measuredAt: Date | null }> }): boolean {
   if (audit.pdfStatus !== "READY" || !audit.pdfUrl || !audit.pdfGeneratedAt) return false;
   if (audit.pdfUrl !== `${PRIVATE_PREFIX}${pdfFileName(audit.publicToken, "customer")}`) return false;
-  return !audit.completedAt || audit.pdfGeneratedAt >= audit.completedAt;
+  if (audit.completedAt && audit.pdfGeneratedAt < audit.completedAt) return false;
+  // A local comparison measured after the PDF was rendered belongs in the next download.
+  const latestMeasure = (audit.competitorGaps ?? []).map((c) => c.measuredAt?.getTime() ?? 0).reduce((a, b) => Math.max(a, b), 0);
+  return latestMeasure <= audit.pdfGeneratedAt.getTime();
 }
 
 /** Customer-facing download name: "gelinas-dental-studio-seo-audit-2026-09-16.pdf" / "...-technical-report-2026-09-16.pdf" (ASCII only). */
@@ -67,16 +71,17 @@ async function loadInput(auditId: string): Promise<{ input: ReportPdfInput; publ
   const audit = await prisma.audit.findUnique({ where: { id: auditId }, include: { business: true } });
   if (!audit) throw new Error(`Audit ${auditId} not found`);
   if (audit.status !== "COMPLETED") throw new Error(`Audit ${auditId} is not completed`);
-  const [findings, pages, checks, performance, ai] = await Promise.all([
+  const [findings, pages, checks, performance, ai, competitors] = await Promise.all([
     prisma.auditFinding.findMany({ where: { auditId } }),
     prisma.auditPage.findMany({ where: { auditId }, orderBy: { depth: "asc" } }),
     prisma.auditCheckResult.findMany({ where: { auditId } }),
     prisma.auditPerformance.findMany({ where: { auditId } }),
     prisma.auditAiPageAnalysis.findMany({ where: { auditId } }),
+    prisma.competitor.findMany({ where: { auditId } }),
   ]);
   const business = audit.business;
   const ind = industryFromCategory(business.category);
-  const payload = buildV2Payload(audit, findings, pages, checks, performance, ai);
+  const payload = buildV2Payload(audit, findings, pages, checks, performance, ai, competitors, { name: business.name, website: business.website, city: business.city });
   const legacy = legacyShapeFromV2(audit, findings, pages, { name: business.name, city: business.city, category: business.category });
   const completedAt = audit.completedAt ?? audit.createdAt;
   return {
@@ -88,6 +93,8 @@ async function loadInput(auditId: string): Promise<{ input: ReportPdfInput; publ
       headline: legacy.narrative.headline,
       summary: audit.summaryText,
       reportUrl: `${publicReportBaseUrl()}/audit/${audit.publicToken}`,
+      consultationUrl: consultationUrl(publicReportBaseUrl(), audit.publicToken),
+      technicalReportRequestUrl: technicalReportRequestUrl(publicReportBaseUrl(), audit.publicToken),
       payload,
     },
   };

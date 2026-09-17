@@ -6,10 +6,13 @@ import { IconMapPin, IconSearch, IconMonitor, IconUsers, IconTrendingUp } from "
 import { cap, type IndustryProfile } from "@/lib/industry";
 import { measuredSummary, primaryAction, whyInBrief, type FindingLike } from "@/lib/audit/view/findingView";
 import type { PerfRow } from "@/lib/audit/view/performanceView";
-import { PILLAR_DEFS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL, type PillarKey } from "@/lib/audit/view/pillars";
+import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL, type PillarKey } from "@/lib/audit/view/pillars";
 import GoogleChecksSection from "./GoogleChecksSection";
+import LocalComparisonSection from "./LocalComparisonSection";
+import type { LocalComparison } from "@/lib/audit/competitors/types";
 import FindingCard, { type FindingView } from "./FindingCard";
 import DownloadPdfButton from "./DownloadPdfButton";
+import RequestTechnicalReportLink from "./RequestTechnicalReportLink";
 
 /**
  * The v2 (crawler engine) report, in five sections:
@@ -37,10 +40,12 @@ export type V2ReportData = {
   checksRun: number;
   stageStatus?: string;
   stageDetail?: string;
+  /** Local competitor comparison — null means not collected; the section is simply omitted. */
+  comparison?: LocalComparison | null;
 };
 
 const ICONS: Record<PillarKey, typeof IconSearch> = { technical: IconMonitor, content: IconSearch, performance: IconTrendingUp, search: IconUsers, local: IconMapPin };
-const PILLARS = PILLAR_DEFS.map((p) => ({ ...p, Icon: ICONS[p.key] }));
+const PILLARS = CUSTOMER_PILLARS.map((p) => ({ ...p, Icon: ICONS[p.key] }));
 
 const SEVERITY_STYLE: Record<string, string> = {
   CRITICAL: "bg-danger text-white",
@@ -83,8 +88,8 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
             </h1>
             {/* Desktop: beside the heading. Phone: directly under it, full-width touch target. */}
             <div className="flex w-full flex-col items-start gap-1 sm:w-auto sm:shrink-0 sm:items-end sm:pt-1">
-              <DownloadPdfButton publicToken={publicToken} kind="customer" className="w-full sm:w-auto" />
-              <DownloadPdfButton publicToken={publicToken} kind="technical" variant="link" />
+              <DownloadPdfButton publicToken={publicToken} className="w-full sm:w-auto" />
+              <RequestTechnicalReportLink publicToken={publicToken} className="sm:items-end sm:text-right" />
             </div>
           </div>
         </div>
@@ -117,6 +122,8 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
 
       {/* 2 ── Google website checks ──────────────────────────────────────── */}
       <GoogleChecksSection rows={data.performance} pillarScore={scores?.performance ?? null} auditScore={overall} auditChecks={data.checksRun} pagesCrawled={pagesCrawled} findings={perfFindings} stageStatus={data.stageStatus} stageDetail={data.stageDetail} />
+
+      {data.comparison && <LocalComparisonSection comparison={data.comparison} publicToken={publicToken} />}
 
       {/* 3 ── Findings by area ───────────────────────────────────────────── */}
       <section id="areas" aria-labelledby="areas-heading" className="rounded-2xl border border-border bg-surface shadow-sm">

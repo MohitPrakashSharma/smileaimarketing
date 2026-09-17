@@ -52,13 +52,25 @@ export function humanizeDetail(d: FindingDetailLike): string | null {
   const onPages = n > 1 ? ` on ${n} pages` : "";
   const v = num(lead);
   const where = dev(d.device);
-  if (/^perf\.(mobile|desktop)\.(field|lab)\.lcp/.test(id) && v !== null) return `Main content takes ${fmtMs(v)} to appear ${where} (Google's target is 2.5 s)`;
-  if (/^perf\.mobile\.field\.inp/.test(id) && v !== null) return `The page takes ${fmtMs(v)} to respond to a tap ${where} (target 200 ms)`;
-  if (/^perf\.mobile\.(field|lab)\.cls/.test(id) && v !== null) return `The layout shifts by ${v.toFixed(2)} while loading ${where} (target 0.1)`;
-  if (/^perf\.mobile\.lab\.tbt/.test(id) && v !== null) return `Scripts freeze the page for ${fmtMs(v)} during load ${where} (target 200 ms)`;
-  if (/^perf\.mobile\.lab\.fcp/.test(id) && v !== null) return `Nothing appears on screen for ${fmtMs(v)} ${where} (target 1.8 s)`;
-  if (/^perf\.mobile\.lab\.speed_index/.test(id) && v !== null) return `The visible page takes ${fmtMs(v)} to fill in ${where} (target 3.4 s)`;
-  if (/^perf\.(mobile|desktop)\.lab\.score/.test(id) && v !== null) return `Google PageSpeed score ${Math.round(v)}/100 ${where}`;
+  // A PageSpeed measurement is per page: with several affected pages the sentence
+  // gives the measured range, never one page's number for all of them. Field data
+  // (Chrome UX Report) at origin level is one site-wide figure — said so explicitly.
+  const vals = d.urls.map((u) => num(u.detected)).filter((x): x is number => x !== null);
+  const lo = vals.length ? Math.min(...vals) : v;
+  const hi = vals.length ? Math.max(...vals) : v;
+  const spread = n > 1 && lo !== null && hi !== null && lo !== hi;
+  const range = (f: (x: number) => string) => (spread ? `${f(lo!)}–${f(hi!)}` : f(v!));
+  const across = n > 1 ? ` across ${n} pages` : "";
+  const isField = /\.field\./.test(id);
+  const originLevel = isField && /origin-level/.test(lead ?? "");
+  const src = isField ? (originLevel ? " (real visitors, site-wide Chrome UX Report figure — not page-specific)" : " (real visitors of this page, Chrome UX Report)") : " (Google's simulated Lighthouse test)";
+  if (/^perf\.(mobile|desktop)\.(field|lab)\.lcp/.test(id) && v !== null) return `Main content takes ${originLevel ? fmtMs(v) : range(fmtMs)} to appear ${where}${originLevel ? "" : across}${src} — Google's target is 2.5 s`;
+  if (/^perf\.mobile\.field\.inp/.test(id) && v !== null) return `The page takes ${originLevel ? fmtMs(v) : range(fmtMs)} to respond to a tap ${where}${src} — target 200 ms`;
+  if (/^perf\.mobile\.(field|lab)\.cls/.test(id) && v !== null) return `The layout shifts by ${originLevel ? v.toFixed(2) : range((x) => x.toFixed(2))} while loading ${where}${src} — target 0.1`;
+  if (/^perf\.mobile\.lab\.tbt/.test(id) && v !== null) return `Scripts freeze the page for ${range(fmtMs)} during load ${where}${across}${src} — target 200 ms`;
+  if (/^perf\.mobile\.lab\.fcp/.test(id) && v !== null) return `Nothing appears on screen for ${range(fmtMs)} ${where}${across}${src} — target 1.8 s`;
+  if (/^perf\.mobile\.lab\.speed_index/.test(id) && v !== null) return `The visible page takes ${range(fmtMs)} to fill in ${where}${across}${src} — target 3.4 s`;
+  if (/^perf\.(mobile|desktop)\.lab\.score/.test(id) && v !== null) return `Google PageSpeed score${spread ? "s" : ""} ${range((x) => String(Math.round(x)))}/100 ${where}${across}`;
   if (/^perf\.diag\./.test(id) && lead && !/^\d+ page\(s\)$/.test(lead)) return `${lead.charAt(0).toUpperCase()}${lead.slice(1)}${where ? ` ${where}` : ""}${n > 1 ? ` (${n} pages)` : ""}`;
   if (lead && !/^\d+ page\(s\)$/.test(lead)) return `${lead}${onPages}`;
   return null;

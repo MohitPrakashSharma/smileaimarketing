@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PDFDocument, PDFDict, PDFName, PDFString } from "pdf-lib";
 import { renderTechnicalPdf } from "@/lib/audit/pdf/technicalPdf";
 import { renderCustomerPdf } from "@/lib/audit/pdf/customerPdf";
 import { pdfSafe } from "@/lib/audit/pdf/layout";
@@ -47,10 +48,28 @@ async function buildPayload(opts: { withPerformance: boolean; withCategories?: b
     ai: [],
     pages: crawl.pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.facts?.title ?? null, indexable: p.indexable, wordCount: p.facts?.wordCount ?? null, depth: p.depth, fetchMs: p.fetchMs })),
     checks: runs.map((r) => ({ checkId: r.def.id, pillar: r.def.pillar, status: r.outcome.status, severity: r.severity, affectedPageCount: r.affectedPageCount, pageShare: r.pageShare, weight: r.def.weight, penalty: 0, reason: r.outcome.reason ?? null })),
+    competitors: null,
   };
 }
 
-const input = (payload: V2ReportPayload) => ({ business: { name: "Thin Dental Studio", website: "https://thin.test", city: "Toronto", industryLabel: "Practice", customersWord: "patients" }, completedAt: new Date("2026-09-16T12:00:00Z"), headline: { line1: "Here's Exactly", line2: "What To Fix First." }, summary: "We crawled 3 pages and ran 88 checks.", reportUrl: "https://smileaimarketing.com/audit/tok", payload });
+/** Every /URI action in the document's link annotations. */
+async function linkUris(bytes: Uint8Array): Promise<string[]> {
+  const doc = await PDFDocument.load(bytes);
+  const out: string[] = [];
+  for (const page of doc.getPages()) {
+    const annots = page.node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      const a = annots.lookup(i, PDFDict);
+      const action = a.lookup(PDFName.of("A"), PDFDict);
+      const uri = action?.lookup(PDFName.of("URI"));
+      if (uri instanceof PDFString) out.push(uri.decodeText());
+    }
+  }
+  return out;
+}
+
+const input = (payload: V2ReportPayload) => ({ business: { name: "Thin Dental Studio", website: "https://thin.test", city: "Toronto", industryLabel: "Practice", customersWord: "patients" }, completedAt: new Date("2026-09-16T12:00:00Z"), headline: { line1: "Here's Exactly", line2: "What To Fix First." }, summary: "We crawled 3 pages and ran 88 checks.", reportUrl: "https://smileaimarketing.com/audit/tok", consultationUrl: "https://smileaimarketing.com/book-consultation?publicToken=tok", technicalReportRequestUrl: "https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report", payload });
 const render = (payload: V2ReportPayload) => renderTechnicalPdf(input(payload));
 
 describe("v2 report PDF", () => {
@@ -163,6 +182,44 @@ describe("customer PDF + personalised message", () => {
     expect(t).not.toMatch(/localhost|127\.0\.0\.1/);
     expect(t.toLowerCase()).not.toMatch(/costing you|lost patients|more patients/);
     expect(t).toContain("https://smileaimarketing.com/audit/tok");
+    // conversion: the review CTA and the technical-report request both point at the existing consultation page
+    expect(t).toContain("Let's Review Your Website's Priority Fixes");
+    expect(t).toContain("Book a website review with our team to understand the findings and discuss which improvements to prioritize.");
+    expect(t).toContain("Book a website review -> https://smileaimarketing.com/book-consultation?publicToken=tok");
+    expect(t).toContain("Request Your Full Technical Report -> https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
+    expect(t).toContain("provided by our team after a website review, not sent automatically");
+    // no public technical-PDF URL anywhere in the customer report
+    expect(t).not.toMatch(/variant=technical|technical-pdf|\/pdf\?/);
+    expect(t).not.toMatch(/available from the same page/);
+    // the link annotations exist in the file itself (URI actions a PDF reader will open in the browser)
+    const uris = await linkUris(out.bytes);
+    expect(uris).toContain("https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
+    expect(uris).toContain("https://smileaimarketing.com/book-consultation?publicToken=tok");
+    expect(uris.some((u) => /variant=technical|technical-pdf/.test(u))).toBe(false);
+    // no local comparison section without verified competitor data
+    expect(t).not.toMatch(/Compare Locally|Nearby Practices Have an Advantage/);
+  });
+
+  it("customer PDF with a verified local comparison: practice + competitors on the same test, unavailable shown as such, CTA to the consultation page", async () => {
+    const { buildLocalComparison } = await import("@/lib/audit/competitors/view");
+    const { fromPerfResult } = await import("@/lib/audit/competitors/measure");
+    const payload = await buildPayload({ withPerformance: true });
+    const good = fromPerfResult(normalizePsiResponse("https://lakesidedental.ca/", "mobile", LH13_ALL as unknown, 1));
+    const failed = fromPerfResult(normalizePsiResponse("https://yongedental.ca/", "mobile", { error: { message: "quota" } }, 1));
+    const row = (name: string, rank: number, m: unknown) => ({ id: name, auditId: "a", name, website: `https://${name.toLowerCase().replace(/\s+/g, "")}.ca/`, rank, mapScore: null, createdAt: new Date("2026-09-17T09:00:00Z"), source: "GOOGLE_PLACES", placeId: "p", address: "Toronto, ON", relevance: "dental practice · Toronto · 2 km away", discoveredAt: new Date("2026-09-17T09:00:00Z"), measuredAt: new Date("2026-09-17T09:05:00Z"), measurementJson: m as never });
+    const comparison = buildLocalComparison({ name: "Thin Dental Studio", website: "https://thin.test", city: "Toronto" }, [row("Lakeside Dental", 1, good), row("Yonge Dental", 2, failed)] as never, payload.performance as never);
+    expect(comparison).not.toBeNull();
+    const out = await renderCustomerPdf(input({ ...payload, competitors: comparison }));
+    const t = out.transcript;
+    expect(t).toMatch(/How Does Your Practice Compare Locally\?|Where Nearby Practices Have an Advantage/);
+    expect(t).toContain("Thin Dental Studio (you): Performance");
+    expect(t).toMatch(/Lakeside Dental: Performance \d+\/100/);
+    expect(t).toContain("Yonge Dental: Performance unavailable, Main content unavailable, Accessibility unavailable, Best Practices unavailable, Google SEO unavailable");
+    expect(t).toContain("See How Your Practice Can Close the Gap -> https://smileaimarketing.com/book-consultation?publicToken=tok");
+    expect(t).toContain("How this comparison was made");
+    expect(t).toContain("Nearby practices located with Google Maps");
+    // scores in the PDF are the audit's own — the comparison adds no penalty
+    expect(t).toContain(`Overall SEO health: ${payload.scores!.overall}/100`);
   });
 
   it("customer PDF without PageSpeed: honest, no invented Google results", async () => {
@@ -183,17 +240,29 @@ describe("customer PDF + personalised message", () => {
     const text = m.paragraphs.join(" ");
     expect(m.wordCount).toBeGreaterThanOrEqual(80);
     expect(m.wordCount).toBeLessThanOrEqual(140);
-    expect(text).toContain("We crawled 3 pages of thin.test and ran 88 checks");
+    expect(text).toContain("Thin Dental Studio: our audit crawled 3 pages of thin.test and ran 88 checks");
     expect(text).toContain(`${payload.findings.length} verified findings`);
-    expect(text).toContain(`${payload.scores!.overall}/100`);
     expect(text).toContain(payload.findings[0].title); // top problem named, with its measurement
-    expect(text).toContain("Start with");
-    expect(text).toContain("not predictions of patients or search positions");
-    expect(text.toLowerCase()).not.toMatch(/guarantee|rank higher|revenue|costing you|lost patients/);
+    expect(text).toContain("Most consequential:");
+    expect(text).toMatch(/Until these are fixed, the same obstacles meet every visitor/);
+    expect(text).toContain("book a website review and our team will turn these findings into a practical improvement plan");
+    expect(text).toMatch(/Also worth attention:|Most consequential:/);
+    // no unsupported outcome claims, no blame for measurement gaps
+    expect(text.toLowerCase()).not.toMatch(/guarantee|rank higher|revenue|costing you|lost patients|losing patients|bookings/);
+    expect(text).not.toMatch(/could not test|unavailable|CrUX|API/); // a measured PageSpeed score may be quoted; a failed test never is
+    // verdict follows the evidence: strong technical + weak content → "solid technical foundation"
+    const shaped = buildBusinessMessage({ businessName: "Apple Tree Dental for Kids", website: "https://appletreedentalforkids.com", customersWord: "patients", pagesCrawled: 40, checksRun: 65, scores: { overall: 74, technical: 89, content: 56, performance: null, search: null, local: null }, severityCounts: { HIGH: 7, MEDIUM: 5, LOW: 4 }, findings: payload.findings.map((f) => ({ ...f, developerDetails: f.developerDetails as never })), performance: [] });
+    const st = shaped.paragraphs.join(" ");
+    expect(st).toContain("Apple Tree Dental for Kids: our audit crawled 40 pages");
+    expect(st).toContain("Your website has issues that deserve attention now"); // 7 high-priority findings
+    expect(st).toContain("7 high-priority");
+    expect(st).not.toMatch(/page speed/); // performance was not measured → never named as a weakness
+    expect(shaped.wordCount).toBeGreaterThanOrEqual(90);
+    expect(shaped.wordCount).toBeLessThanOrEqual(135);
     // limited evidence: no findings, no performance → shorter, still honest
     const small = buildBusinessMessage({ businessName: "Tiny", website: "https://tiny.test", customersWord: "patients", pagesCrawled: 1, checksRun: 20, scores: { overall: 95, technical: 95, content: null, performance: null, search: null, local: null }, severityCounts: {}, findings: [], performance: [] });
     expect(small.paragraphs.join(" ")).toMatch(/[Nn]o issue crossed our thresholds/);
-    expect(small.paragraphs.join(" ")).not.toMatch(/PageSpeed|Start with/);
+    expect(small.paragraphs.join(" ")).not.toMatch(/PageSpeed|Most consequential/);
     expect(small.wordCount).toBeLessThan(80);
   });
 });

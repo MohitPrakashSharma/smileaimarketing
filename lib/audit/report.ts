@@ -1,6 +1,9 @@
-import type { Audit, AuditFinding, AuditPage, AuditCheckResult, AuditPerformance, AuditAiPageAnalysis } from "@prisma/client";
+import { buildLocalComparison } from "./competitors/view";
+import type { LocalComparison } from "./competitors/types";
+import type { PerfRow } from "./view/performanceView";
+import type { Audit, AuditFinding, AuditPage, AuditCheckResult, AuditPerformance, AuditAiPageAnalysis, Competitor } from "@prisma/client";
 import { gradeFor } from "./scoring";
-import { bucketFor, SEVERITY_ORDER } from "./priority";
+import { bucketFor, compareFindings, SEVERITY_ORDER } from "./priority";
 import type { AuditProgress } from "./progress";
 import type { Severity } from "./checks/types";
 
@@ -77,6 +80,8 @@ export interface V2ReportPayload {
   ai: Array<{ url: string; pageType: string | null; selectionReason: string | null; status: string; errorCode: string | null; error: string | null; model: string | null; result: unknown; scrubbedCount: number }>;
   pages: Array<{ url: string; statusCode: number | null; title: string | null; indexable: boolean | null; wordCount: number | null; depth: number | null; fetchMs: number | null }>;
   checks: Array<{ checkId: string; pillar: string; status: string; severity: string | null; affectedPageCount: number; pageShare: number; weight: number; penalty: number; reason: string | null }>;
+  /** Phase 4: local competitor comparison — null when not collected (feature off, no location, fewer than two comparable practices). Never part of any score. */
+  competitors: LocalComparison | null;
 }
 
 export function severityCounts(findings: Pick<AuditFinding, "severity">[]): Record<Severity, number> {
@@ -85,9 +90,10 @@ export function severityCounts(findings: Pick<AuditFinding, "severity">[]): Reco
   return c;
 }
 
-export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[], performance: AuditPerformance[] = [], ai: AuditAiPageAnalysis[] = []): V2ReportPayload {
+export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[], performance: AuditPerformance[] = [], ai: AuditAiPageAnalysis[] = [], competitors: Competitor[] = [], business?: { name: string; website: string; city: string }): V2ReportPayload {
   const progress = (audit.progressJson as unknown as AuditProgress | null) ?? null;
   const scoresLocked = audit.status === "COMPLETED" && audit.overallScore !== null;
+  const perfRows = performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson, categories: p.categoriesJson ?? null, agentic: p.agenticJson ?? null, lighthouseVersion: p.lighthouseVersion, analysisUtc: p.analysisUtc ? p.analysisUtc.toISOString() : null })) as V2ReportPayload["performance"];
   return {
     engine: "CRAWL_V2",
     status: audit.status,
@@ -109,7 +115,7 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
     crawlStats: audit.crawlStatsJson,
     findings: findings
       .slice()
-      .sort((a, b) => b.priorityScore - a.priorityScore)
+      .sort((a, b) => compareFindings({ severity: a.severity as Severity, priorityScore: a.priorityScore }, { severity: b.severity as Severity, priorityScore: b.priorityScore }))
       .map((f) => ({
         id: f.id,
         findingKey: f.findingKey,
@@ -137,10 +143,11 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
         device: f.device,
         metric: f.metric,
       })),
-    performance: performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson, categories: p.categoriesJson ?? null, agentic: p.agenticJson ?? null, lighthouseVersion: p.lighthouseVersion, analysisUtc: p.analysisUtc ? p.analysisUtc.toISOString() : null })),
+    performance: perfRows,
     ai: ai.map((a) => ({ url: a.url, pageType: a.pageType, selectionReason: a.selectionReason, status: a.status, errorCode: a.errorCode, error: a.error, model: a.model, result: a.resultJson, scrubbedCount: Array.isArray(a.scrubbedJson) ? (a.scrubbedJson as unknown[]).length : 0 })),
     pages: pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.title, indexable: p.indexable, wordCount: p.wordCount, depth: p.depth, fetchMs: p.fetchMs })),
     checks: checks.map((c) => ({ checkId: c.checkId, pillar: c.pillar, status: c.status, severity: c.severity, affectedPageCount: c.affectedPageCount, pageShare: c.pageShare, weight: c.weight, penalty: c.penalty, reason: c.reason })),
+    competitors: business ? buildLocalComparison(business, competitors, perfRows as unknown as PerfRow[], ((audit.summaryJson as { localComparisonNarrative?: LocalComparison["narrative"] } | null)?.localComparisonNarrative ?? null)) : null,
   };
 }
 
@@ -159,7 +166,7 @@ const SEVERITY_LABEL: Record<Severity, string> = { CRITICAL: "Critical", HIGH: "
 
 export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages: AuditPage[], business: { name: string; city: string; category: string }) {
   const counts = severityCounts(findings);
-  const sorted = findings.slice().sort((a, b) => b.priorityScore - a.priorityScore);
+  const sorted = findings.slice().sort((a, b) => compareFindings({ severity: a.severity as Severity, priorityScore: a.priorityScore }, { severity: b.severity as Severity, priorityScore: b.priorityScore }));
   const crawled = pages.filter((p) => p.statusCode !== null).length;
   const byPillar = (pillar: AuditFinding["pillar"]) => sorted.filter((f) => f.pillar === pillar);
 
@@ -185,11 +192,14 @@ export function legacyShapeFromV2(audit: Audit, findings: AuditFinding[], pages:
   ];
 
   const top = sorted[0];
+  // Headline: counts drive the verb (1 issue *is*, 2 issues *are*); no outcome claims.
   const headline = !top
     ? { line1: "Solid Foundations.", line2: "Nothing Urgent Found." }
     : counts.CRITICAL > 0
-      ? { line1: `${counts.CRITICAL} Critical Issue${counts.CRITICAL === 1 ? "" : "s"}`, line2: `Are Holding ${business.name} Back.` }
-      : { line1: "Here's Exactly", line2: "What To Fix First." };
+      ? { line1: `${counts.CRITICAL} Critical Issue${counts.CRITICAL === 1 ? "" : "s"}`, line2: `${counts.CRITICAL === 1 ? "Is" : "Are"} Holding ${business.name} Back.` }
+      : counts.HIGH > 0
+        ? { line1: `${counts.HIGH} High-Priority Issue${counts.HIGH === 1 ? "" : "s"}`, line2: `Deserve${counts.HIGH === 1 ? "s" : ""} Your Attention.` }
+        : { line1: "Here's Exactly", line2: "What To Fix First." };
   const dek = top
     ? `We crawled ${crawled} page${crawled === 1 ? "" : "s"} of ${business.name}'s site and verified ${findings.length} finding${findings.length === 1 ? "" : "s"}. The biggest: ${top.title.toLowerCase()}.`
     : `We crawled ${crawled} page${crawled === 1 ? "" : "s"} and found nothing that needs urgent attention.`;

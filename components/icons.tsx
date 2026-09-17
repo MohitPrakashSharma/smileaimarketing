@@ -212,3 +212,60 @@ export function IconAlertTriangle({ className }: IconProps) {
     </Svg>
   );
 }
+
+// ---------- service icons (services mega menu, /services, service pages) ----------
+
+export function IconLayout({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M9 9v11" />
+    </Svg>
+  );
+}
+
+export function IconFileText({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h6" />
+    </Svg>
+  );
+}
+
+export function IconLink({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M10 13a5 5 0 0 0 7.1 0l2.8-2.8a5 5 0 0 0-7.1-7.1L11.5 4.4" />
+      <path d="M14 11a5 5 0 0 0-7.1 0l-2.8 2.8a5 5 0 0 0 7.1 7.1l1.3-1.3" />
+    </Svg>
+  );
+}
+
+export function IconGauge({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4.5 17.5a8.5 8.5 0 1 1 15 0" />
+      <path d="M12 14l3.5-4.5" />
+      <circle cx="12" cy="14.5" r="1.3" />
+    </Svg>
+  );
+}
+
+export function IconClipboardCheck({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 13l2 2 4-4" />
+    </Svg>
+  );
+}
+
+export function IconCursorClick({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M9 9l10.5 4.2-4.6 1.7-1.7 4.6z" />
+      <path d="M5 5l1.5 1.5M12 3v2M3 12h2M6.5 17.5 5 19M17.5 6.5 19 5" />
+    </Svg>
+  );
+}

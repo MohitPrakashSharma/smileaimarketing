@@ -2,22 +2,35 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateLightAuditPdf } from "@/lib/pdfGenerator";
 import { trackEvent } from "@/lib/analytics";
-import { generateV2AuditPdf, customerPdfIsCurrent, technicalPdfIfCurrent, downloadFileName, resolvePdfPath, type PdfKind } from "@/lib/audit/pdf/generate";
+import { generateV2AuditPdf, customerPdfIsCurrent, downloadFileName, resolvePdfPath } from "@/lib/audit/pdf/generate";
 import fs from "fs/promises";
+import { TECHNICAL_REPORT_LOCKED_MESSAGE } from "@/lib/audit/technicalReport";
 
 /**
- * PDF download. Access rule is the same as the report itself: whoever holds
- * the unguessable public token. V1 audits use the legacy two-page PDF; v2
- * audits use the customer report (default) or, with `?variant=technical`,
- * the technical report. v2 files live outside `public/` and are only served
- * here; stale or missing files are regenerated. Errors never leak internals.
+ * Customer PDF download. Access rule is the same as the report itself:
+ * whoever holds the unguessable public token. V1 audits use the legacy
+ * two-page PDF; v2 audits use the customer report. v2 files live outside
+ * `public/` and are only served here; stale or missing files are
+ * regenerated. Errors never leak internals.
+ *
+ * The technical report is NOT available here under any query parameter: it
+ * is provided by our team after a website review and served only through the
+ * admin-authenticated route (`/api/admin/audits/[id]/technical-pdf`).
  */
+
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ publicToken: string }> }
 ) {
   try {
     const { publicToken } = await params;
+    const variant = new URL(request.url).searchParams.get("variant");
+    if (variant && variant.trim().toLowerCase() !== "customer") {
+      // Any attempt to select another document (technical, or anything unknown) is refused
+      // before the audit is even looked up — no existence oracle, nothing generated.
+      return NextResponse.json({ error: TECHNICAL_REPORT_LOCKED_MESSAGE }, { status: 403 });
+    }
 
     const audit = await prisma.audit.findUnique({
       where: { publicToken },
@@ -35,12 +48,10 @@ export async function GET(
       return NextResponse.json({ error: "The audit is still running — the PDF is available once it completes." }, { status: 409 });
     }
 
-    const kind: PdfKind = new URL(request.url).searchParams.get("variant") === "technical" ? "technical" : "customer";
     let pdfRelativeUrl: string | null = null;
 
     if (audit.engine === "CRAWL_V2") {
-      if (kind === "technical") pdfRelativeUrl = (await technicalPdfIfCurrent(audit.publicToken, audit.completedAt)) ?? (await generateV2AuditPdf(audit.id, "technical"));
-      else pdfRelativeUrl = customerPdfIsCurrent(audit) ? audit.pdfUrl : await generateV2AuditPdf(audit.id, "customer");
+      pdfRelativeUrl = customerPdfIsCurrent(audit) ? audit.pdfUrl : await generateV2AuditPdf(audit.id, "customer");
     } else {
       pdfRelativeUrl = audit.pdfUrl;
       // If PDF is not ready yet, generate it on demand (legacy V1 layout).
@@ -82,13 +93,13 @@ export async function GET(
       fileBuffer = await readPdf(pdfRelativeUrl!);
     } catch {
       if (audit.engine !== "CRAWL_V2") throw new Error("cached PDF missing");
-      pdfRelativeUrl = await generateV2AuditPdf(audit.id, kind);
+      pdfRelativeUrl = await generateV2AuditPdf(audit.id, "customer");
       fileBuffer = await readPdf(pdfRelativeUrl);
     }
 
     await trackEvent({ eventName: "pdf_download", businessId: audit.businessId, auditId: audit.id });
 
-    const fileName = audit.engine === "CRAWL_V2" ? downloadFileName(audit.business.name, audit.completedAt ?? audit.createdAt, kind) : `${audit.business.name.replace(/[^a-zA-Z0-9]/g, "_")}_Audit.pdf`;
+    const fileName = audit.engine === "CRAWL_V2" ? downloadFileName(audit.business.name, audit.completedAt ?? audit.createdAt, "customer") : `${audit.business.name.replace(/[^a-zA-Z0-9]/g, "_")}_Audit.pdf`;
     return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {

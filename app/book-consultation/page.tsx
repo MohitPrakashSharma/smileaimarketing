@@ -9,12 +9,16 @@ import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Button from "@/components/ui/Button";
 import { trackEvent } from "@/lib/analytics.client";
+import { TECHNICAL_REPORT_REQUEST_PARAM, TECHNICAL_REPORT_REQUEST_VALUE } from "@/lib/audit/technicalReport";
 
 function BookConsultationForm() {
   const searchParams = useSearchParams();
   const isInPerson = searchParams.get("type") === "in-person";
   const consultationType = isInPerson ? "in_person" : "online";
   const publicToken = searchParams.get("publicToken");
+  // "Request Full Technical Report" from a report: same form, same endpoints — the
+  // booking is flagged so our team knows to bring the report; nothing is auto-sent.
+  const technicalReport = !!publicToken && searchParams.get(TECHNICAL_REPORT_REQUEST_PARAM) === TECHNICAL_REPORT_REQUEST_VALUE;
   const router = useRouter();
   const hasStartedBooking = useRef(false);
 
@@ -51,10 +55,10 @@ function BookConsultationForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isInPerson
-            ? { address, preferredWindow, notes }
+            ? { address, preferredWindow, notes, technicalReport }
             // scheduledTime comes from a datetime-local input — no seconds or
             // timezone, which fails the API's z.string().datetime() validation.
-            : { scheduledTime: new Date(scheduledTime).toISOString(), notes }
+            : { scheduledTime: new Date(scheduledTime).toISOString(), notes, technicalReport }
         ),
       }
     );
@@ -81,7 +85,7 @@ function BookConsultationForm() {
       // nothing to re-collect, just schedule.
       if (publicToken) {
         await submitScheduling(publicToken);
-        router.push("/thank-you");
+        router.push(technicalReport ? `/thank-you?${TECHNICAL_REPORT_REQUEST_PARAM}=${TECHNICAL_REPORT_REQUEST_VALUE}` : "/thank-you");
         return;
       }
 
@@ -145,15 +149,26 @@ function BookConsultationForm() {
   return (
     <div className="card-elevated w-full max-w-2xl p-6 sm:p-8">
       <div className="space-y-3">
-        <Eyebrow>{isInPerson ? "In-person visit" : "Free 15-minute consultation"}</Eyebrow>
+        <Eyebrow>{technicalReport ? "Full technical report" : isInPerson ? "In-person visit" : "Free 15-minute consultation"}</Eyebrow>
         <h1 className="text-heading-2 text-foreground">
-          {isInPerson ? "Request an in-person visit" : "Book a consultation"}
+          {technicalReport ? "Request your full technical report" : isInPerson ? "Request an in-person visit" : "Book a consultation"}
         </h1>
         <p className="max-w-md text-body text-muted-foreground">
-          {isInPerson
-            ? "Tell us where you are and when suits. We'll confirm a time to walk your team through your audit findings in person, where we're able to."
-            : "We'll look at how your practice shows up for nearby patients, walk through your audit findings, and agree on what's worth fixing first. No pitch, no obligation."}
+          {technicalReport
+            ? "Book a website review with our team. We'll walk through your audit findings together and provide the complete technical breakdown as part of the follow-up — it isn't sent automatically."
+            : isInPerson
+              ? "Tell us where you are and when suits. We'll confirm a time to walk your team through your audit findings in person, where we're able to."
+              : "We'll look at how your practice shows up for nearby patients, walk through your audit findings, and agree on what's worth fixing first. No pitch, no obligation."}
         </p>
+        {technicalReport && (
+          <p className="max-w-md text-body-small text-muted-foreground">
+            Prefer an in-person visit?{" "}
+            <a href={`/book-consultation?publicToken=${encodeURIComponent(publicToken!)}&type=in-person&${TECHNICAL_REPORT_REQUEST_PARAM}=${TECHNICAL_REPORT_REQUEST_VALUE}`} className="link-underline text-primary-ink">
+              Request one instead
+            </a>
+            .
+          </p>
+        )}
       </div>
 
       {error && (
@@ -269,8 +284,11 @@ function BookConsultationForm() {
         </FormField>
 
         <Button type="submit" fullWidth loading={loading} disabled={loading} arrow className="mt-2">
-          {isInPerson ? "Request an In-Person Visit" : "Confirm My Consultation"}
+          {technicalReport ? "Request the Technical Report" : isInPerson ? "Request an In-Person Visit" : "Confirm My Consultation"}
         </Button>
+        {technicalReport && (
+          <p className="text-metadata">Our team reviews every request and shares the technical report after the follow-up conversation.</p>
+        )}
       </form>
     </div>
   );

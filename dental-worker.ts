@@ -15,6 +15,7 @@ import { extractWebsiteContact, isUsableContactEmail, guessContactRole } from ".
 import { initiateAutomaticOutreach } from "./lib/outreach";
 import { env } from "./lib/env.server";
 import { runAudit, type RunAuditOptions } from "./lib/audit/engine";
+import { runCompetitorIntel, COMPETITOR_JOB } from "./lib/audit/competitors/stage";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -182,6 +183,12 @@ const discoveryWorker = new Worker(
 // 2. AUDIT WORKER — one job type for both engines (lib/audit/engine.ts).
 // "analysis-queue" is kept so jobs queued by an older deploy still drain.
 async function handleAuditJob(job: Job) {
+  // Post-audit local comparison — separate job so it never competes with the audit's own time box.
+  if (job.name === COMPETITOR_JOB) {
+    const result = await runCompetitorIntel(String(job.data.auditId));
+    console.log(`[Local comparison] ${job.data.auditId}: ${result.status}${result.reason ? ` (${result.reason})` : ""} — ${result.competitors} competitors, ${result.measured} measured`);
+    return;
+  }
   const { auditId, businessId, contactId, trigger, engine, maxPages } = job.data as { auditId?: string; businessId?: string; contactId?: string } & Partial<RunAuditOptions>;
   let targetAuditId = auditId;
   if (!targetAuditId && businessId) {

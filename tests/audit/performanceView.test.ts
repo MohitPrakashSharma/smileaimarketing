@@ -111,8 +111,13 @@ describe("Google website checks view + finding humaniser", () => {
   it("turns measured values into plain sentences and keeps the technical text out of the default view", async () => {
     const { humanizeDetail, measuredSummary, primaryAction, whyInBrief } = await import("@/lib/audit/view/findingView");
     const lcp = { checkId: "perf.mobile.lab.lcp_poor", title: "LCP (lab, mobile) is poor", detected: "10091 ms (Lighthouse)", affectedPageCount: 2, device: "mobile", urls: [{ url: "https://x.test/contact", detected: "3843 ms (Lighthouse)" }, { url: "https://x.test/", detected: "10091 ms (Lighthouse)" }] };
-    expect(humanizeDetail(lcp)).toBe("Main content takes 10 s to appear on mobile (Google's target is 2.5 s)"); // homepage preferred
-    expect(humanizeDetail({ checkId: "perf.mobile.lab.tbt_high", title: "", detected: "678 ms (Lighthouse)", affectedPageCount: 1, device: "mobile", urls: [] })).toBe("Scripts freeze the page for 678 ms during load on mobile (target 200 ms)");
+    // Two affected pages with different values → the measured range, the source (lab vs field) and the page count are stated; the homepage's own value is never presented as everyone's.
+    expect(humanizeDetail(lcp)).toBe("Main content takes 3.8 s–10 s to appear on mobile across 2 pages (Google's simulated Lighthouse test) — Google's target is 2.5 s");
+    expect(humanizeDetail({ ...lcp, affectedPageCount: 1, urls: [lcp.urls[1]] })).toBe("Main content takes 10 s to appear on mobile (Google's simulated Lighthouse test) — Google's target is 2.5 s"); // homepage value
+    // Origin-level CrUX: one site-wide figure, said so, no range.
+    expect(humanizeDetail({ checkId: "perf.mobile.field.lcp_needs_improvement", title: "", detected: "2680 ms at the 75th percentile (origin-level)", affectedPageCount: 3, device: "mobile", urls: [{ url: "https://x.test/", detected: "2680 ms at the 75th percentile (origin-level)" }, { url: "https://x.test/a", detected: "2680 ms at the 75th percentile (origin-level)" }] })).toBe("Main content takes 2.7 s to appear on mobile (real visitors, site-wide Chrome UX Report figure — not page-specific) — Google's target is 2.5 s");
+    expect(humanizeDetail({ checkId: "perf.mobile.lab.score_poor", title: "", detected: "38/100 (Lighthouse, mobile)", affectedPageCount: 4, device: "mobile", urls: [{ url: "https://x.test/", detected: "38/100 (Lighthouse, mobile)" }, { url: "https://x.test/b", detected: "44/100 (Lighthouse, mobile)" }] })).toBe("Google PageSpeed scores 38–44/100 on mobile across 4 pages");
+    expect(humanizeDetail({ checkId: "perf.mobile.lab.tbt_high", title: "", detected: "678 ms (Lighthouse)", affectedPageCount: 1, device: "mobile", urls: [] })).toBe("Scripts freeze the page for 678 ms during load on mobile (Google's simulated Lighthouse test) — target 200 ms");
     expect(humanizeDetail({ checkId: "perf.desktop.lab.score_needs_improvement", title: "", detected: "84/100 (Lighthouse, desktop)", affectedPageCount: 1, device: "desktop", urls: [] })).toBe("Google PageSpeed score 84/100 on desktop");
     expect(humanizeDetail({ checkId: "perf.diag.unused_js", title: "", detected: "312 KB unused", affectedPageCount: 3, device: "mobile", urls: [] })).toBe("312 KB unused on mobile (3 pages)");
     expect(humanizeDetail({ checkId: "content.h1.missing", title: "", detected: "0 H1", affectedPageCount: 11, urls: [] })).toBe("0 H1 on 11 pages");
@@ -121,6 +126,6 @@ describe("Google website checks view + finding humaniser", () => {
     expect(measuredSummary(f, 12)).toBe("Affects 2 pages of the 12 we crawled");
     expect(primaryAction(f)).toBe("Expand thin pages.");
     expect(whyInBrief(f)).toBe("Pages with little text rarely rank.");
-    expect(measuredSummary({ ...f, developerDetails: [lcp, lcp] }, 12)).toMatch(/^Main content takes 10 s .* · \+1 related check$/);
+    expect(measuredSummary({ ...f, developerDetails: [lcp, lcp] }, 12)).toMatch(/^Main content takes 3\.8 s–10 s .* · \+1 related check$/);
   });
 });

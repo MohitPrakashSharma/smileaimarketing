@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Eyebrow from "@/components/Eyebrow";
 import PageCta from "@/components/PageCta";
+import { AboutVisual } from "@/components/visuals/compositions";
 import { IconMapPin, IconMonitor, IconSearch, IconTrendingUp, IconCheck } from "@/components/icons";
 import { TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
 
@@ -98,14 +99,17 @@ export default function AboutPage() {
         {/* Hero */}
         <section className="border-b border-border-subtle bg-background-alt">
           <div className="container-site section-space">
-            <div className="max-w-3xl">
-              <Eyebrow>About Smile AI Marketing</Eyebrow>
-              <h1 className="mt-5 text-heading-1 text-foreground">
-                Marketing Built Around the Way Dental Practices Grow
-              </h1>
-              <p className="mt-5 max-w-2xl text-body-large text-muted-foreground">
-                Smile AI Marketing helps Canadian dental practices improve how they are found, understood and chosen online. We combine website strategy, local search visibility, performance insights and practical marketing recommendations to help practices build a stronger digital presence.
-              </p>
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center lg:gap-16">
+              <div className="max-w-3xl">
+                <Eyebrow>About Smile AI Marketing</Eyebrow>
+                <h1 className="mt-5 text-heading-1 text-foreground">
+                  Marketing Built Around the Way Dental Practices Grow
+                </h1>
+                <p className="mt-5 max-w-2xl text-body-large text-muted-foreground">
+                  Smile AI Marketing helps Canadian dental practices improve how they are found, understood and chosen online. We combine website strategy, local search visibility, performance insights and practical marketing recommendations to help practices build a stronger digital presence.
+                </p>
+              </div>
+              <AboutVisual />
             </div>
           </div>
         </section>

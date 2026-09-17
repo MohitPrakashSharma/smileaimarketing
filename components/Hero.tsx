@@ -113,7 +113,7 @@ export default function Hero() {
                 <p className="mt-0.5 font-display text-[0.9375rem] font-semibold text-foreground">Sample scorecard</p>
               </div>
               <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-foreground">
-                59<span className="font-body text-[0.6875rem] font-normal tracking-normal text-muted-foreground">/100</span>
+                59<span className="font-copy text-[0.6875rem] font-normal tracking-normal text-muted-foreground">/100</span>
               </span>
             </div>
             <ul className="divide-y divide-border-subtle bg-surface px-4">

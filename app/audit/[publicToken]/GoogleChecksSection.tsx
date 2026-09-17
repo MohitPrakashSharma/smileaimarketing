@@ -74,7 +74,7 @@ function MetricRow({ m }: { m: MetricView }) {
       <div className="shrink-0 text-right">
         <span className={`block font-display text-[1.125rem] font-bold leading-none ${m.value === null ? "text-placeholder" : "text-foreground"}`}>{m.display}</span>
         <span className="mt-1 block text-[10px] text-muted-foreground">
-          {m.source === "field" ? `Real users${m.labDisplay ? ` · lab ${m.labDisplay}` : ""}` : m.source === "lab" ? `Lab · target ${m.goodLabel}` : "No data"}
+          {m.source === "field" ? `Real users${m.fieldLevel === "origin" ? " (site-wide)" : ""}${m.labDisplay ? ` · lab ${m.labDisplay}` : ""}` : m.source === "lab" ? `Lab · target ${m.goodLabel}` : "No data"}
         </span>
         <span className="mt-1 block">{level ? <Chip level={level} label={RATING_LABEL[m.rating!]} /> : null}</span>
       </div>
@@ -249,7 +249,7 @@ export default function GoogleChecksSection({ rows, pillarScore, auditScore, aud
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="text-body font-bold text-foreground">What Google measured</h3>
                 <p className="text-[11px] text-muted-foreground">
-                  {row?.field?.available ? <><span className="font-semibold text-foreground">Real users</span> = Chrome UX Report, 75th percentile · <span className="font-semibold text-foreground">Lab</span> = Lighthouse simulation</> : <><span className="font-semibold text-foreground">Lab measurements only</span> — Google has no real-visitor (Chrome UX Report) data for this site yet</>}
+                  {row?.field?.available ? <><span className="font-semibold text-foreground">Real users</span> = Chrome UX Report, 75th percentile{row.field.source === "origin" ? " — Google only has site-wide figures for this site, so the same real-user numbers apply to every page tested" : ""} · <span className="font-semibold text-foreground">Lab</span> = Lighthouse simulation of one page load</> : <><span className="font-semibold text-foreground">Lab measurements only</span> — Google has no real-visitor (Chrome UX Report) data for this site yet</>}
                 </p>
               </div>
               <div className="mt-2 grid gap-3 lg:grid-cols-2">

@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Eyebrow from "@/components/Eyebrow";
 import PageCta from "@/components/PageCta";
+import { BeforeAfterVisual } from "@/components/visuals/compositions";
 import { buttonClasses, ButtonArrow } from "@/components/ui/buttonStyles";
 import { CASE_STUDIES, type CaseStudy } from "@/lib/caseStudies";
 
@@ -92,6 +93,7 @@ function FeaturedCaseStudy({ study }: { study: CaseStudy }) {
         </div>
 
         <aside className="border-t border-border bg-background-alt p-6 sm:p-8 lg:border-t-0 lg:border-l lg:p-10">
+          <BeforeAfterVisual className="mb-6" />
           <p className="text-eyebrow text-muted-foreground">What changed</p>
           <dl className="mt-5 divide-y divide-border-subtle">
             {highlights.map((m) => (
@@ -101,8 +103,8 @@ function FeaturedCaseStudy({ study }: { study: CaseStudy }) {
                   <span className="text-muted-foreground">
                     <span className="text-metadata">Before</span> {m.before}
                   </span>
-                  <span className="font-medium text-foreground">
-                    <span className="text-metadata">After</span> {m.after}
+                  <span className="font-copy font-medium text-foreground">
+                    <span className="font-body text-metadata">After</span> {m.after}
                   </span>
                 </dd>
               </div>

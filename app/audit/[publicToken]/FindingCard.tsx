@@ -98,7 +98,7 @@ export default function FindingCard({ f, pillarLabel, totalPages }: { f: Finding
           </div>
           <p className="mt-1.5 text-body font-semibold text-foreground">{f.title}</p>
           {/* Default view: measured → why → action, in plain words */}
-          <dl className="mt-2 grid gap-x-4 gap-y-1 text-body-small sm:grid-cols-[auto_1fr]">
+          <dl className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-1 text-body-small [&>dd]:break-words sm:grid-cols-[auto_minmax(0,1fr)]">
             <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground sm:pt-0.5">Measured</dt>
             <dd className="text-foreground">{measured}</dd>
             <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground sm:pt-0.5">Why</dt>
@@ -142,7 +142,7 @@ export default function FindingCard({ f, pillarLabel, totalPages }: { f: Finding
                       <span className="text-body-small font-semibold text-foreground">{d.title}</span>
                       <span className="text-[11px] text-muted-foreground">· {d.affectedPageCount} page{d.affectedPageCount === 1 ? "" : "s"}</span>
                     </div>
-                    <dl className="mt-2 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[auto_1fr]">
+                    <dl className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px] [&>dd]:break-words sm:grid-cols-[auto_minmax(0,1fr)]">
                       {d.detected && (
                         <>
                           <dt className="text-muted-foreground">Measured</dt>
