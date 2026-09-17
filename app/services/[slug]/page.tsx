@@ -95,7 +95,7 @@ export default async function ServiceDetailPage({
         {/* Hero */}
         <div className="border-b border-border-subtle bg-background-alt">
           <div className="container-site section-space">
-            <div className="container-narrow !mx-0">
+            <div className="container-content !mx-0">
               <nav aria-label="Breadcrumb" className="mb-8 flex flex-wrap items-center gap-2 text-metadata">
                 <Link href="/" className="link-underline hover:text-foreground">Home</Link>
                 <span aria-hidden>/</span>
@@ -105,11 +105,11 @@ export default async function ServiceDetailPage({
               </nav>
 
               <Eyebrow>{service.eyebrow}</Eyebrow>
-              <h1 className="mt-5 text-heading-1 text-foreground">{service.h1}</h1>
-              <p className="mt-6 text-body-large text-muted-foreground">{service.subhead}</p>
+              <h1 className="mt-4 max-w-[46rem] text-heading-1 text-foreground">{service.h1}</h1>
+              <p className="mt-5 max-w-[46rem] text-body-large text-muted-foreground">{service.subhead}</p>
 
               <Link href="/free-dental-audit" className={buttonClasses({ className: "mt-9" })}>
-                <span>Audit My Practice</span>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>
@@ -117,13 +117,13 @@ export default async function ServiceDetailPage({
         </div>
 
         <div className="container-site section-space">
-          <div className="container-narrow !mx-0">
+          <div className="container-content !mx-0">
             {/* What we check */}
             <section>
               <h2 className="text-heading-2 text-foreground">What we actually check</h2>
-              <div className="mt-8 divide-y divide-border-subtle border-y border-border-subtle">
+              <div className="mt-6 grid border-t border-border-subtle sm:grid-cols-2 sm:gap-x-8">
                 {service.whatWeCheck.map((item) => (
-                  <div key={item.title} className="flex items-start gap-4 py-5">
+                  <div key={item.title} className="flex items-start gap-4 border-b border-border-subtle py-5">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
                       <IconCheck className="h-3.5 w-3.5" />
                     </span>
@@ -137,9 +137,9 @@ export default async function ServiceDetailPage({
             </section>
 
             {/* Common problems */}
-            <section className="mt-16">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">Common problems we find</h2>
-              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 {service.commonProblems.map((item) => (
                   <div key={item.title} className="card p-5">
                     <h3 className="text-heading-4 text-foreground">{item.title}</h3>
@@ -150,17 +150,19 @@ export default async function ServiceDetailPage({
             </section>
 
             {/* FAQ */}
-            <section className="mt-16">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">Questions about local SEO</h2>
-              <FaqList items={service.faqs} className="mt-8" />
+              <FaqList items={service.faqs} className="mt-6" />
             </section>
 
             {/* Final CTA */}
-            <div className="band-dark mt-16 rounded-[var(--radius-large)] p-8 sm:p-10">
-              <p className="text-heading-3 text-foreground">See where your practice actually stands.</p>
-              <p className="mt-2 text-body text-muted-foreground">Free audit — just your website and city.</p>
-              <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "mt-7" })}>
-                <span>Audit My Practice</span>
+            <div className="band-dark mt-12 flex flex-col gap-6 rounded-[var(--radius-large)] p-8 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-heading-3 text-foreground">See where your practice actually stands in local search.</p>
+                <p className="mt-2 text-body text-muted-foreground">Free website audit — just your website and city, no logins. Results in about two minutes.</p>
+              </div>
+              <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "shrink-0" })}>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>

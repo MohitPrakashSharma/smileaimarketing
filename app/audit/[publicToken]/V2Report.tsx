@@ -69,7 +69,7 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
   const criticalHigh = (severityCounts.CRITICAL ?? 0) + (severityCounts.HIGH ?? 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* 1 ── Audit overview ─────────────────────────────────────────────── */}
       <section id="overview" aria-labelledby="overview-heading" className="rounded-2xl border border-border bg-surface shadow-sm">
         <div className="px-6 pt-6">

@@ -9,7 +9,7 @@ import { SERVICES } from "@/lib/services";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Dental-specific marketing services from Smile AI Marketing — local SEO, Google Business Profile, website conversion, reputation, and AI search visibility.",
+    "Digital marketing services for Canadian dental practices from Smile AI Marketing — local SEO and Google visibility, website and booking experience, reviews and reputation.",
   alternates: { canonical: "/services" },
 };
 
@@ -22,10 +22,10 @@ export default function ServicesIndexPage() {
           <div className="max-w-2xl">
             <Eyebrow>Services</Eyebrow>
             <h1 className="mt-5 text-heading-1 text-foreground">
-              Dental-only. Evidence-based.
+              Marketing services for Canadian dental practices.
             </h1>
             <p className="mt-5 text-body-large text-muted-foreground">
-              Every service starts with the same free audit — so you see what needs fixing before you ever talk to us.
+              Dental-only and evidence-based. Every service starts with the same free website audit, so you see what needs fixing before you ever talk to us.
             </p>
           </div>
 

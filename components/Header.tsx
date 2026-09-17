@@ -5,6 +5,7 @@ import { ButtonArrow } from "@/components/ui/buttonStyles";
 import { Wordmark } from "@/components/Wordmark";
 
 const NAV_LINKS = [
+  { href: "#services", label: "What We Do" },
   { href: "#how-it-works", label: "How It Works" },
   { href: "#sample-audit", label: "Sample Audit" },
   { href: "#trust-consultation", label: "Consultation" },
@@ -109,7 +110,7 @@ export default function Header() {
             onClick={handleScrollToAudit}
             className="group inline-flex h-[var(--button-height-sm)] items-center gap-2 whitespace-nowrap rounded-full bg-background-dark px-5 text-button text-white shadow-sm transition-[background-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-primary hover:shadow-md active:translate-y-px"
           >
-            Audit My Practice
+            Get Your Free Audit
             <ButtonArrow />
           </button>
         </div>
@@ -120,7 +121,7 @@ export default function Header() {
             onClick={handleScrollToAudit}
             className="inline-flex h-[var(--button-height-sm)] items-center gap-1.5 whitespace-nowrap rounded-full bg-background-dark px-4 text-[0.875rem] font-semibold text-white transition-colors duration-[var(--duration-normal)] hover:bg-primary active:translate-y-px"
           >
-            Audit My Practice
+            Free Audit
           </button>
 
           <button
@@ -176,7 +177,7 @@ export default function Header() {
               onClick={handleScrollToAudit}
               className="group inline-flex h-[var(--button-height)] w-full items-center justify-center gap-2 rounded-full bg-primary text-button text-primary-foreground transition-colors hover:bg-primary-hover"
             >
-              Audit My Practice
+              Get Your Free Website Audit
               <ButtonArrow />
             </button>
           </div>

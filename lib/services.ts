@@ -23,11 +23,11 @@ export const SERVICES: Service[] = [
     title: "Local SEO for Dentists",
     seoTitle: "Local SEO for Dentists",
     metaDescription:
-      "See exactly where your dental practice stands in local search — Google Maps ranking, citation consistency, and competitor visibility — checked publicly, no guaranteed rankings.",
+      "See exactly where your Canadian dental practice stands in local search — Google Maps ranking, listing consistency and competitor visibility — checked from public data, with no guaranteed rankings.",
     eyebrow: "LOCAL SEO FOR DENTISTS",
     h1: "Show up when nearby patients search for a dentist.",
     subhead:
-      "We check your Google Maps ranking, business listing consistency, and how you compare to nearby practices — then show you exactly what's holding your visibility back. No guesses, and no promises about where you'll rank.",
+      "Most new patients start with a search like “dentist near me”. We check your Google Maps ranking, business listing consistency and how you compare with nearby practices — then show you exactly what's holding your visibility back. No guesses, and no promises about where you'll rank.",
     whatWeCheck: [
       {
         title: "Google Maps & local pack position",

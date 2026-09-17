@@ -57,13 +57,13 @@ export default function AuditSection() {
 
     const trimmedWeb = website.trim();
     if (!trimmedWeb) {
-      setWebsiteError("Website is required");
+      setWebsiteError("Please enter your practice website.");
       isValid = false;
     } else {
       const domainPattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
       const urlPattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
       if (!domainPattern.test(trimmedWeb) && !urlPattern.test(trimmedWeb)) {
-        setWebsiteError("Please enter a valid practice website (e.g., dentalclinic.com)");
+        setWebsiteError("Please enter a valid website address, e.g. yourpractice.ca");
         isValid = false;
       } else {
         setWebsiteError("");
@@ -72,10 +72,10 @@ export default function AuditSection() {
 
     const trimmedCity = city.trim();
     if (!trimmedCity) {
-      setCityError("City is required");
+      setCityError("Please enter the city your practice is in.");
       isValid = false;
     } else if (trimmedCity.length < 2) {
-      setCityError("Please enter a valid city name");
+      setCityError("Please enter a valid city name.");
       isValid = false;
     } else {
       setCityError("");
@@ -112,17 +112,17 @@ export default function AuditSection() {
   return (
     <section id="seo-audit" className="band-dark scroll-mt-[var(--header-height)]">
       <div className="container-site section-space">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,6fr)_minmax(0,6fr)] lg:gap-16">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
           <Reveal>
-            <Eyebrow tone="dark">Free practice audit</Eyebrow>
-            <h2 className="mt-5 text-heading-1 text-foreground">
-              Run My Free Dental Audit
+            <Eyebrow tone="dark">Free website audit</Eyebrow>
+            <h2 className="mt-4 text-heading-1 text-foreground">
+              See how your website and local visibility perform.
             </h2>
-            <p className="mt-6 max-w-lg text-body-large text-muted-foreground">
-              Paste your website — we&apos;ll find your location and handle the rest.
+            <p className="mt-4 max-w-lg text-body-large text-muted-foreground">
+              Enter your practice website and city. We&apos;ll check how patients find you online and show you what to fix first — in plain English, with no logins required.
             </p>
-            <p className="mt-8 text-eyebrow text-muted-foreground">What we review</p>
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            <p className="mt-6 text-eyebrow text-muted-foreground">What we review</p>
+            <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
               {EVALUATES.map((item) => (
                 <li key={item.label} className="flex items-center gap-3 text-body-small text-foreground-secondary">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary-ink">
@@ -137,11 +137,11 @@ export default function AuditSection() {
           <Reveal delay={0.1}>
             <form
               onSubmit={handleSubmit}
-              className="band-light rounded-[var(--radius-large)] p-6 shadow-xl sm:p-8 space-y-5"
+              className="band-light rounded-[var(--radius-large)] p-5 shadow-xl sm:p-6 space-y-4"
               noValidate
             >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField id="hero-website" label="Practice Website" required optionalLabel={false} error={websiteError}>
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+                <FormField id="hero-website" label="Practice website" required optionalLabel={false} error={websiteError}>
                   <Input
                     id="hero-website"
                     type="url"
@@ -160,13 +160,13 @@ export default function AuditSection() {
                     }}
                     onPaste={(e) => detect(e.clipboardData.getData("text"), { immediate: true })}
                     onBlur={(e) => detect(e.target.value, { immediate: true })}
-                    placeholder="clinic.com"
+                    placeholder="yourpractice.ca"
                     hasError={!!websiteError}
                     aria-describedby={websiteError ? "hero-website-error" : "hero-website-hint"}
                   />
                 </FormField>
 
-                <FormField id="hero-city" label="Practice Location / City" required optionalLabel={false} error={cityError}>
+                <FormField id="hero-city" label="Practice city" required optionalLabel={false} error={cityError}>
                   <Input
                     id="hero-city"
                     type="text"
@@ -180,7 +180,7 @@ export default function AuditSection() {
                       setCity(e.target.value);
                       if (cityError) setCityError("");
                     }}
-                    placeholder="Detected from your website"
+                    placeholder="We'll detect this from your website"
                     hasError={!!cityError}
                     aria-describedby={cityError ? "hero-city-error" : undefined}
                   />
@@ -200,20 +200,23 @@ export default function AuditSection() {
                 </p>
               )}
 
-              <div className="pt-1">
+              <div className="pt-0.5">
                 <Button type="submit" loading={isSubmitting} fullWidth arrow>
-                  {isSubmitting ? "Preparing your audit..." : "Get My Free Practice Audit"}
+                  {isSubmitting ? "Preparing your audit..." : "Get Your Free Website Audit"}
                 </Button>
               </div>
 
               <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-metadata">
-                {["No Google account access required", "No obligation"].map((item) => (
+                {["No Google account access needed", "No obligation", "Free — no credit card"].map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <IconCheck className="h-3.5 w-3.5 text-primary" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
+              <p className="border-t border-border pt-4 text-metadata">
+                <span className="font-semibold text-foreground">What happens next:</span> you&apos;ll see a preview of early findings right away. Enter your email to receive the full report, then decide whether you&apos;d like a 15-minute walkthrough with our team.
+              </p>
             </form>
           </Reveal>
         </div>

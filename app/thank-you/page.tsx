@@ -18,15 +18,15 @@ export default function ThankYouPage() {
           <IconCheck className="h-7 w-7" />
         </div>
         <div className="mt-6 space-y-3">
-          <Eyebrow className="justify-center">Booking Confirmed</Eyebrow>
-          <h1 className="text-heading-2 text-foreground">Thank you!</h1>
+          <Eyebrow className="justify-center">Request received</Eyebrow>
+          <h1 className="text-heading-2 text-foreground">Thanks — we&apos;ll be in touch.</h1>
           <p className="text-body text-muted-foreground">
-            Your review has been scheduled. A confirmation and any meeting details have been sent to your inbox.
+            We&apos;ve received your request. A confirmation and any meeting details are on their way to your inbox, and a member of our team will follow up if anything needs adjusting.
           </p>
         </div>
         <div className="mt-8">
           <Link href="/" className={buttonClasses({ variant: "secondary" })}>
-            <span>Return Home</span>
+            <span>Back to the homepage</span>
             <ButtonArrow />
           </Link>
         </div>

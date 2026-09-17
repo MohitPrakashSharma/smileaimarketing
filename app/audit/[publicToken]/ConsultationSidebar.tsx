@@ -118,14 +118,14 @@ export default function ConsultationSidebar({ publicToken, ind, compact = true }
   if (!compact) {
     // Legacy layout: two stacked cards (unchanged look for V1 reports).
     return (
-      <div id="consultation" className="scroll-mt-6 space-y-8">
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <div id="consultation" className="scroll-mt-6 space-y-6">
+        <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary"><IconCalendarCheck className="h-5 w-5" /></span>
           <h3 className="text-body font-bold text-foreground">Talk it through, 15 minutes on video</h3>
           <p className="mt-2 mb-6 text-body-small leading-relaxed text-muted-foreground">We&apos;ll screen-share this report together and show you exactly what a {ind.customer} sees when they search for a {ind.searchKeyword} near you — no pitch, just the facts.</p>
           {videoForm}
         </div>
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary"><IconMapPin className="h-5 w-5" /></span>
           <h3 className="text-body font-bold text-foreground">Or we&apos;ll come to you</h3>
           <p className="mt-2 mb-6 text-body-small leading-relaxed text-muted-foreground">A local consultant visits your {ind.business} and walks your whole team through the findings in person.</p>

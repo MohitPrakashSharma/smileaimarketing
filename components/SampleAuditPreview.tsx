@@ -28,7 +28,7 @@ const CATEGORIES: {
     Icon: IconStar,
     label: "Patient Trust",
     score: 78,
-    explanation: "Your reviews and reputation are already working in your favor.",
+    explanation: "Your reviews and reputation are already working in your favour.",
   },
   {
     Icon: IconMonitor,
@@ -56,21 +56,21 @@ export default function SampleAuditPreview() {
     <section id="sample-audit" className="scroll-mt-[var(--header-height)] bg-background">
       <div className="container-site section-space">
         <div className="mx-auto max-w-2xl text-center">
-          <Eyebrow className="justify-center">Sample audit preview</Eyebrow>
-          <h2 className="mt-5 text-heading-2 text-foreground">
-            Your practice, through a patient&apos;s eyes.
+          <Eyebrow className="justify-center">Sample audit</Eyebrow>
+          <h2 className="mt-4 text-heading-2 text-foreground">
+            What your audit report looks like.
           </h2>
-          <p className="mt-5 text-body-large text-muted-foreground">
-            We review the same journey a prospective patient takes — from searching locally to choosing a practice and requesting an appointment.
+          <p className="mt-4 text-body-large text-muted-foreground">
+            A sample Practice Growth Review for a fictional Toronto clinic. Yours will use your practice&apos;s real data and follow the same journey a prospective patient takes — from searching locally to requesting an appointment.
           </p>
         </div>
 
         {/* Report frame */}
-        <div className="card-elevated mx-auto mt-14 max-w-4xl overflow-hidden !shadow-xl">
-          <div className="band-dark flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <div className="card-elevated mx-auto mt-10 max-w-5xl overflow-hidden !shadow-xl">
+          <div className="band-dark flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-eyebrow text-muted-foreground">Practice Growth Review</p>
-              <p className="mt-1.5 font-display text-[1.25rem] font-semibold text-foreground">
+              <p className="mt-1 font-display text-[1.25rem] font-semibold text-foreground">
                 Metro Dental Care <span className="font-body text-body-small font-normal text-muted-foreground">— Toronto, ON</span>
               </p>
             </div>
@@ -80,32 +80,31 @@ export default function SampleAuditPreview() {
             </span>
           </div>
 
-          <RevealGroup className="divide-y divide-border-subtle bg-surface" stagger={0.08}>
+          <RevealGroup className="grid bg-surface sm:grid-cols-2" stagger={0.08}>
             {CATEGORIES.map((c) => {
               const status = statusFromScore(c.score);
               return (
               <motion.div
                 key={c.label}
                 variants={revealItem}
-                className="grid grid-cols-1 gap-5 px-6 py-6 sm:grid-cols-[1.4fr_1fr] sm:items-center sm:gap-10 sm:px-8"
+                className="border-b border-border-subtle px-6 py-5 sm:odd:border-r"
               >
-                <div className="flex items-start gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
-                    <c.Icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-heading-4 text-foreground">{c.label}</p>
-                    <p className="mt-1.5 text-body-small text-muted-foreground">{c.explanation}</p>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-display text-[1.5rem] font-bold tracking-[-0.02em] text-foreground">
-                      {c.score}<span className="font-body text-body-small font-normal text-muted-foreground"> / 100</span>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                      <c.Icon className="h-4.5 w-4.5" />
                     </span>
-                    <StatusBadge status={status} />
+                    <div>
+                      <p className="text-heading-4 text-foreground">{c.label}</p>
+                      <p className="mt-1 text-body-small text-muted-foreground">{c.explanation}</p>
+                    </div>
                   </div>
-                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+                  <span className="shrink-0 font-display text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-foreground">
+                    {c.score}<span className="font-body text-metadata font-normal tracking-normal"> / 100</span>
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
                     <motion.div
                       className="h-full rounded-full"
                       style={{ backgroundColor: BAR_COLOR[status] }}
@@ -115,6 +114,7 @@ export default function SampleAuditPreview() {
                       transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
                     />
                   </div>
+                  <StatusBadge status={status} />
                 </div>
               </motion.div>
               );
@@ -123,20 +123,20 @@ export default function SampleAuditPreview() {
             {/* Competitive position - qualitative, no score */}
             <motion.div
               variants={revealItem}
-              className="grid grid-cols-1 gap-5 bg-background-alt px-6 py-6 sm:grid-cols-[1.4fr_1fr] sm:items-center sm:gap-10 sm:px-8"
+              className="flex flex-col gap-3 bg-background-alt px-6 py-5 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
             >
-              <div className="flex items-start gap-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
-                  <IconUsers className="h-5 w-5" />
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                  <IconUsers className="h-4.5 w-4.5" />
                 </span>
                 <div>
                   <p className="text-heading-4 text-foreground">Competitive Position</p>
-                  <p className="mt-1.5 text-body-small text-muted-foreground">
+                  <p className="mt-1 text-body-small text-muted-foreground">
                     Nearby practices currently have an advantage in local search visibility.
                   </p>
                 </div>
               </div>
-              <div className="sm:text-right">
+              <div className="shrink-0 sm:text-right">
                 <span className="font-display text-[1.5rem] font-bold tracking-[-0.02em] text-foreground">3 practices</span>
                 <span className="block text-body-small text-muted-foreground sm:inline"> currently ahead</span>
               </div>
@@ -144,9 +144,9 @@ export default function SampleAuditPreview() {
           </RevealGroup>
         </div>
 
-        <Reveal delay={0.15} className="mt-12 text-center">
+        <Reveal delay={0.15} className="mt-8 text-center">
           <Button type="button" onClick={handleScrollToAudit} arrow>
-            Get My Free Practice Audit
+            Get Your Free Website Audit
           </Button>
         </Reveal>
       </div>

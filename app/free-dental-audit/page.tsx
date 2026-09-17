@@ -15,7 +15,7 @@ import { industryFromCategory, cap } from "@/lib/industry";
 
 type WizardStep = "details" | "processing" | "preview" | "contact";
 
-const STEP_LABELS = ["Practice Details", "Analyzing", "Preview", "Contact Details"];
+const STEP_LABELS = ["Your Practice", "Analyzing", "Preview", "Your Details"];
 const STEP_INDEX: Record<WizardStep, number> = {
   details: 1,
   processing: 2,
@@ -59,7 +59,7 @@ function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
   const pct = stages.length ? Math.max(8, Math.round((doneCount / stages.length) * 100)) : ((messageIndex + 1) / SCAN_MESSAGES.length) * 100;
 
   return (
-    <div className="animate-fade-in space-y-8 py-2">
+    <div className="animate-fade-in space-y-6 py-1">
       <div>
         <Eyebrow>Audit in progress</Eyebrow>
         <h1 className="mt-4 text-heading-2 text-foreground">Running your free audit</h1>
@@ -87,7 +87,7 @@ function ProcessingScreen({ progress }: { progress: AuditProgressView }) {
       {stages.length > 0 && (
         <ol className="divide-y divide-border-subtle rounded-[var(--radius-medium)] border border-border-subtle bg-background-alt" aria-live="polite">
           {stages.map((s) => (
-            <li key={s.key} className={`flex items-center gap-3 px-4 py-3 text-body-small ${s.status === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
+            <li key={s.key} className={`flex items-center gap-3 px-4 py-2.5 text-body-small ${s.status === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
                   s.status === "done" ? "bg-primary text-primary-foreground" : s.status === "running" ? "border-2 border-primary/30 border-t-primary animate-spin" : s.status === "skipped" ? "bg-border text-muted-foreground" : s.status === "failed" ? "bg-danger/10 text-danger" : "border border-border"
@@ -287,7 +287,7 @@ function AuditWizardForm() {
     setError("");
 
     if (!consent) {
-      setConsentError("Please accept the communication consent to unlock your audit.");
+      setConsentError("Please tick the box so we can email you your report.");
       return;
     }
     setConsentError("");
@@ -325,7 +325,7 @@ function AuditWizardForm() {
   };
 
   return (
-    <div className="card-elevated w-full max-w-xl p-6 sm:p-10">
+    <div className="card-elevated w-full max-w-2xl p-6 sm:p-8">
       {step !== "processing" && (
         <div className="mb-8">
           <ProgressSteps steps={STEP_LABELS} current={STEP_INDEX[step]} />
@@ -334,14 +334,14 @@ function AuditWizardForm() {
 
       {/* STEP 1: Practice details */}
       {step === "details" && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
-            <Eyebrow>Free Practice Audit</Eyebrow>
+            <Eyebrow>Free website audit</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
-              Run My Free Dental Audit
+              Start your free website audit
             </h1>
             <p className="mt-3 text-body text-muted-foreground">
-              Paste your website — we&apos;ll find your location and handle the rest.
+              Enter your practice website — we&apos;ll detect your location and handle the rest. It takes about two minutes.
             </p>
           </div>
 
@@ -351,8 +351,8 @@ function AuditWizardForm() {
             </div>
           )}
 
-          <form onSubmit={handleDetailsSubmit} className="space-y-5" noValidate>
-            <FormField id="website" label="Practice Website" required optionalLabel={false} error={websiteError}>
+          <form onSubmit={handleDetailsSubmit} className="space-y-4" noValidate>
+            <FormField id="website" label="Practice website" required optionalLabel={false} error={websiteError}>
               <Input
                 id="website"
                 type="text"
@@ -361,7 +361,7 @@ function AuditWizardForm() {
                 autoComplete="url"
                 autoCapitalize="none"
                 autoCorrect="off"
-                placeholder="e.g. clinicwebsite.com"
+                placeholder="e.g. yourpractice.ca"
                 value={website}
                 onChange={(e) => {
                   setWebsite(e.target.value);
@@ -387,34 +387,36 @@ function AuditWizardForm() {
               </p>
             )}
 
-            <FormField id="city" label="City" required optionalLabel={false} error={cityError}>
-              <Input
-                id="city"
-                type="text"
-                required
-                autoComplete="address-level2"
-                placeholder="Detected from your website"
-                value={city}
-                onChange={(e) => {
-                  cityTouched.current = e.target.value.trim().length > 0;
-                  setCity(e.target.value);
-                  if (cityError) setCityError("");
-                }}
-                hasError={!!cityError}
-              />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="city" label="City" required optionalLabel={false} error={cityError}>
+                <Input
+                  id="city"
+                  type="text"
+                  required
+                  autoComplete="address-level2"
+                  placeholder="We'll detect this from your website"
+                  value={city}
+                  onChange={(e) => {
+                    cityTouched.current = e.target.value.trim().length > 0;
+                    setCity(e.target.value);
+                    if (cityError) setCityError("");
+                  }}
+                  hasError={!!cityError}
+                />
+              </FormField>
 
-            <FormField id="country" label="Country" optionalLabel={false}>
-              <Select id="country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country">
-                <option value="CA">Canada</option>
-                <option value="US">United States</option>
-                <option value="UK">United Kingdom</option>
-                <option value="AU">Australia</option>
-              </Select>
-            </FormField>
+              <FormField id="country" label="Country" optionalLabel={false}>
+                <Select id="country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country">
+                  <option value="CA">Canada</option>
+                  <option value="US">United States</option>
+                  <option value="UK">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                </Select>
+              </FormField>
+            </div>
 
             <Button type="submit" fullWidth loading={loading} disabled={loading} arrow className="mt-2">
-              Run My Free Dental Audit
+              Get Your Free Website Audit
             </Button>
           </form>
         </div>
@@ -425,14 +427,14 @@ function AuditWizardForm() {
 
       {/* STEP 3: Preview */}
       {step === "preview" && preliminary && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
-            <Eyebrow>Your quick look is ready</Eyebrow>
+            <Eyebrow>Your preview is ready</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
               {cap(ind.customers)} are searching nearby right now.
             </h1>
             <p className="mt-3 text-body text-muted-foreground">
-              Here&apos;s a first look. Unlock the full report to see your score, who&apos;s ranking ahead of you, and exactly what to fix first.
+              Here&apos;s a first look. Continue to the full report to see your scores, who&apos;s ranking ahead of you, and exactly what to fix first.
             </p>
           </div>
 
@@ -496,7 +498,7 @@ function AuditWizardForm() {
               Back
             </Button>
             <Button type="button" fullWidth arrow onClick={() => setStep("contact")}>
-              See My Full Report
+              Continue to My Full Report
             </Button>
           </div>
         </div>
@@ -504,14 +506,14 @@ function AuditWizardForm() {
 
       {/* STEP 4: Contact details */}
       {step === "contact" && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-5">
           <div>
-            <Eyebrow>One last step</Eyebrow>
+            <Eyebrow>Last step</Eyebrow>
             <h1 className="mt-4 text-heading-2 text-foreground">
-              Where should we send it?
+              Where should we send your report?
             </h1>
             <p className="mt-3 text-body text-muted-foreground">
-              We&apos;ll email your full report and a link you can come back to anytime.
+              We&apos;ll email your full Practice Growth Review and a link you can come back to anytime. No sales call unless you book one.
             </p>
           </div>
 
@@ -521,64 +523,64 @@ function AuditWizardForm() {
             </div>
           )}
 
-          <form onSubmit={handleContactSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleContactSubmit} className="space-y-4" noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="firstName" label="First Name" required optionalLabel={false}>
+              <FormField id="firstName" label="First name" required optionalLabel={false}>
                 <Input
                   id="firstName"
                   type="text"
                   required
                   autoComplete="given-name"
-                  placeholder="e.g. John"
+                  placeholder="e.g. Priya"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                 />
               </FormField>
-              <FormField id="lastName" label="Last Name" required optionalLabel={false}>
+              <FormField id="lastName" label="Last name" required optionalLabel={false}>
                 <Input
                   id="lastName"
                   type="text"
                   required
                   autoComplete="family-name"
-                  placeholder="e.g. Doe"
+                  placeholder="e.g. Sharma"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
               </FormField>
             </div>
 
-            <FormField id="email" label="Professional Email" required optionalLabel={false}>
+            <FormField id="email" label="Work email" required optionalLabel={false}>
               <Input
                 id="email"
                 type="email"
                 required
                 autoComplete="email"
                 inputMode="email"
-                placeholder="e.g. dr.john@clinicwebsite.com"
+                placeholder="e.g. dr.sharma@yourpractice.ca"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </FormField>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="role" label="Your Practice Role" required optionalLabel={false}>
+              <FormField id="role" label="Your role at the practice" required optionalLabel={false}>
                 <Input
                   id="role"
                   type="text"
                   required
                   autoComplete="organization-title"
-                  placeholder="e.g. Dentist / Owner"
+                  placeholder="e.g. Dentist and owner"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 />
               </FormField>
-              <FormField id="phone" label="Phone Number">
+              <FormField id="phone" label="Phone number">
                 <Input
                   id="phone"
                   type="tel"
                   autoComplete="tel"
                   inputMode="tel"
-                  placeholder="e.g. 312-555-0199"
+                  placeholder="e.g. 416-555-0123"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -599,7 +601,7 @@ function AuditWizardForm() {
                   }}
                 />
                 <span className="text-body-small text-muted-foreground">
-                  I&apos;m okay receiving my audit results and occasional practice growth tips by email. I can opt out anytime.
+                  Send me my audit report and occasional practice growth tips by email. I can unsubscribe at any time.
                 </span>
               </label>
               {consentError && (
@@ -614,7 +616,7 @@ function AuditWizardForm() {
                 Back
               </Button>
               <Button type="submit" fullWidth arrow loading={loading} disabled={loading}>
-                Unlock My Detailed Report
+                Send Me the Full Report
               </Button>
             </div>
           </form>

@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import AuditSection from "@/components/AuditSection";
+import ServicesOverview from "@/components/ServicesOverview";
 import PatientJourney from "@/components/PatientJourney";
 import SampleAuditPreview from "@/components/SampleAuditPreview";
 import HowItWorks from "@/components/HowItWorks";
@@ -15,7 +16,7 @@ const ORGANIZATION_JSON_LD = {
   "@type": "ProfessionalService",
   name: "Smile AI Marketing",
   description:
-    "Marketing agency helping dental clinics improve local visibility, generate qualified patient enquiries, and book more appointments.",
+    "Digital marketing agency for Canadian dental practices — local search visibility, qualified patient enquiries, and websites that help practices grow.",
   url: "https://smileaimarketing.com",
   email: "hello@smileaimarketing.com",
   areaServed: "CA",
@@ -54,6 +55,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <AuditSection />
+        <ServicesOverview />
         <PatientJourney />
         <SampleAuditPreview />
         <HowItWorks />

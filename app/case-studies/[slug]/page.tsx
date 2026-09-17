@@ -84,7 +84,7 @@ export default async function CaseStudyDetailPage({
       <main className="flex-1 bg-background">
         <div className="border-b border-border-subtle bg-background-alt">
           <div className="container-site section-space">
-            <div className="container-narrow !mx-0">
+            <div className="container-content !mx-0">
               <nav aria-label="Breadcrumb" className="mb-8 flex flex-wrap items-center gap-2 text-metadata">
                 <Link href="/" className="link-underline hover:text-foreground">Home</Link>
                 <span aria-hidden>/</span>
@@ -94,23 +94,23 @@ export default async function CaseStudyDetailPage({
               </nav>
 
               <Eyebrow>{study.type === "internal-build" ? "Transparent Build Case Study" : "Case Study"}</Eyebrow>
-              <h1 className="mt-5 text-heading-1 text-foreground">{study.title}</h1>
-              <p className="mt-4 text-metadata">
+              <h1 className="mt-4 max-w-[46rem] text-heading-1 text-foreground">{study.title}</h1>
+              <p className="mt-3 text-metadata">
                 Subject: {study.subject} &bull; Published {study.publishedAt}
               </p>
-              <p className="mt-6 text-body-large text-muted-foreground">{study.summary}</p>
+              <p className="mt-5 max-w-[46rem] text-body-large text-muted-foreground">{study.summary}</p>
             </div>
           </div>
         </div>
 
         <div className="container-site section-space">
-          <div className="container-narrow !mx-0">
+          <div className="container-content !mx-0">
             <section>
               <h2 className="text-heading-2 text-foreground">The problem</h2>
               <p className="mt-4 text-body text-muted-foreground">{study.problem}</p>
             </section>
 
-            <section className="mt-14">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">Before &amp; after</h2>
               <div className="card mt-6 overflow-hidden !shadow-none">
                 <div className="grid grid-cols-[1.2fr_1fr_1fr] gap-2 border-b border-border bg-background-alt px-5 py-3 text-eyebrow text-muted-foreground">
@@ -128,7 +128,7 @@ export default async function CaseStudyDetailPage({
               </div>
             </section>
 
-            <section className="mt-14">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">What we did</h2>
               <div className="mt-6 divide-y divide-border-subtle border-y border-border-subtle">
                 {study.actions.map((action) => (
@@ -140,7 +140,7 @@ export default async function CaseStudyDetailPage({
               </div>
             </section>
 
-            <section className="mt-14">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">Evidence</h2>
               <ul className="mt-6 space-y-3">
                 {study.evidence.map((item) => (
@@ -152,20 +152,20 @@ export default async function CaseStudyDetailPage({
               </ul>
             </section>
 
-            <section className="card mt-14 !bg-background-alt p-6 !shadow-none sm:p-8">
+            <section className="card mt-12 !bg-background-alt p-6 !shadow-none">
               <h2 className="text-eyebrow text-foreground">Limitations &amp; context</h2>
               <p className="mt-3 text-body-small text-muted-foreground">{study.limitations}</p>
             </section>
 
-            <section className="mt-14">
+            <section className="mt-12">
               <h2 className="text-heading-2 text-foreground">Next steps</h2>
               <p className="mt-4 text-body text-muted-foreground">{study.nextSteps}</p>
             </section>
 
-            <div className="band-dark mt-14 rounded-[var(--radius-large)] p-8 sm:p-10">
+            <div className="band-dark mt-12 flex flex-col gap-6 rounded-[var(--radius-large)] p-8 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-heading-3 text-foreground">Curious what an audit finds for your practice?</p>
-              <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "mt-7" })}>
-                <span>Audit My Practice</span>
+              <Link href="/free-dental-audit" className={buttonClasses({ variant: "light", className: "shrink-0" })}>
+                <span>Get Your Free Website Audit</span>
                 <ButtonArrow />
               </Link>
             </div>

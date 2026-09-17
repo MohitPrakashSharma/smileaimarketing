@@ -19,24 +19,24 @@ export default function FinalCTA() {
         className="object-cover opacity-[0.12]"
         quality={60}
       />
-      <div className="relative container-site section-space-lg">
-        <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+      <div className="relative container-site section-space">
+        <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <Reveal>
-            <Eyebrow tone="dark">Free practice audit</Eyebrow>
-            <h2 className="mt-5 text-display text-foreground">
-              See where your next{" "}
-              <span className="text-accent-gradient">patient opportunities</span> may be.
+            <Eyebrow tone="dark">Get started</Eyebrow>
+            <h2 className="mt-4 text-display text-foreground">
+              Ready to see what&apos;s holding your practice back{" "}
+              <span className="text-accent-gradient">online?</span>
             </h2>
-            <p className="mt-6 max-w-md text-body-large text-muted-foreground">
-              Enter your practice website and location and we&apos;ll prepare a clear, plain-English review.
+            <p className="mt-5 max-w-md text-body-large text-muted-foreground">
+              Start with the free website audit, or book a 15-minute consultation with our team. Either way, you&apos;ll leave knowing what to fix first.
             </p>
           </Reveal>
           <Reveal delay={0.1} className="flex flex-col gap-3 sm:flex-row lg:justify-end">
             <ButtonLink href="#seo-audit" arrow>
-              Get My Free Practice Audit
+              Get Your Free Website Audit
             </ButtonLink>
             <ButtonLink href="/book-consultation" variant="light">
-              Book Online Review
+              Book a Consultation
             </ButtonLink>
           </Reveal>
         </div>
