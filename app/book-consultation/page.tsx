@@ -157,7 +157,7 @@ function BookConsultationForm() {
       </div>
 
       {error && (
-        <div role="alert" className="mt-6 rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+        <div role="alert" className="mt-6 rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-medium text-danger">
           {error}
         </div>
       )}

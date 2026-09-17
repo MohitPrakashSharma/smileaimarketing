@@ -43,7 +43,7 @@ export default function ServicesIndexPage() {
                   <h2 className="mt-6 text-heading-3 text-foreground">{service.title}</h2>
                   <p className="mt-3 text-body-small text-muted-foreground">{service.subhead}</p>
                 </div>
-                <span className="mt-8 inline-flex items-center gap-2 text-body-small font-semibold text-primary-ink">
+                <span className="mt-8 inline-flex items-center gap-2 text-body-small font-medium text-primary-ink">
                   Learn more
                   <ButtonArrow />
                 </span>

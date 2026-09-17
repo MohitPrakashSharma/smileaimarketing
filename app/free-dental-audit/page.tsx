@@ -346,7 +346,7 @@ function AuditWizardForm() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-medium text-danger">
               {error}
             </div>
           )}
@@ -488,7 +488,7 @@ function AuditWizardForm() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-medium text-danger">
               {error}
             </div>
           )}
@@ -518,7 +518,7 @@ function AuditWizardForm() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+            <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-medium text-danger">
               {error}
             </div>
           )}
@@ -633,7 +633,7 @@ export default function FreeDentalAuditPage() {
         fallback={
           <div className="space-y-4 text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
-            <p className="text-body-small font-semibold text-muted-foreground">Loading...</p>
+            <p className="text-body-small font-medium text-muted-foreground">Loading...</p>
           </div>
         }
       >

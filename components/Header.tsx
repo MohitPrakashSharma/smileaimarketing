@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ButtonArrow } from "@/components/ui/buttonStyles";
 import { Wordmark } from "@/components/Wordmark";
 
+// Five items fit beside the wordmark and CTA at the 1024px breakpoint; the
+// remaining homepage sections (Sample Audit, FAQ) live in the footer. Section
+// links are root-relative so they work from every page, and resolve to a
+// same-document smooth scroll on the homepage itself.
 const NAV_LINKS = [
-  { href: "#services", label: "What We Do" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#sample-audit", label: "Sample Audit" },
-  { href: "#trust-consultation", label: "Consultation" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#services", label: "What We Do" },
+  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/case-studies", label: "Case Studies" },
+  { href: "/about", label: "About" },
+  { href: "/#trust-consultation", label: "Consultation" },
 ];
 
 export default function Header() {
+  const pathname = usePathname();
+  const isCurrent = (href: string) => !href.includes("#") && (pathname === href || pathname.startsWith(`${href}/`));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -93,12 +100,17 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="group relative rounded-sm px-3.5 py-2 text-[0.9375rem] font-medium text-foreground-secondary transition-colors duration-[var(--duration-fast)] hover:text-foreground"
+              aria-current={isCurrent(link.href) ? "page" : undefined}
+              className={`group relative rounded-sm px-3.5 py-2 font-copy text-[0.9375rem] font-medium transition-colors duration-[var(--duration-fast)] hover:text-foreground ${
+                isCurrent(link.href) ? "text-foreground" : "text-foreground-secondary"
+              }`}
             >
               {link.label}
               <span
                 aria-hidden
-                className="absolute inset-x-3.5 -bottom-0.5 h-px origin-left scale-x-0 bg-primary transition-transform duration-[var(--duration-normal)] ease-[var(--ease-out)] group-hover:scale-x-100 group-focus-visible:scale-x-100"
+                className={`absolute inset-x-3.5 -bottom-0.5 h-px origin-left bg-primary transition-transform duration-[var(--duration-normal)] ease-[var(--ease-out)] group-hover:scale-x-100 group-focus-visible:scale-x-100 ${
+                  isCurrent(link.href) ? "scale-x-100" : "scale-x-0"
+                }`}
               />
             </a>
           ))}
@@ -163,9 +175,10 @@ export default function Header() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-between py-4 font-display text-[1.375rem] font-semibold text-foreground transition-colors hover:text-primary-ink ${
-                  i > 0 ? "border-t border-border-subtle" : ""
-                }`}
+                aria-current={isCurrent(link.href) ? "page" : undefined}
+                className={`flex items-center justify-between py-4 font-copy text-[1.125rem] font-medium transition-colors hover:text-primary-ink ${
+                  isCurrent(link.href) ? "text-primary-ink" : "text-foreground"
+                } ${i > 0 ? "border-t border-border-subtle" : ""}`}
               >
                 {link.label}
                 <ButtonArrow className="text-muted-foreground" />

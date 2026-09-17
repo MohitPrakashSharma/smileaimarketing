@@ -142,7 +142,7 @@ export default function Hero() {
             className="card-elevated absolute -right-3 top-8 w-44 p-4 sm:-right-8 sm:w-48"
           >
             <p className="text-eyebrow !text-[0.6875rem] text-muted-foreground">Checked publicly</p>
-            <p className="mt-1.5 text-body-small font-semibold text-foreground">No logins. Just what a patient sees when they search.</p>
+            <p className="mt-1.5 text-body-small font-medium text-foreground">No logins. Just what a patient sees when they search.</p>
           </Reveal>
         </div>
 

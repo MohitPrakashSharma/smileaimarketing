@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Outfit } from "next/font/google";
+import { Manrope, Outfit, Poppins } from "next/font/google";
 import "./globals.css";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 
-// Both faces are SIL Open Font License and self-hosted by next/font (no
-// runtime request to Google). Outfit carries display headings; Manrope carries
-// body, UI and labels. Weights are the minimum the design system uses.
+// All three faces are SIL Open Font License and self-hosted by next/font (no
+// runtime request to Google). Outfit carries display headings; Poppins carries
+// body copy and navigation; Manrope carries UI chrome (buttons, eyebrows,
+// labels, metadata, tables). Weights are the minimum the design system uses.
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin"],
@@ -17,6 +18,16 @@ const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
   weight: ["600", "700"],
+  display: "swap",
+});
+
+// 400 for paragraphs and descriptions, 500 for navigation — nothing heavier is
+// loaded, so copy never renders a synthesised bold. next/font also emits a
+// metrics-matched "Poppins Fallback" face, which keeps the swap shift minimal.
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -74,7 +85,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${outfit.variable}`}
+      className={`${manrope.variable} ${outfit.variable} ${poppins.variable}`}
     >
       {/* suppressHydrationWarning: browser extensions (Grammarly etc.) inject attributes on <body>
           before React hydrates, which otherwise logs a hydration-mismatch error on every page. */}

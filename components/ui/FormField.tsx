@@ -30,7 +30,7 @@ export default function FormField({
         )}
       </label>
       {children}
-      {hint && !error && <span className="mt-2 text-metadata">{hint}</span>}
+      {hint && !error && <span className="mt-2 font-copy text-metadata">{hint}</span>}
       {error && (
         <span id={`${id}-error`} role="alert" className="mt-2 text-metadata font-semibold !text-danger">
           {error}

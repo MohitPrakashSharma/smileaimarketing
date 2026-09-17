@@ -127,7 +127,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pageTitle = PAGE_TITLES[pathname] || "Command Centre";
 
   return (
-    <div className="theme-navy min-h-screen bg-background font-body text-foreground">
+    <div className="theme-navy ui-copy min-h-screen bg-background font-body text-foreground">
       {/* Desktop Top Header */}
       <header className="sticky top-0 z-40 hidden border-b border-border bg-surface/95 backdrop-blur-md lg:block">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-4 px-6">

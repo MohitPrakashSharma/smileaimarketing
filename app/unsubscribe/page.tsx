@@ -55,7 +55,7 @@ export default function UnsubscribePage() {
 
         {submitted ? (
           <div className="animate-scale-in mt-8 rounded-[var(--radius-medium)] border border-primary/20 bg-accent-soft p-6">
-            <p className="text-body font-semibold text-primary-ink">Unsubscribed successfully</p>
+            <p className="text-body font-medium text-primary-ink">Unsubscribed successfully</p>
             <p className="mt-2 text-body-small text-muted-foreground">
               {email} and its associated clinic domain have been added to our suppression list.
             </p>
@@ -63,7 +63,7 @@ export default function UnsubscribePage() {
         ) : (
           <form onSubmit={handleUnsubscribe} className="mt-8 space-y-5" noValidate>
             {error && (
-              <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-semibold text-danger">
+              <div role="alert" className="rounded-[var(--radius-small)] border border-danger/20 bg-danger/5 px-4 py-3 text-body-small font-medium text-danger">
                 {error}
               </div>
             )}

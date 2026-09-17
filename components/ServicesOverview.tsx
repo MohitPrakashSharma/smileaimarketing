@@ -61,7 +61,7 @@ export default function ServicesOverview() {
               </span>
               <h3 className="mt-5 text-heading-4 text-foreground">{area.title}</h3>
               <p className="mt-2 flex-1 text-body-small text-muted-foreground">{area.detail}</p>
-              <span className="mt-5 inline-flex items-center gap-2 text-body-small font-semibold text-primary-ink">
+              <span className="mt-5 inline-flex items-center gap-2 text-body-small font-medium text-primary-ink">
                 {area.cta}
                 <ButtonArrow />
               </span>

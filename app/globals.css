@@ -100,13 +100,19 @@
 
   /* ---------------------------------------------------------------------------
      2. Typography tokens
-     --font-manrope / --font-outfit are injected by next/font in app/layout.tsx
+     --font-manrope / --font-outfit / --font-poppins are injected by next/font
+     in app/layout.tsx (each value already includes its metrics-matched
+     "… Fallback" face).
+       --font-display  Outfit   — headings and the wordmark
+       --font-copy     Poppins  — paragraphs, descriptions, navigation
+       --font-body     Manrope  — UI chrome: buttons, eyebrows, labels, meta
      --------------------------------------------------------------------------- */
   --font-stack-fallback: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-sans: var(--font-manrope), var(--font-stack-fallback);
   --font-display: var(--font-outfit), var(--font-manrope), var(--font-stack-fallback);
   --font-body: var(--font-sans);
   --font-label: var(--font-sans);
+  --font-copy: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 
   --text-display-xl: clamp(2.75rem, 1.5rem + 5.2vw, 5rem);       /* 44 → 80 */
   --text-display-lg: clamp(2.5rem, 1.4rem + 4.2vw, 4.25rem);     /* 40 → 68 */
@@ -229,6 +235,7 @@
   --font-display: var(--font-outfit), var(--font-manrope), var(--font-stack-fallback);
   --font-body: var(--font-manrope), var(--font-stack-fallback);
   --font-label: var(--font-manrope), var(--font-stack-fallback);
+  --font-copy: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-small);
@@ -417,17 +424,17 @@ input:disabled {
   letter-spacing: -0.005em;
 }
 @utility text-body-large {
-  font-family: var(--font-body);
+  font-family: var(--font-copy);
   font-size: var(--text-body-lg);
   line-height: 1.6;
 }
 @utility text-body {
-  font-family: var(--font-body);
+  font-family: var(--font-copy);
   font-size: var(--text-body);
   line-height: var(--leading-body);
 }
 @utility text-body-small {
-  font-family: var(--font-body);
+  font-family: var(--font-copy);
   font-size: var(--text-body-sm);
   line-height: 1.6;
 }
@@ -464,6 +471,13 @@ input:disabled {
   font-size: var(--text-meta);
   line-height: 1.45;
   color: var(--color-muted-foreground);
+}
+
+/* Product surfaces (admin, audit report) keep Manrope for the body utilities:
+   they set weights the Poppins loadout doesn't carry and were designed on the
+   UI face. Marketing pages inherit the Poppins default from :root. */
+.ui-copy {
+  --font-copy: var(--font-body);
 }
 
 /* =============================================================================
