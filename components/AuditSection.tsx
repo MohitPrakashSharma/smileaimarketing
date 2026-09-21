@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconCheck, IconSearch, IconMonitor, IconUsers, IconStar } from "@/components/icons";
+import Image from "next/image";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -16,14 +16,6 @@ import { useSiteDetect, describeDetection } from "@/lib/siteDetect.client";
  * detection hook, tracking and routing moved here verbatim from Hero.tsx —
  * only the surrounding section is new.
  */
-
-// What the review covers — same list the process section already promises.
-const EVALUATES: { Icon: typeof IconSearch; label: string }[] = [
-  { Icon: IconSearch, label: "Local search visibility" },
-  { Icon: IconUsers, label: "Competitors" },
-  { Icon: IconStar, label: "Reputation" },
-  { Icon: IconMonitor, label: "Website and booking experience" },
-];
 
 export default function AuditSection() {
   const router = useRouter();
@@ -110,34 +102,36 @@ export default function AuditSection() {
   };
 
   return (
-    <section id="seo-audit" className="band-dark scroll-mt-[var(--header-height)]">
-      <div className="container-site section-space">
+    <section id="seo-audit" className="relative scroll-mt-[var(--header-height)] overflow-hidden border-y border-border-subtle">
+      {/* Backdrop: a dental close-up washed almost to white, with the prism gradient (pink top edge → white) over it */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <Image
+          src="/images/audit-backdrop-dental-model.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover object-[70%_center]"
+          quality={70}
+        />
+        <div className="absolute inset-0 band-prism-wash" />
+      </div>
+
+      <div className="container-site section-space relative">
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
           <Reveal>
-            <Eyebrow tone="dark">Free website audit</Eyebrow>
+            <Eyebrow>Free website audit</Eyebrow>
             <h2 className="mt-4 text-heading-1 text-foreground">
               See how your website and local visibility perform.
             </h2>
             <p className="mt-4 max-w-lg text-body-large text-muted-foreground">
               Enter your practice website and city. We&apos;ll check how patients find you online and show you what to fix first — in plain English, with no logins required.
             </p>
-            <p className="mt-6 text-eyebrow text-muted-foreground">What we review</p>
-            <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-              {EVALUATES.map((item) => (
-                <li key={item.label} className="flex items-center gap-3 text-body-small text-foreground-secondary">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary-ink">
-                    <item.Icon className="h-4 w-4" />
-                  </span>
-                  {item.label}
-                </li>
-              ))}
-            </ul>
           </Reveal>
 
           <Reveal delay={0.1}>
             <form
               onSubmit={handleSubmit}
-              className="band-light rounded-[var(--radius-large)] p-5 shadow-xl sm:p-6 space-y-4"
+              className="rounded-[var(--radius-large)] border border-white/70 bg-white/65 p-5 shadow-xl backdrop-blur-xl sm:p-6 space-y-4 [-webkit-backdrop-filter:blur(24px)]"
               noValidate
             >
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
@@ -206,14 +200,6 @@ export default function AuditSection() {
                 </Button>
               </div>
 
-              <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-metadata">
-                {["No Google account access needed", "No obligation", "Free — no credit card"].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <IconCheck className="h-3.5 w-3.5 text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
               <p className="border-t border-border pt-4 text-metadata">
                 <span className="font-semibold text-foreground">What happens next:</span> you&apos;ll see a preview of early findings right away. Enter your email to receive the full report, then decide whether you&apos;d like a 15-minute walkthrough with our team.
               </p>

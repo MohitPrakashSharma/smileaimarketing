@@ -219,18 +219,18 @@ export function CtaBackdrop({ className = "" }: { className?: string }) {
   );
 }
 
-/** Small stack of stat cards for the dark CTA band. */
-export function CtaCards() {
+/** Small stack of stat cards for the CTA band (dark or light). */
+export function CtaCards({ tone = "dark" }: { tone?: "light" | "dark" }) {
   return (
     <div className="relative hidden h-64 w-[26rem] lg:block" aria-hidden>
-      <StatCard tone="dark" label="Enquiries" value="38" delta="+12" className="absolute left-0 top-0" />
-      <FloatCard tone="dark" className="absolute right-0 top-6 w-48">
+      <StatCard tone={tone} label="Enquiries" value="38" delta="+12" className="absolute left-0 top-0" />
+      <FloatCard tone={tone} className="absolute right-0 top-6 w-48">
         <div className="flex items-center gap-2">
           <SpeedGauge value={92} size={56} label="" />
           <span className="text-[10px] font-semibold leading-tight">Mobile<br />performance</span>
         </div>
       </FloatCard>
-      <EnquiryCard tone="dark" className="absolute left-16 top-32" />
+      <EnquiryCard tone={tone} className="absolute left-16 top-32" />
     </div>
   );
 }

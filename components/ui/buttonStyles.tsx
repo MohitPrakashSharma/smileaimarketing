@@ -8,28 +8,35 @@ export type ButtonVariant = "primary" | "secondary" | "dark" | "light" | "text" 
 export type ButtonSize = "md" | "sm";
 
 const BASE =
-  "group/btn relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full text-button transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50";
+  "group/btn relative inline-flex select-none items-center justify-center gap-2 text-center rounded-full text-button transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
+// min-height rather than a fixed height so a long label can wrap on very
+// narrow screens (WCAG 1.4.10 reflow at 320px) instead of overflowing.
 const SIZE: Record<ButtonSize, string> = {
-  md: "h-[var(--button-height)] px-7",
-  sm: "h-[var(--button-height-sm)] px-5",
+  md: "min-h-[var(--button-height)] px-7 py-2",
+  sm: "min-h-[var(--button-height-sm)] px-5 py-1.5",
 };
+
+/* Every variant shares one hover: the accent fill with a lifted shadow, the
+   same move the header CTA makes (ink at rest → pink on hover). */
+const HOVER = "hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-md";
+const HOVER_PRIMARY = "hover:bg-primary-hover hover:shadow-md";
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover hover:shadow-md active:bg-primary-pressed active:shadow-sm",
+    `bg-primary text-primary-foreground shadow-sm ${HOVER_PRIMARY} active:bg-primary-pressed active:shadow-sm`,
   secondary:
-    "border border-border-strong bg-transparent text-foreground hover:border-foreground hover:bg-surface-muted active:bg-surface-muted",
+    `border border-border-strong bg-transparent text-foreground ${HOVER} active:bg-primary-pressed`,
   dark:
-    "bg-background-dark text-white shadow-sm hover:bg-[var(--color-bg-dark-edge)] hover:shadow-md active:bg-[var(--color-bg-footer)]",
+    `bg-background-dark text-white shadow-sm ${HOVER} active:bg-primary-pressed`,
   light:
-    "bg-white text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-alt)] hover:shadow-md active:bg-[var(--color-surface-alt)]",
+    `bg-white text-[var(--color-text)] shadow-sm ${HOVER} active:bg-primary-pressed`,
   text:
     "h-auto rounded-none px-0 text-primary-ink underline decoration-1 underline-offset-[6px] decoration-transparent hover:decoration-current active:translate-y-0",
   outline:
-    "border border-border-strong bg-transparent text-foreground hover:border-foreground active:bg-surface-muted",
+    `border border-border-strong bg-transparent text-foreground ${HOVER} active:bg-primary-pressed`,
   ghost:
-    "text-foreground hover:bg-surface-muted active:bg-surface-muted",
+    `text-foreground ${HOVER} active:bg-primary-pressed`,
   danger:
     "bg-error text-white hover:bg-[#b52626] active:bg-[#9a2020]",
 };

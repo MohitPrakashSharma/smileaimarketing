@@ -17,13 +17,13 @@ const NAV_LINKS = [
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/case-studies", label: "Case Studies" },
   { href: "/about", label: "About" },
-  { href: "/#trust-consultation", label: "Consultation" },
+  { href: "/book-consultation", label: "Consultation" },
 ];
 
 const HOVER_CLOSE_DELAY = 160;
 
 const navLinkClass = (current: boolean) =>
-  `group relative inline-flex items-center gap-1 rounded-sm px-3.5 py-2 font-copy text-[0.9375rem] font-medium transition-colors duration-[var(--duration-fast)] hover:text-foreground ${current ? "text-foreground" : "text-foreground-secondary"}`;
+  `group relative inline-flex items-center gap-1 rounded-sm px-3.5 py-2 font-copy text-[1rem] font-medium transition-colors duration-[var(--duration-fast)] hover:text-foreground ${current ? "text-foreground" : "text-foreground-secondary"}`;
 
 function NavUnderline({ active }: { active: boolean }) {
   return (
@@ -144,7 +144,7 @@ function ServicesMenu({ current }: { current: boolean }) {
                       <ServiceIcon icon={s.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block font-copy text-[0.9375rem] font-medium text-foreground group-hover/item:text-primary-ink">{s.title}</span>
+                      <span className="block font-copy text-[1rem] font-medium text-foreground group-hover/item:text-primary-ink">{s.title}</span>
                       <span className="mt-0.5 block text-body-small text-muted-foreground">{s.short}</span>
                     </span>
                   </Link>
@@ -284,7 +284,7 @@ export default function Header() {
         <div className="flex items-center gap-2 lg:hidden">
           <button
             onClick={handleScrollToAudit}
-            className="inline-flex h-[var(--button-height-sm)] items-center gap-1.5 whitespace-nowrap rounded-full bg-background-dark px-4 text-[0.875rem] font-semibold text-white transition-colors duration-[var(--duration-normal)] hover:bg-primary active:translate-y-px"
+            className="inline-flex h-[var(--button-height-sm)] items-center gap-1.5 whitespace-nowrap rounded-full bg-background-dark px-4 text-[0.9375rem] font-semibold text-white transition-colors duration-[var(--duration-normal)] hover:bg-primary active:translate-y-px"
           >
             Free Audit
           </button>
@@ -342,7 +342,7 @@ export default function Header() {
                       href={`/services/${s.slug}`}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={pathname === `/services/${s.slug}` ? "page" : undefined}
-                      className={`flex min-h-12 items-center gap-3 rounded-[var(--radius-small)] px-3 py-2.5 font-copy text-[0.9375rem] font-medium transition-colors hover:bg-surface ${pathname === `/services/${s.slug}` ? "text-primary-ink" : "text-foreground"}`}
+                      className={`flex min-h-12 items-center gap-3 rounded-[var(--radius-small)] px-3 py-2.5 font-copy text-[1rem] font-medium transition-colors hover:bg-surface ${pathname === `/services/${s.slug}` ? "text-primary-ink" : "text-foreground"}`}
                     >
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
                         <ServiceIcon icon={s.icon} className="h-4 w-4" />

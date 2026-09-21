@@ -2,13 +2,13 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import AuditSection from "@/components/AuditSection";
 import ServicesOverview from "@/components/ServicesOverview";
+import ServicesStack from "@/components/ServicesStack";
+import ArcShowcase from "@/components/ArcShowcase";
 import PatientJourney from "@/components/PatientJourney";
-import SampleAuditPreview from "@/components/SampleAuditPreview";
+import OpportunityCalculator from "@/components/OpportunityCalculator";
 import HowItWorks from "@/components/HowItWorks";
-import TrustAndConsultation from "@/components/TrustAndConsultation";
 import FAQ from "@/components/FAQ";
 import { FAQS } from "@/components/faqData";
-import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 
 const ORGANIZATION_JSON_LD = {
@@ -51,19 +51,22 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
       />
+      {/* Homepage runs wider than the rest of the site: the container is 80% of the viewport on large screens */}
+      <div className="contents xl:[--container-max-width:80vw]">
       <Header />
       <main className="flex-1">
         <Hero />
         <AuditSection />
+        <OpportunityCalculator />
         <ServicesOverview />
+        <ServicesStack />
         <PatientJourney />
-        <SampleAuditPreview />
         <HowItWorks />
-        <TrustAndConsultation />
+        <ArcShowcase />
         <FAQ />
-        <FinalCTA />
       </main>
       <Footer />
+      </div>
     </>
   );
 }

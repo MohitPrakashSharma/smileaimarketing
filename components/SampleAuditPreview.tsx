@@ -74,7 +74,7 @@ export default function SampleAuditPreview() {
                 Metro Dental Care <span className="font-copy text-body-small font-normal text-muted-foreground">— Toronto, ON</span>
               </p>
             </div>
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[0.8125rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
               Sample data
             </span>
@@ -149,6 +149,7 @@ export default function SampleAuditPreview() {
             Get Your Free Website Audit
           </Button>
         </Reveal>
+
       </div>
     </section>
   );

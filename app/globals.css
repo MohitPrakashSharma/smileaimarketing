@@ -68,7 +68,7 @@
   --color-primary-foreground: #ffffff;
   --color-primary-ink: var(--color-accent);          /* accent used as text */
   --color-muted-foreground: var(--color-text-muted);
-  --color-placeholder: var(--color-text-faint);
+  --color-placeholder: var(--color-text-muted);     /* 4.9:1 on the input fill (WCAG AA); faint was 3.1:1 */
   --color-danger: var(--color-error);
   --color-focus-ring: var(--color-focus);
   --color-foreground-on-navy: var(--color-text-on-dark);
@@ -124,12 +124,12 @@
   --text-h3: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);             /* 22 → 28 */
   --text-h4: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);          /* 18 → 20 */
   --text-body-lg: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);    /* 18 → 20 */
-  --text-body: 1rem;                                             /* 16 */
-  --text-body-sm: 0.9375rem;                                     /* 15 */
+  --text-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);         /* 16 → 18 */
+  --text-body-sm: 1rem;                                          /* 16 — card copy, FAQ answers */
   --text-eyebrow: 0.8125rem;                                     /* 13, uppercase, tracked */
-  --text-label: 0.875rem;                                        /* 14 */
-  --text-meta: 0.8125rem;                                        /* 13 */
-  --text-button: 0.9375rem;                                      /* 15 */
+  --text-label: 0.9375rem;                                       /* 15 — form labels */
+  --text-meta: 0.875rem;                                         /* 14 — secondary labels */
+  --text-button: 1rem;                                           /* 16 */
 
   --leading-display: 1.02;
   --leading-heading: 1.12;
@@ -467,7 +467,7 @@ input:disabled {
   font-size: var(--text-button);
   font-weight: 600;
   letter-spacing: 0.01em;
-  line-height: 1;
+  line-height: 1.25; /* readable if a label wraps at narrow widths */
 }
 @utility text-metadata {
   font-family: var(--font-copy);
@@ -538,12 +538,6 @@ input:disabled {
   color: var(--color-text-on-dark);
 }
 
-/* Footer: a step darker than the band */
-.band-footer {
-  background-color: var(--color-bg-footer);
-  background-image: none;
-}
-
 /* Light island inside a dark band (e.g. a white form card on indigo) */
 .band-light {
   --color-background: var(--color-bg);
@@ -594,6 +588,55 @@ input:disabled {
   border-color: var(--color-status-attention-border);
 }
 
+/* Light band with the accent gradient at a whisper — used for the footer.
+   Pair with .band-soft-glow blobs for the blurred colour behind the content. */
+@utility band-soft {
+  background-color: var(--color-surface);
+  background-image:
+    radial-gradient(60% 70% at 100% 0%, rgba(255, 38, 103, 0.08) 0%, transparent 60%),
+    radial-gradient(55% 60% at 0% 100%, rgba(255, 107, 60, 0.07) 0%, transparent 60%),
+    linear-gradient(180deg, var(--color-surface) 0%, #fbf8f7 100%);
+}
+@utility band-soft-glow {
+  background: radial-gradient(circle, rgba(255, 38, 103, 0.16) 0%, rgba(255, 38, 103, 0) 68%);
+  filter: blur(48px);
+}
+@utility band-soft-glow-coral {
+  background: radial-gradient(circle, rgba(255, 107, 60, 0.14) 0%, rgba(255, 107, 60, 0) 68%);
+}
+/* Prism wash — the prism gradient laid over a backdrop photo: the pink glow
+   along the top edge, white over the copy side, easing to translucent on the
+   side where a frosted card sits. */
+@utility band-prism-wash {
+  background-image:
+    radial-gradient(90% 55% at 50% 0%, rgba(216, 27, 106, 0.30) 0%, rgba(216, 27, 106, 0.13) 38%, transparent 72%),
+    radial-gradient(40% 45% at 4% 60%, rgba(58, 29, 92, 0.10) 0%, transparent 70%),
+    radial-gradient(42% 45% at 97% 50%, rgba(255, 107, 60, 0.12) 0%, transparent 70%),
+    linear-gradient(100deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.90) 42%, rgba(255, 255, 255, 0.62) 100%);
+}
+/* Prism band — an airy light section in the primary colour: a soft pink
+   glow along the top edge dissolving into white, with the faintest plum and
+   coral at the sides. */
+@utility band-prism {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(90% 55% at 50% 0%, rgba(216, 27, 106, 0.30) 0%, rgba(216, 27, 106, 0.13) 38%, transparent 72%),
+    radial-gradient(40% 45% at 4% 55%, rgba(58, 29, 92, 0.10) 0%, transparent 70%),
+    radial-gradient(42% 45% at 97% 45%, rgba(255, 107, 60, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #fbeaf1 0%, #ffffff 62%);
+}
+/* Back face of a step flip card on the prism band: white with the same tints. */
+@utility band-prism-card {
+  background-image:
+    radial-gradient(80% 60% at 100% 0%, rgba(216, 27, 106, 0.18) 0%, transparent 60%),
+    radial-gradient(70% 60% at 0% 100%, rgba(255, 107, 60, 0.14) 0%, transparent 60%);
+}
+/* A face of a 3D flip card (both vendor spellings — Safari still needs the prefix). */
+@utility flip-face {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 /* Accent gradient text (pink → coral) for a single highlighted word */
 @utility text-accent-gradient {
   background-image: var(--color-accent-gradient);
@@ -614,6 +657,67 @@ input:disabled {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-large);
   box-shadow: var(--shadow-lg);
+}
+
+/* Card with the brand accent gradient as a hairline border and a soft corner
+   wash. Both sit low at rest and come up on hover (or keyboard focus within),
+   so a group of these reads as one system that responds to the pointer.
+   `--card-glow` is registered below so the change animates. */
+@property --card-glow {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@utility card-gradient {
+  --card-glow: 0;
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-large);
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    linear-gradient(
+        135deg,
+        rgba(255, 38, 103, calc(0.18 + 0.82 * var(--card-glow))) 0%,
+        rgba(255, 107, 60, calc(0.12 + 0.88 * var(--card-glow))) 55%,
+        color-mix(in srgb, var(--color-border) calc(100% - 100% * var(--card-glow)), #ff6b3c) 100%
+      )
+      border-box;
+  box-shadow: var(--shadow-xs);
+  transition:
+    --card-glow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgba(255, 38, 103, 0.14), transparent 55%),
+      radial-gradient(90% 80% at 0% 100%, rgba(255, 107, 60, 0.10), transparent 55%);
+    opacity: calc(0.45 + 0.55 * var(--card-glow));
+    transition: opacity var(--duration-normal) var(--ease-out);
+  }
+
+  &:hover,
+  &:focus-within {
+    --card-glow: 1;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover,
+    &:focus-within {
+      transform: none;
+    }
+  }
 }
 
 /* Text link with an animated underline (reference-inspired, ours) */
@@ -714,4 +818,16 @@ input:disabled {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Arc showcase: centre copy fades/rises when the active message changes */
+@keyframes arc-copy-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.arc-copy {
+  animation: arc-copy-in var(--duration-slow, 450ms) var(--ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-copy { animation: none; }
 }
