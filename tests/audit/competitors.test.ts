@@ -149,3 +149,17 @@ describe("scoring isolation", () => {
     expect(withRows.scores?.overall).toBe(74);
   });
 });
+
+describe("site verification names", () => {
+  it("rejects site-builder placeholder names and falls back to the domain", async () => {
+    const { extractSiteName, isPlaceholderName, domainLabel } = await import("@/lib/audit/competitors/verify");
+    expect(isPlaceholderName("My Vxw Site 3whg1o")).toBe(true);
+    expect(isPlaceholderName("My Wix Site")).toBe(true);
+    expect(isPlaceholderName("Home")).toBe(true);
+    expect(isPlaceholderName("Welcome to our site")).toBe(true);
+    expect(isPlaceholderName("Clovedent Family Dentistry")).toBe(false);
+    expect(extractSiteName("<html><head><title>My Vxw Site 3whg1o</title></head></html>")).toBeNull();
+    expect(extractSiteName('<html><head><meta property="og:site_name" content="Home"><title>Gleam Dental | Toronto dentist</title></head></html>')).toBe("Gleam Dental");
+    expect(domainLabel("https://www.cwfamilydental.ca/")).toBe("cwfamilydental.ca");
+  });
+});

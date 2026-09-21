@@ -9,15 +9,17 @@ import type { PerfRow } from "@/lib/audit/view/performanceView";
 import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL, type PillarKey } from "@/lib/audit/view/pillars";
 import GoogleChecksSection from "./GoogleChecksSection";
 import LocalComparisonSection from "./LocalComparisonSection";
+import OpportunitySection from "./OpportunitySection";
 import type { LocalComparison } from "@/lib/audit/competitors/types";
 import FindingCard, { type FindingView } from "./FindingCard";
 import DownloadPdfButton from "./DownloadPdfButton";
 import RequestTechnicalReportLink from "./RequestTechnicalReportLink";
 
 /**
- * The v2 (crawler engine) report, in five sections:
+ * The v2 (crawler engine) report:
  *   1. Audit overview   2. Google website checks   3. Findings by area
- *   4. Action plan      5. Detailed findings
+ *   4. Action plan      4b. Local comparison (when collected) + financial opportunity calculator
+ *   5. Detailed findings
  * Every number is stated once, where it belongs: the overall score in the
  * overview, pillar scores in "Findings by area", Google's scores in the
  * Google section, evidence in the findings. The SEO audit is the product;
@@ -123,8 +125,6 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
       {/* 2 ── Google website checks ──────────────────────────────────────── */}
       <GoogleChecksSection rows={data.performance} pillarScore={scores?.performance ?? null} auditScore={overall} auditChecks={data.checksRun} pagesCrawled={pagesCrawled} findings={perfFindings} stageStatus={data.stageStatus} stageDetail={data.stageDetail} />
 
-      {data.comparison && <LocalComparisonSection comparison={data.comparison} publicToken={publicToken} />}
-
       {/* 3 ── Findings by area ───────────────────────────────────────────── */}
       <section id="areas" aria-labelledby="areas-heading" className="rounded-2xl border border-border bg-surface shadow-sm">
         <div className="px-6 pt-6 pb-4">
@@ -197,6 +197,10 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
           </ol>
         )}
       </section>
+
+      {/* 4b ── Local comparison + financial opportunity: after the priority findings, before the consultation CTA ── */}
+      {data.comparison && <LocalComparisonSection comparison={data.comparison} publicToken={publicToken} />}
+      <OpportunitySection publicToken={publicToken} businessName={business.name} />
 
       {/* 5 ── Detailed findings ──────────────────────────────────────────── */}
       {findings.length > 0 && (

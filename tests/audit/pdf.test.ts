@@ -110,7 +110,7 @@ describe("v2 report PDF", () => {
     }
     // pillar explanation of our score vs Google's
     expect(t).toContain("Why our Performance pillar");
-    // no unsupported outcome claims
+    // no unsupported outcome claims (the technical report carries no financial section at all)
     expect(t.toLowerCase()).not.toMatch(/costing you|lost patients|more patients/);
   });
 
@@ -180,8 +180,20 @@ describe("customer PDF + personalised message", () => {
     expect(t).not.toMatch(/\b(perf|content|tech)\.[a-z_]+\.[a-z_]+/); // check ids
     expect(t).not.toMatch(/<[a-z]+[ >]|Cache-Control|fetchpriority/i);
     expect(t).not.toMatch(/localhost|127\.0\.0\.1/);
-    expect(t.toLowerCase()).not.toMatch(/costing you|lost patients|more patients/);
+    expect(t.toLowerCase()).not.toMatch(/is costing you|lost patients|more patients|you are losing/);
     expect(t).toContain("https://smileaimarketing.com/audit/tok");
+    // the financial section is a labelled what-if, never a stated loss, and links to the interactive calculator
+    expect(t).toContain("What could your website be costing you?");
+    expect(t).toContain("ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES");
+    expect(t).toContain("Run the calculator with your own numbers");
+    expect(t).toMatch(/not benchmarks, not measurements from this audit/);
+    // the financial section sits after the action plan and before the consultation CTA
+    const plan = t.indexOf("Action plan");
+    const fin = t.indexOf("What could your website be costing you?");
+    const cta = t.indexOf("Let's Review Your Website's Priority Fixes");
+    expect(plan).toBeGreaterThan(-1);
+    expect(fin).toBeGreaterThan(plan);
+    expect(cta).toBeGreaterThan(fin);
     // conversion: the review CTA and the technical-report request both point at the existing consultation page
     expect(t).toContain("Let's Review Your Website's Priority Fixes");
     expect(t).toContain("Book a website review with our team to understand the findings and discuss which improvements to prioritize.");

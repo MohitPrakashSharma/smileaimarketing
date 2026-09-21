@@ -63,10 +63,19 @@ export async function measureHomepage(website: string, psi: PsiOptions): Promise
       return website;
     }
   })();
-  let r = await runPageSpeed(url, "mobile", { ...psi, categories: [...COMPARISON_CATEGORIES] });
+  const run = () => runPageSpeed(url, "mobile", { ...psi, categories: [...COMPARISON_CATEGORIES] });
+  let r = await run();
   // PSI occasionally fails a run with a generic Lighthouse error; one retry is cheap and usually enough.
   if (r.status === "unavailable" && r.errorCode === "rejected" && /Something went wrong|runtime error|NO_FCP|NO_LCP/i.test(r.error ?? "")) {
-    r = await runPageSpeed(url, "mobile", { ...psi, categories: [...COMPARISON_CATEGORIES] });
+    r = await run();
+  }
+  // Transient rejections (rate limits, network resets, and — on machines with more than one
+  // egress IP — an API-key IP restriction that only some connections trip) get two more tries.
+  for (let attempt = 0; attempt < 2 && r.status === "unavailable" && TRANSIENT_ERROR.test(r.error ?? ""); attempt++) {
+    await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+    r = await run();
   }
   return fromPerfResult(r);
 }
+
+const TRANSIENT_ERROR = /IP address restriction|429|rate limit|quota|timed out|ECONNRESET|fetch failed|503|502/i;

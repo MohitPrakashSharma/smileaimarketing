@@ -7,6 +7,7 @@ import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../vi
 import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
 import type { ReportPdfInput } from "./technicalPdf";
 import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../competitors/types";
+import { ILLUSTRATIVE_INPUTS, computeOpportunity } from "@/lib/opportunityCalculator";
 
 /**
  * Customer report PDF — the version a practice owner reads. Same stored data
@@ -14,9 +15,10 @@ import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../c
  *
  *   1. Cover + personalised message      (business, date, scope, our score, message)
  *   2. Website health                      (our pillars; Google's five checks per tested page)
- *   2b. Local comparison                   (only when verified nearby practices were measured)
  *   3. Problems and recommendations        (the most consequential findings, one card each)
  *   4. Action plan                         (five priority actions — a checklist, not a repeat)
+ *   4b. Local comparison                   (only when verified nearby practices were identified)
+ *   4c. Financial opportunity              (illustrative scenario + link to the interactive calculator)
  *   5. Complete findings summary           (every stored finding, grouped by area)
  *
  * No raw HTML, check identifiers, code or long diagnostic lists here — those
@@ -29,7 +31,7 @@ import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../c
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r2"; // r2: consultation CTAs + technical report by request, evidence-led message, local comparison
+export const CUSTOMER_PDF_LAYOUT = "cust-r3"; // r3: local comparison + financial opportunity moved after the action plan; r2: consultation CTAs, technical report by request, evidence-led message
 
 type Finding = V2ReportPayload["findings"][number];
 const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
@@ -169,6 +171,45 @@ function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts
   fl.gap(4);
   fl.text(`How this comparison was made: ${cmp.method}`, { size: 7.5, color: C.muted });
   fl.text(cmp.attribution, { size: 7.5, color: C.muted });
+}
+
+/**
+ * Financial opportunity, for print. The audit measures the website, not the
+ * practice's traffic or bookings, so there are no verified inputs to use: the
+ * page explains the maths, shows one clearly labelled illustrative scenario,
+ * and links to the interactive calculator in the online report. Nothing here
+ * is presented as a measured loss.
+ */
+function financialOpportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, input: ReportPdfInput) {
+  const cad = (n: number) => `$${Math.round(n).toLocaleString("en-CA")}`;
+  const ex = ILLUSTRATIVE_INPUTS;
+  const r = computeOpportunity({ monthlyVisitors: Number(ex.monthlyVisitors), currentRate: Number(ex.currentRate), targetRate: Number(ex.targetRate), patientRate: Number(ex.patientRate), contribution: Number(ex.contribution) });
+  fl.section("What could your website be costing you?", "The findings in this report are verified measurements of your website. This section is different: it is a what-if. It estimates what improving your website's enquiry rate could be worth, using numbers only you have - visitors, enquiry rate and what a new patient is worth to your practice.");
+  fl.text("How it is worked out", { font: f.bold, size: 9.5, color: C.dark });
+  fl.text("Additional enquiries per month = monthly visitors × (improved enquiry rate minus current enquiry rate). Additional patients = additional enquiries × the share of enquiries that become patients. Potential additional contribution = additional patients × contribution per new patient. Per day = monthly ÷ 30.", { size: 8.5, color: C.secondary });
+  fl.gap(5);
+  const pad = 10;
+  const inner = () => {
+    fl.text("ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES", { font: f.bold, size: 7, color: C.accent, x: fl.left + pad });
+    fl.gap(2);
+    fl.text(`Example inputs: ${Number(ex.monthlyVisitors).toLocaleString("en-CA")} visitors a month · enquiry rate ${ex.currentRate}% today, ${ex.targetRate}% improved · ${ex.patientRate}% of enquiries become patients · ${cad(Number(ex.contribution))} contribution per new patient.`, { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    fl.gap(2);
+    fl.text(`Result: about ${r.additionalEnquiries.toLocaleString("en-CA", { maximumFractionDigits: 1 })} additional enquiries and ${r.additionalPatients.toLocaleString("en-CA", { maximumFractionDigits: 1 })} additional patients a month - a potential ${cad(r.monthlyContribution)} a month (${cad(r.dailyContribution)} a day).`, { font: f.bold, size: 9.5, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    fl.gap(2);
+    fl.text("These example numbers are placeholders chosen to show the maths. They are not benchmarks, not measurements from this audit and say nothing about your practice.", { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+  };
+  fl.keepTogether(() => {
+    const h = fl.measure(inner) + pad * 2;
+    if (!fl.dryRun) fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.border, borderWidth: 0.8, color: C.surface });
+    fl.y -= pad;
+    inner();
+    fl.y -= pad;
+  });
+  fl.gap(5);
+  fl.link("Run the calculator with your own numbers", `${input.reportUrl}#opportunity`, { size: 10 });
+  fl.text("Enter your visitors, enquiry rate and patient value in the interactive calculator in your online report. Your numbers stay in your browser - they are not stored or sent to us.", { size: 8.5, color: C.secondary });
+  fl.gap(3);
+  fl.text("This audit identifies verified problems on your website and listing. It does not prove that fixing them will produce the figures above - those depend on your own numbers and on what you change. No result here is a measured loss or a forecast.", { size: 7.5, color: C.muted });
 }
 
 export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutput> {
@@ -323,12 +364,6 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
     if (scores?.performance != null) fl.text(`Why our Performance score (${scores.performance}/100) is lower than Google's: our score deducts points for every verified performance issue across all ${view.pages.length} tested page${view.pages.length === 1 ? "" : "s"} on both devices; Google's number is for one page on one device.`, { size: 8, color: C.muted });
   }
 
-  // ───────── 2b. Local comparison (only with verified data) ─────────
-  if (payload.competitors) {
-    fl.ensure(260);
-    localComparisonSection(fl, f, payload.competitors, input);
-  }
-
   // ───────── 3. Problems and recommendations ─────────
   const featured = (() => {
     const byPriority = findings.slice(0, 5);
@@ -381,6 +416,17 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   if (!plan.length) fl.text("No actions required from this audit.", { size: 10 });
   fl.gap(4);
   fl.text("Next steps: work through the list top to bottom and re-run the audit once the first two items are done. Each item above stays a problem for every visitor until it is fixed. Whoever maintains the website will want the full technical report — request it below and our team will provide it after the review.", { size: 9, color: C.secondary });
+
+  // ───────── 4b. Local comparison (only with verified nearby practices) ─────────
+  if (payload.competitors) {
+    fl.ensure(260);
+    localComparisonSection(fl, f, payload.competitors, input);
+  }
+
+  // ───────── 4c. Financial opportunity (illustrative + interactive link) ─────────
+  fl.ensure(240);
+  financialOpportunitySection(fl, f, input);
+
   fl.gap(8);
   consultationCta(fl, f, input);
 

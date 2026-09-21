@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { locatePractice, searchPlaces } from "./places";
 import { selectCompetitors, isPediatric } from "./select";
 import { measureHomepage } from "./measure";
-import { verifySite } from "./verify";
+import { verifySite, domainLabel, isPlaceholderName } from "./verify";
 import { buildLocalComparison } from "./view";
 import { generateComparisonNarrative, type ComparisonNarrative } from "./narrative";
 import type { CompetitorMeasurement } from "./types";
@@ -88,7 +88,8 @@ export async function runCompetitorIntel(auditId: string): Promise<{ status: "sk
       }
       const km = c.distanceKm;
       const relevance = [isPediatric(c.name, c.types) ? "pediatric dentist" : "dental practice", km !== null ? `about ${km < 1 ? "1" : Math.round(km)} km from your practice` : null].filter(Boolean).join(" · ");
-      verified.push({ placeId: c.placeId, name: site.name ?? c.domain, website: site.url, relevance });
+      // Name from the competitor's own site; a placeholder or missing name falls back to the domain (never the Places name).
+      verified.push({ placeId: c.placeId, name: site.name ?? domainLabel(site.url) ?? c.domain, website: site.url, relevance });
     }
     if (verified.length < 2) {
       console.warn(`[Local comparison] ${auditId}: ${verified.length} verified competitor(s) near ${business.city} — comparison omitted (need at least 2).`);
@@ -99,6 +100,18 @@ export async function runCompetitorIntel(auditId: string): Promise<{ status: "sk
       data: verified.map((c, i) => ({ auditId, name: c.name, website: c.website, rank: i + 1, mapScore: null, source: "GOOGLE_PLACES", placeId: c.placeId, address: null, relevance: c.relevance, discoveredAt: now })),
     });
     rows = await prisma.competitor.findMany({ where: { auditId, source: "GOOGLE_PLACES" }, orderBy: { rank: "asc" } });
+  }
+
+  // 1b. Repair placeholder names on reused rows (sites whose <title> is a builder default such as
+  //     "My Wix Site"): re-read the competitor's own site, else fall back to its domain.
+  for (const row of rows) {
+    if (!row.website || !isPlaceholderName(row.name)) continue;
+    const site = await verifySite(row.website);
+    const name = (site.ok && site.name) || domainLabel(row.website);
+    if (name !== row.name) {
+      await prisma.competitor.update({ where: { id: row.id }, data: { name } });
+      row.name = name;
+    }
   }
 
   // 2. Measurement (homepage, mobile) — two at a time, within the stage budget

@@ -25,7 +25,7 @@ function EntryCard({ entry, isPractice }: { entry: ComparisonEntry; isPractice: 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{isPractice ? "Your practice" : "Nearby practice"}</p>
-          <h3 className="mt-1 text-heading-4 text-foreground">{entry.name}</h3>
+          <h3 className="mt-1 text-heading-4 text-foreground [overflow-wrap:anywhere]">{entry.name}</h3>
           {entry.domain && <p className="break-all text-[12px] leading-snug text-muted-foreground">{entry.domain}</p>}
           {entry.relevance && !isPractice && <p className="mt-0.5 text-[11px] text-muted-foreground">{entry.relevance}</p>}
         </div>

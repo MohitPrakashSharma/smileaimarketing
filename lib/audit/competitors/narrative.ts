@@ -30,6 +30,21 @@ export function allowedNumbers(cmp: LocalComparison): Set<string> {
       out.add(String(Math.round(m.lcpMs / 1000)));
     }
   }
+  // Differences between two measured values are still "from the data" (e.g. "16 points higher").
+  const scores: number[] = [];
+  const secs: number[] = [];
+  for (const e of [cmp.practice, ...cmp.competitors]) {
+    const m = e.measurement;
+    if (!m || m.status !== "ok") continue;
+    for (const v of [m.performanceScore, m.accessibility, m.bestPractices, m.seo]) if (v !== null) scores.push(v);
+    if (m.lcpMs !== null) secs.push(m.lcpMs / 1000);
+  }
+  for (let i = 0; i < scores.length; i++) for (let j = i + 1; j < scores.length; j++) out.add(String(Math.abs(scores[i] - scores[j])));
+  for (let i = 0; i < secs.length; i++) for (let j = i + 1; j < secs.length; j++) {
+    const d = Math.abs(secs[i] - secs[j]);
+    out.add(d.toFixed(1));
+    out.add(String(Math.round(d)));
+  }
   out.add(String(cmp.competitors.length));
   out.add("100"); // "/100"
   out.add("2.5"); // Google's LCP target, quoted in the method text
@@ -56,18 +71,21 @@ export async function generateComparisonNarrative(cmp: LocalComparison, client: 
     if (!m || m.status !== "ok") return `${e.name}${e === cmp.practice ? " (the reader's practice)" : ""}: not measured (Google could not test the homepage)`;
     return `${e.name}${e === cmp.practice ? " (the reader's practice)" : ""}: performance ${m.performanceScore ?? "n/a"}/100, main content visible after ${m.lcpMs !== null ? (m.lcpMs / 1000).toFixed(1) + " s" : "n/a"}, accessibility ${m.accessibility ?? "n/a"}/100, best practices ${m.bestPractices ?? "n/a"}/100, Google SEO basics ${m.seo ?? "n/a"}/100`;
   });
-  const system = "You write two or three plain sentences for a Canadian dental practice owner explaining how their homepage measured against nearby practices on Google PageSpeed Insights (mobile). Use ONLY the names and numbers provided; quote numbers exactly as given. Do not mention rankings, search positions, patients, revenue, traffic, leads, bookings or any outcome. Do not say any practice is 'better' overall — only which measured metric is higher or lower and by how much. If a practice was not measured, say so plainly. Return JSON: {\"summary\": \"...\"}.";
+  const system = "You write two or three plain sentences for a Canadian dental practice owner explaining how their homepage measured against nearby practices on Google PageSpeed Insights (mobile). Use ONLY the names and numbers provided; quote numbers exactly as given. Do not mention rankings, search positions, patients, revenue, traffic, leads, bookings or any outcome. Do not say any practice is 'better' overall — only which measured metric is higher or lower. Quote the values as given; do not compute percentages, averages or ratios. If a practice was not measured, say so plainly. Return JSON: {\"summary\": \"...\"}.";
   const user = `Practices and measurements (same test: Google PageSpeed Insights, mobile, homepage):\n${rows.join("\n")}\n\nMeasured differences already identified:\n${cmp.gaps.map((g) => `- ${g.sentence}`).join("\n") || "- none large enough to call out"}`;
   try {
-    const out = await completeJson(client, [{ role: "system", content: system }, { role: "user", content: user }], 600);
-    const parsed = JSON.parse(out.text) as { summary?: unknown };
-    const text = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
-    const v = validateNarrative(text, cmp);
-    if (!v.ok) {
-      console.warn(`[Local comparison] narrative rejected (${v.reason})`);
-      return null;
+    let feedback: string | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const messages = [{ role: "system" as const, content: system }, { role: "user" as const, content: feedback ? `${user}\n\nYour previous answer was rejected: ${feedback}. Write it again using only the names and numbers above.` : user }];
+      const out = await completeJson(client, messages, 600);
+      const parsed = JSON.parse(out.text) as { summary?: unknown };
+      const text = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
+      const v = validateNarrative(text, cmp);
+      if (v.ok) return { text, model: out.model, generatedAt: new Date().toISOString() };
+      console.warn(`[Local comparison] narrative rejected (${v.reason})${attempt === 0 ? " — retrying once" : ""}`);
+      feedback = v.reason ?? "invalid";
     }
-    return { text, model: out.model, generatedAt: new Date().toISOString() };
+    return null;
   } catch (err) {
     console.warn(`[Local comparison] narrative unavailable: ${err instanceof Error ? err.message : String(err)}`);
     return null;

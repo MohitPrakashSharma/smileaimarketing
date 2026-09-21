@@ -22,6 +22,28 @@ export type VerifyFetch = (url: string, init: RequestInit) => Promise<Response>;
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 const titleName = (t: string) => clean(t.split(/\s[|–—\-:·]\s/)[0]);
 
+/**
+ * Site builders and half-configured sites ship placeholder names ("My Wix
+ * Site", "Home", "Welcome", "Untitled") that would look absurd next to a real
+ * practice name. Anything that matches is treated as no name at all so the
+ * caller falls back to the domain.
+ */
+const PLACEHOLDER_NAME = /^(my\s+(wix|vxw|new|site|website)\b.*|my site.*|home(\s*page)?|welcome(\s+to.*)?|untitled.*|website|homepage|index|new page|coming soon|site\s*\d*|wix\.com.*|squarespace.*|wordpress.*|just another wordpress site)$/i;
+export function isPlaceholderName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const n = clean(name);
+  return n.length < 3 || PLACEHOLDER_NAME.test(n) || !/[a-zA-Z]/.test(n);
+}
+
+/** "cwfamilydental.ca" — a readable, honest fallback label when a site has no usable name. */
+export function domainLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return url;
+  }
+}
+
 export function extractSiteName(html: string): string | null {
   const root = parseHtml(html, { comment: false, blockTextElements: { script: true, style: true, title: true } });
   for (const s of root.querySelectorAll('script[type="application/ld+json"]')) {
@@ -38,10 +60,17 @@ export function extractSiteName(html: string): string | null {
       /* invalid JSON-LD — try the next source */
     }
   }
-  const og = root.querySelector('meta[property="og:site_name"]')?.getAttribute("content");
-  if (og && og.trim()) return clean(og);
-  const title = root.querySelector("title")?.text;
-  if (title && title.trim()) return titleName(title);
+  const candidates = [
+    root.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+    root.querySelector('meta[name="application-name"]')?.getAttribute("content"),
+    root.querySelector('meta[property="og:title"]')?.getAttribute("content"),
+    root.querySelector("title")?.text,
+  ];
+  for (const c of candidates) {
+    if (!c || !c.trim()) continue;
+    const name = titleName(c);
+    if (!isPlaceholderName(name)) return name;
+  }
   return null;
 }
 
@@ -61,7 +90,8 @@ export async function verifySite(website: string, opts: { fetchImpl?: VerifyFetc
     })();
     if (!res.ok) return { ok: false, url: finalUrl, name: null, status: res.status, error: `HTTP ${res.status}` };
     const html = (await res.text()).slice(0, 512 * 1024);
-    return { ok: true, url: finalUrl, name: extractSiteName(html), status: res.status, error: null };
+    const name = extractSiteName(html);
+    return { ok: true, url: finalUrl, name: isPlaceholderName(name) ? null : name, status: res.status, error: null };
   } catch (e) {
     const err = e as Error;
     return { ok: false, url: website, name: null, status: null, error: err.name === "AbortError" ? "timed out" : err.message || "network error" };
