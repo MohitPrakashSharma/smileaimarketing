@@ -150,8 +150,11 @@ describe("v2 report PDF", () => {
     expect(customerPdfIsCurrent(base)).toBe(true);
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok.pdf" })).toBe(false); // legacy public file → regenerate privately
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok-v2r1.pdf" })).toBe(false); // previous layout
-    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r3.pdf" })).toBe(false); // layout before the financial scenario → regenerate
-    expect(pdfFileName("tok", "customer")).toContain("cust-r4");
+    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r4.pdf" })).toBe(false); // layout before the competitor call-out → regenerate
+    expect(pdfFileName("tok", "customer")).toContain("cust-r5");
+    // A competitor measured after the PDF was rendered belongs in the next download.
+    expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() - 1000) }] })).toBe(true);
+    expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() + 1000) }] })).toBe(false);
     expect(customerPdfIsCurrent({ ...base, pdfGeneratedAt: new Date("2026-09-16T11:00:00Z") })).toBe(false); // older than the run
     expect(customerPdfIsCurrent({ ...base, pdfStatus: "FAILED" })).toBe(false);
     expect(resolvePdfPath("private:audit-tok-customer-cust-r1.pdf")).toMatch(/\/storage\/reports\/audit-tok-customer-cust-r1\.pdf$/);
@@ -229,14 +232,55 @@ describe("customer PDF + personalised message", () => {
     const out = await renderCustomerPdf(input({ ...payload, competitors: comparison }));
     const t = out.transcript;
     expect(t).toMatch(/How Does Your Practice Compare Locally\?|Where Nearby Practices Have an Advantage/);
-    expect(t).toContain("Thin Dental Studio (you): Performance");
-    expect(t).toMatch(/Lakeside Dental: Performance \d+\/100/);
-    expect(t).toContain("Yonge Dental: Performance unavailable, Main content unavailable, Accessibility unavailable, Best Practices unavailable, Google SEO unavailable");
+    // Verified name + website URL on every row of the comparison table.
+    expect(t).toContain("Thin Dental Studio (you) (https://thin.test): Performance");
+    expect(t).toMatch(/Lakeside Dental \(https:\/\/lakesidedental\.ca\/\): Performance \d+\/100/);
+    expect(t).toContain("Yonge Dental (https://yongedental.ca/): Performance unavailable, Main content unavailable, Accessibility unavailable, Best Practices unavailable, Google SEO unavailable");
     expect(t).toContain("See How Your Practice Can Close the Gap -> https://smileaimarketing.com/book-consultation?publicToken=tok");
     expect(t).toContain("How this comparison was made");
     expect(t).toContain("Nearby practices located with Google Maps");
     // scores in the PDF are the audit's own — the comparison adds no penalty
     expect(t).toContain(`Overall SEO health: ${payload.scores!.overall}/100`);
+  });
+
+  it("customer PDF competitor call-out: mirrors the web card (largest gap per metric, only when a competitor measured better), placed before Website health", async () => {
+    const { buildLocalComparison } = await import("@/lib/audit/competitors/view");
+    const { fromPerfResult } = await import("@/lib/audit/competitors/measure");
+    const payload = await buildPayload({ withPerformance: true });
+    const row = (name: string, rank: number, m: unknown) => ({ id: name, auditId: "a", name, website: `https://${name.toLowerCase().replace(/\s+/g, "")}.ca/`, rank, mapScore: null, createdAt: new Date("2026-09-17T09:00:00Z"), source: "GOOGLE_PLACES", placeId: "p", address: null, relevance: "dental practice · about 1 km from you", discoveredAt: new Date("2026-09-17T09:00:00Z"), measuredAt: new Date("2026-09-17T09:05:00Z"), measurementJson: m as never });
+    const good = fromPerfResult(normalizePsiResponse("https://lakesidedental.ca/", "mobile", LH13_ALL as unknown, 1));
+    const ahead = buildLocalComparison({ name: "Thin Dental Studio", website: "https://thin.test", city: "Toronto" }, [row("Lakeside Dental", 1, good), row("Harbour Dental", 2, good)] as never, payload.performance as never)!;
+    const advantages = ahead.gaps.filter((g) => g.direction === "competitor_better");
+    expect(advantages.length).toBeGreaterThan(0);
+    const t = (await renderCustomerPdf(input({ ...payload, competitors: ahead }))).transcript;
+    const callout = t.indexOf(advantages.length >= 2 ? "Your competitors are doing better" : "A nearby practice measured better");
+    expect(callout).toBeGreaterThan(-1);
+    expect(callout).toBeLessThan(t.indexOf("Website health"));
+    expect(t).toContain("LOCAL COMPARISON");
+    expect(t).toMatch(/scored higher than Thin Dental Studio - same Google PageSpeed test/);
+    expect(t).toContain("See the full comparison online -> https://smileaimarketing.com/audit/tok#local-comparison");
+    expect(t).toContain("2 of 2 nearby homepages could be measured");
+    // one line per metric, the largest gap, never a ranking claim
+    const metrics = [...new Set(advantages.map((g) => g.metric))];
+    for (const g of advantages) {
+      const largest = advantages.filter((x) => x.metric === g.metric).sort((a, b) => Math.abs(b.competitorValue - b.practiceValue) - Math.abs(a.competitorValue - a.practiceValue))[0];
+      if (metrics.indexOf(g.metric) < 3) expect(t).toContain(largest.sentence);
+    }
+    expect(t.slice(0, t.indexOf("Website health"))).not.toMatch(/\brank(s|ing)?\b/i);
+
+    // Practice ahead on every metric → no call-out at all (the full comparison still renders).
+    const weak = { ...good, performanceScore: 1, accessibility: 1, bestPractices: 1, seo: 1, lcpMs: 30000 };
+    const behind = buildLocalComparison({ name: "Thin Dental Studio", website: "https://thin.test", city: "Toronto" }, [row("Lakeside Dental", 1, weak), row("Harbour Dental", 2, weak)] as never, payload.performance as never)!;
+    expect(behind.gaps.some((g) => g.direction === "competitor_better")).toBe(false);
+    const t2 = (await renderCustomerPdf(input({ ...payload, competitors: behind }))).transcript;
+    expect(t2).not.toContain("Your competitors are doing better");
+    expect(t2).not.toContain("A nearby practice measured better");
+    expect(t2).toContain("Lakeside Dental (https://lakesidedental.ca/): Performance 1/100");
+
+    // No comparison at all → nothing about competitors anywhere.
+    const t3 = (await renderCustomerPdf(input({ ...payload, competitors: null }))).transcript;
+    expect(t3).not.toContain("LOCAL COMPARISON");
+    expect(t3).not.toMatch(/nearby practices? (measured|have)/i);
   });
 
   it("customer PDF without PageSpeed: honest, no invented Google results", async () => {

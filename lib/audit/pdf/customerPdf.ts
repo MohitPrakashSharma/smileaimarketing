@@ -7,6 +7,7 @@ import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../vi
 import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
 import type { ReportPdfInput } from "./technicalPdf";
 import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../competitors/types";
+import { METRIC_LABEL } from "../competitors/view";
 import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type SourcedValue } from "../opportunity/types";
 
 /**
@@ -14,6 +15,7 @@ import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type S
  * as the web report, presented in plain English:
  *
  *   1. Cover + personalised message      (business, date, scope, our score, message)
+ *   1b. Competitor call-out                (only when nearby practices measured better — same rule as the web card)
  *   2. Website health                      (our pillars; Google's five checks per tested page)
  *   3. Problems and recommendations        (the most consequential findings, one card each)
  *   4. Action plan                         (five priority actions — a checklist, not a repeat)
@@ -31,7 +33,7 @@ import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type S
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r4"; // r4: automated financial-opportunity scenario (data-mode aware); r3: local comparison after the action plan; r2: consultation CTAs, technical report by request
+export const CUSTOMER_PDF_LAYOUT = "cust-r5"; // r5: competitor call-out after the cover, website URLs in the comparison table; r4: automated financial-opportunity scenario (data-mode aware); r3: local comparison after the action plan; r2: consultation CTAs, technical report by request
 
 type Finding = V2ReportPayload["findings"][number];
 const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
@@ -104,13 +106,66 @@ function consultationCta(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, inp
   });
 }
 
+/**
+ * Print twin of the web report's CompetitorAlertCard: a boxed call-out right
+ * after the cover, only when the measured comparison shows nearby practices
+ * ahead on at least one metric. Largest measured gap per metric (max three),
+ * verified names, and the same wording limits as the web — measurements on
+ * the tested page, never rankings or patient numbers.
+ */
+function competitorAlertCallout(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison, input: ReportPdfInput) {
+  const advantages = cmp.gaps.filter((g) => g.direction === "competitor_better");
+  if (!advantages.length) return;
+  const metrics = [...new Set(advantages.map((g) => g.metric))] as ComparisonMetricKey[];
+  const competitors = [...new Set(advantages.map((g) => g.competitor))];
+  const measured = cmp.competitors.filter((c) => c.measurement?.status === "ok").length;
+  const top = metrics.map((m) => advantages.filter((g) => g.metric === m).sort((a, b) => Math.abs(b.competitorValue - b.practiceValue) - Math.abs(a.competitorValue - a.practiceValue))[0]).slice(0, 3);
+  const heading = advantages.length >= 2 ? "Your competitors are doing better" : "A nearby practice measured better";
+  const pad = 14;
+  const bar = 4;
+  const x = fl.left + bar + pad;
+  const w = fl.usable - bar - pad * 2;
+  const inner = () => {
+    fl.text("LOCAL COMPARISON", { font: f.bold, size: 7.5, color: C.accent, x, maxWidth: w });
+    fl.gap(2);
+    fl.text(heading, { font: f.bold, size: 15, color: C.dark, x, maxWidth: w, lineHeight: 18 });
+    fl.gap(3);
+    fl.text(`On ${metrics.length} of the 5 website measures we tested, ${competitors.length === 1 ? competitors[0] : `${competitors.length} nearby practices`} scored higher than ${cmp.practice.name} - same Google PageSpeed test, same device (mobile), same page (the homepage). Website measurements only, not rankings or patient numbers.`, { size: 9, color: C.secondary, x, maxWidth: w });
+    fl.gap(5);
+    for (const g of top) {
+      const y0 = fl.y;
+      if (!fl.dryRun) fl.page.drawCircle({ x: x + 3, y: y0 - 6.5, size: 2, color: C.accent });
+      fl.text(`${METRIC_LABEL[g.metric]}: ${g.sentence}`, { size: 9, color: C.ink, x: x + 11, maxWidth: w - 11 });
+      fl.gap(2);
+    }
+    fl.gap(3);
+    fl.text(`${measured} of ${cmp.competitors.length} nearby homepages could be measured. The full comparison - every practice, every measure - is in the "${cmp.heading}" section of this report.`, { size: 7.5, color: C.muted, x, maxWidth: w });
+    fl.gap(5);
+    fl.link("See the full comparison online", `${input.reportUrl}#local-comparison`, { size: 9.5, x });
+    fl.gap(1);
+    fl.link("Book a website review", input.consultationUrl, { size: 9.5, x });
+  };
+  fl.keepTogether(() => {
+    const h = fl.measure(inner) + pad * 2;
+    if (!fl.dryRun) {
+      fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.accent, borderWidth: 0.8, color: C.accentSoft });
+      fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: bar, height: h, color: C.accent });
+    }
+    fl.y -= pad;
+    inner();
+    fl.y -= pad;
+  });
+}
+
 /** Local comparison, adapted for print: one row per practice with the five measured columns, the evidence-backed gaps, the method note and a CTA. Only called when the comparison exists. */
 function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison, input: ReportPdfInput) {
   const cols: ComparisonMetricKey[] = ["performanceScore", "lcpMs", "accessibility", "bestPractices", "seo"];
   const colLabel: Record<ComparisonMetricKey, string> = { performanceScore: "Performance", lcpMs: "Main content", accessibility: "Accessibility", bestPractices: "Best Practices", seo: "Google SEO" };
   const fmt = (key: ComparisonMetricKey, v: number | null) => (v === null ? "-" : key === "lcpMs" ? `${(v / 1000).toFixed(1)} s` : `${v}/100`);
-  const nameW = 170;
+  const nameW = 186;
   const colW = (fl.usable - nameW) / cols.length;
+  const rowH = 32;
+  const shownUrl = (url: string) => url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
   // Fit a string to the name column by measured width, ending with an ellipsis if needed.
   const fit = (str: string, font: typeof f.bold, size: number, maxW = nameW - 8) => {
     let t = pdfSafe(str);
@@ -119,12 +174,12 @@ function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts
     return pdfSafe(`${t.trimEnd()}…`);
   };
   fl.section(cmp.heading, "See how your website compares with other dental practices serving your area. Same Google PageSpeed test, same device (mobile), same page (the homepage). Website measurements only - not rankings, patient numbers or how well a practice is doing.");
-  const rows: Array<{ label: string; sub: string | null; entry: ComparisonEntry }> = [{ label: `${cmp.practice.name} (you)`, sub: cmp.practice.domain, entry: cmp.practice }, ...cmp.competitors.map((c) => ({ label: c.name, sub: [c.domain, c.relevance].filter(Boolean).join(" · "), entry: c }))];
+  const rows: Array<{ label: string; entry: ComparisonEntry }> = [{ label: `${cmp.practice.name} (you)`, entry: cmp.practice }, ...cmp.competitors.map((c) => ({ label: c.name, entry: c }))];
   fl.keepTogether(() => {
     // header
     const top = fl.y;
     if (!fl.dryRun) {
-      fl.page.drawText("PRACTICE", { x: fl.left, y: top - 8, size: 6.5, font: f.bold, color: C.muted });
+      fl.page.drawText("PRACTICE / WEBSITE", { x: fl.left, y: top - 8, size: 6.5, font: f.bold, color: C.muted });
       cols.forEach((key, i) => fl.page.drawText(pdfSafe(colLabel[key].toUpperCase()), { x: fl.left + nameW + i * colW, y: top - 8, size: 6.5, font: f.bold, color: C.muted }));
     }
     fl.y = top - 12;
@@ -135,14 +190,21 @@ function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts
       const ok = m?.status === "ok";
       if (!fl.dryRun) {
         fl.page.drawText(fit(r.label, f.bold, 8.5), { x: fl.left, y: y0 - 10, size: 8.5, font: f.bold, color: r.entry === cmp.practice ? C.accent : C.ink });
-        if (r.sub) fl.page.drawText(fit(r.sub, f.regular, 6.5), { x: fl.left, y: y0 - 19, size: 6.5, font: f.regular, color: C.muted });
+        // The verified website, as a clickable URL; the discovery note (category, distance) under it.
+        const site = r.entry.website ?? (r.entry.domain ? `https://${r.entry.domain}` : null);
+        if (site) {
+          const label = fit(shownUrl(site), f.regular, 7);
+          fl.page.drawText(label, { x: fl.left, y: y0 - 19, size: 7, font: f.regular, color: C.accent });
+          fl.addLinkAnnotation(fl.page, fl.left, y0 - 21, f.regular.widthOfTextAtSize(label, 7), 9, site);
+        }
+        if (r.entry.relevance) fl.page.drawText(fit(r.entry.relevance, f.regular, 6.5), { x: fl.left, y: y0 - 27.5, size: 6.5, font: f.regular, color: C.muted });
         cols.forEach((key, i) => {
           const v = ok ? fmt(key, m![key]) : "unavailable";
-          fl.page.drawText(v, { x: fl.left + nameW + i * colW, y: y0 - 10, size: ok && m![key] !== null ? 9 : 7.5, font: ok && m![key] !== null ? f.bold : f.regular, color: ok && m![key] !== null ? C.ink : C.faint });
+          fl.page.drawText(v, { x: fl.left + nameW + i * colW, y: y0 - 14, size: ok && m![key] !== null ? 9 : 7.5, font: ok && m![key] !== null ? f.bold : f.regular, color: ok && m![key] !== null ? C.ink : C.faint });
         });
-        fl.transcript.push(`${r.label}: ${cols.map((key) => `${colLabel[key]} ${ok ? fmt(key, m![key]) : "unavailable"}`).join(", ")}`);
+        fl.transcript.push(`${r.label}${r.entry.website ? ` (${r.entry.website})` : ""}: ${cols.map((key) => `${colLabel[key]} ${ok ? fmt(key, m![key]) : "unavailable"}`).join(", ")}`);
       }
-      fl.y = y0 - 24;
+      fl.y = y0 - rowH;
       fl.rule();
     }
   });
@@ -295,8 +357,14 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
     fl.gap(5);
   }
 
-  // ───────── 2. Website health ─────────
+  // ───────── 1b. Competitor call-out (only when nearby practices measured better) ─────────
   fl.newPage();
+  if (payload.competitors) {
+    competitorAlertCallout(fl, f, payload.competitors, input);
+    fl.gap(10);
+  }
+
+  // ───────── 2. Website health ─────────
   fl.section("Website health", `Two different measurements, side by side: our SEO audit (all crawled pages, ${CUSTOMER_PILLARS.length} areas) and Google's own five checks (one page and one device per test).`);
   fl.text("Our SEO audit — by area", { font: f.bold, size: 11, color: C.dark });
   fl.gap(4);

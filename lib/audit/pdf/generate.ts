@@ -105,13 +105,17 @@ async function loadInput(auditId: string): Promise<{ input: ReportPdfInput; publ
 export async function generateV2AuditPdf(auditId: string, kind: PdfKind = "customer"): Promise<string> {
   if (kind === "customer") await prisma.audit.update({ where: { id: auditId }, data: { pdfStatus: "GENERATING" } });
   try {
+    // Stamp the PDF with the moment its data was read, not the moment the file was written: a
+    // competitor measured while the render was in flight is then newer than the PDF, and the
+    // next download regenerates instead of serving a file rendered without it.
+    const loadedAt = new Date();
     const { input, publicToken } = await loadInput(auditId);
     const { bytes } = kind === "customer" ? await renderCustomerPdf(input) : await renderTechnicalPdf(input);
     await fs.mkdir(PRIVATE_REPORTS_DIR, { recursive: true });
     const fileName = pdfFileName(publicToken, kind);
     await fs.writeFile(path.join(PRIVATE_REPORTS_DIR, fileName), bytes);
     const stored = `${PRIVATE_PREFIX}${fileName}`;
-    if (kind === "customer") await prisma.audit.update({ where: { id: auditId }, data: { pdfStatus: "READY", pdfUrl: stored, pdfGeneratedAt: new Date() } });
+    if (kind === "customer") await prisma.audit.update({ where: { id: auditId }, data: { pdfStatus: "READY", pdfUrl: stored, pdfGeneratedAt: loadedAt } });
     return stored;
   } catch (err) {
     if (kind === "customer") await prisma.audit.update({ where: { id: auditId }, data: { pdfStatus: "FAILED" } }).catch(() => undefined);

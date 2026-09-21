@@ -140,7 +140,9 @@ export async function runCompetitorIntel(auditId: string): Promise<{ status: "sk
   const comparison = buildLocalComparison({ name: business.name, website: business.website, city: business.city }, finalRows, perfRows);
   let narrative: ComparisonNarrative | null = null;
   if (comparison && env.AUDIT_AI_ENABLED) narrative = await generateComparisonNarrative(comparison, { apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL, timeoutMs: 45_000 });
-  const summary = ((audit.summaryJson as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+  // Re-read the summary now: anything saved while this stage ran (opportunity inputs, for one) must survive the merge.
+  const latest = await prisma.audit.findUnique({ where: { id: auditId }, select: { summaryJson: true } });
+  const summary = ((latest?.summaryJson ?? audit.summaryJson) as Record<string, unknown> | null) ?? {};
   await prisma.audit.update({ where: { id: auditId }, data: { summaryJson: json({ ...summary, localComparisonNarrative: narrative }), pdfStatus: "NOT_REQUESTED" } }).catch(() => undefined);
 
   const okCount = finalRows.filter((r) => (r.measurementJson as CompetitorMeasurement | null)?.status === "ok").length;
