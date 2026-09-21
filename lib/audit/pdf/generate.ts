@@ -5,6 +5,7 @@ import { env, publicReportBaseUrl } from "@/lib/env.server";
 import { industryFromCategory, cap } from "@/lib/industry";
 import { buildV2Payload, legacyShapeFromV2 } from "../report";
 import { opportunityOptionsFromEnv } from "../opportunity";
+import { stageRecordFrom, COMPARISON_PENDING_TIMEOUT_MS } from "../competitors/view";
 import { renderCustomerPdf, CUSTOMER_PDF_LAYOUT } from "./customerPdf";
 import { renderTechnicalPdf, TECHNICAL_PDF_LAYOUT, type ReportPdfInput } from "./technicalPdf";
 import { consultationUrl, technicalReportRequestUrl } from "../technicalReport";
@@ -45,11 +46,16 @@ export function resolvePdfPath(stored: string): string | null {
 }
 
 /** True when the audit's stored customer PDF is the current layout and not older than the audit run. */
-export function customerPdfIsCurrent(audit: { pdfStatus: string; pdfUrl: string | null; pdfGeneratedAt: Date | null; completedAt: Date | null; publicToken: string; competitorGaps?: Array<{ measuredAt: Date | null }> }): boolean {
+export function customerPdfIsCurrent(audit: { pdfStatus: string; pdfUrl: string | null; pdfGeneratedAt: Date | null; completedAt: Date | null; publicToken: string; competitorGaps?: Array<{ measuredAt: Date | null }>; summaryJson?: unknown }, now: Date = new Date()): boolean {
   if (audit.pdfStatus !== "READY" || !audit.pdfUrl || !audit.pdfGeneratedAt) return false;
   if (audit.pdfUrl !== `${PRIVATE_PREFIX}${pdfFileName(audit.publicToken, "customer")}`) return false;
   if (audit.completedAt && audit.pdfGeneratedAt < audit.completedAt) return false;
-  // A local comparison measured after the PDF was rendered belongs in the next download.
+  // The local comparison runs after the audit. While it is still queued/running the PDF omits it,
+  // so the file is provisional and is re-rendered on each download until the stage reports back;
+  // once it has, anything measured or finished after the render belongs in the next download.
+  const stage = stageRecordFrom(audit.summaryJson);
+  if (stage && (stage.status === "queued" || stage.status === "running") && now.getTime() - new Date(stage.at).getTime() <= COMPARISON_PENDING_TIMEOUT_MS) return false;
+  if (stage && new Date(stage.at).getTime() > audit.pdfGeneratedAt.getTime()) return false;
   const latestMeasure = (audit.competitorGaps ?? []).map((c) => c.measuredAt?.getTime() ?? 0).reduce((a, b) => Math.max(a, b), 0);
   return latestMeasure <= audit.pdfGeneratedAt.getTime();
 }

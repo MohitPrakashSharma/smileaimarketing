@@ -79,3 +79,27 @@ export interface LocalComparison {
   /** Optional model-written explanation, validated against the data (see narrative.ts); null when unavailable. */
   narrative: { text: string; model: string; generatedAt: string } | null;
 }
+
+/**
+ * Progress of the post-audit comparison, stored on `audit.summaryJson.localComparison`
+ * by the stage itself (queued → running → done | skipped | failed). The report and
+ * the PDF never read competitor rows directly; they read the derived
+ * `LocalComparisonState` below, so an unmeasured row is "still analysing", not
+ * "unavailable".
+ */
+export interface LocalComparisonStageRecord {
+  status: "queued" | "running" | "done" | "skipped" | "failed";
+  /** ISO timestamp of the transition. */
+  at: string;
+  reason?: string;
+  competitors?: number;
+  measured?: number;
+}
+
+/** What the web report and PDF act on. `ready` is the only state with a comparison to show. */
+export type LocalComparisonState =
+  | { state: "pending"; since: string }
+  | { state: "ready"; measured: number; total: number }
+  | { state: "unavailable"; reason: string }
+  | { state: "none"; reason?: string };
+

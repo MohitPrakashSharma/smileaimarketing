@@ -6,7 +6,7 @@ import StatusBadge, { statusFromScore, type StatusLevel } from "@/components/ui/
 import { IconMapPin, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers, IconTrendingUp } from "@/components/icons";
 import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
 import type { PerfRow } from "@/lib/audit/view/performanceView";
-import type { LocalComparison } from "@/lib/audit/competitors/types";
+import type { LocalComparison, LocalComparisonState } from "@/lib/audit/competitors/types";
 import type { OpportunityScenario } from "@/lib/audit/opportunity/types";
 import V2Report from "./V2Report";
 import ConsultationSidebar from "./ConsultationSidebar";
@@ -92,6 +92,8 @@ type V2Payload = {
   performance?: PerfRow[];
   checks?: Array<{ checkId: string; pillar: string; status: string }>;
   competitors?: LocalComparison | null;
+  /** Progress of the post-audit comparison; "pending" drives the live poll below. */
+  localComparison?: LocalComparisonState;
   opportunity?: OpportunityScenario | null;
   progress?: { stages: Array<{ key: string; status: string; detail?: string }> } | null;
 };
@@ -140,6 +142,10 @@ type AuditData = {
   competitors: Competitor[];
 };
 
+/** Local comparison poll: every 10 s, for at most 12 minutes (the server treats a stage older than that as not finishing). */
+const COMPARISON_POLL_MS = 10_000;
+const COMPARISON_POLL_LIMIT_MS = 12 * 60 * 1000;
+
 export default function AuditReportClient({ publicToken }: { publicToken: string }) {
   const [data, setData] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,14 +163,10 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         }
         if (cancelled) return;
         setData(json);
-        // Progressive audit: keep polling until the engine finishes or fails.
+        // Progressive audit: keep polling until the engine finishes or fails. (The post-audit
+        // local comparison has its own lighter poll below.)
         if (json.status === "PENDING" || json.status === "RUNNING") {
           timer = setTimeout(fetchReport, 2000);
-        } else if (json.status === "COMPLETED" && json.engine === "CRAWL_V2" && !json.v2?.competitors) {
-          // The local comparison runs after completion (about a minute): keep checking for a few
-          // minutes so a report opened straight after the audit picks it up without a reload.
-          const completedMs = json.checkedAt ? Date.now() - new Date(json.checkedAt).getTime() : Infinity;
-          if (completedMs < 6 * 60 * 1000) timer = setTimeout(fetchReport, 15_000);
         }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : "An error occurred");
@@ -178,6 +180,47 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
       if (timer) clearTimeout(timer);
     };
   }, [publicToken]);
+
+  // Live local comparison: the nearby-practice analysis runs after the audit completes (typically
+  // a minute or two). While the stored state is "pending", re-read the stored result every
+  // COMPARISON_POLL_MS from the read-only endpoint and swap it in — no reload, no new Google
+  // requests (the endpoint only reads what the job saved). Stops as soon as the state settles,
+  // after COMPARISON_POLL_LIMIT_MS, or when the page unmounts; a hidden tab waits without fetching;
+  // one request at a time.
+  const comparisonPending = data?.status === "COMPLETED" && data.engine === "CRAWL_V2" && data.v2?.localComparison?.state === "pending";
+  useEffect(() => {
+    if (!comparisonPending) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    let inFlight = false;
+    const startedAt = Date.now();
+    const schedule = () => {
+      if (cancelled || Date.now() - startedAt > COMPARISON_POLL_LIMIT_MS) return;
+      timer = setTimeout(tick, COMPARISON_POLL_MS);
+    };
+    async function tick() {
+      if (cancelled) return;
+      if (inFlight || (typeof document !== "undefined" && document.visibilityState === "hidden")) return schedule();
+      inFlight = true;
+      try {
+        const res = await fetch(`/api/audit/${publicToken}/local-comparison`, { cache: "no-store" });
+        if (!res.ok) return schedule();
+        const json = (await res.json()) as { localComparison?: LocalComparisonState; competitors?: LocalComparison | null };
+        if (cancelled || !json.localComparison) return schedule();
+        setData((prev) => (prev?.v2 ? { ...prev, v2: { ...prev.v2, competitors: json.competitors ?? null, localComparison: json.localComparison } } : prev));
+        if (json.localComparison.state === "pending") schedule();
+      } catch {
+        schedule();
+      } finally {
+        inFlight = false;
+      }
+    }
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [comparisonPending, publicToken]);
 
   if (loading) {
     return (
@@ -293,6 +336,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               stageStatus: perfStage?.status,
               stageDetail: perfStage?.detail,
               comparison: v2.competitors ?? null,
+              comparisonState: v2.localComparison ?? null,
               opportunity: v2.opportunity ?? null,
             }}
           />

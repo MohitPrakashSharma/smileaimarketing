@@ -11,7 +11,8 @@ import GoogleChecksSection from "./GoogleChecksSection";
 import LocalComparisonSection from "./LocalComparisonSection";
 import OpportunitySection from "./OpportunitySection";
 import CompetitorAlertCard from "./CompetitorAlertCard";
-import type { LocalComparison } from "@/lib/audit/competitors/types";
+import type { LocalComparison, LocalComparisonState } from "@/lib/audit/competitors/types";
+import { LocalComparisonPending, LocalComparisonUnavailable } from "./LocalComparisonStatus";
 import type { OpportunityScenario } from "@/lib/audit/opportunity/types";
 import FindingCard, { type FindingView } from "./FindingCard";
 import DownloadPdfButton from "./DownloadPdfButton";
@@ -46,6 +47,8 @@ export type V2ReportData = {
   stageDetail?: string;
   /** Local competitor comparison — null means not collected; the section is simply omitted. */
   comparison?: LocalComparison | null;
+  /** Where the comparison stands: pending shows a progress card, unavailable a short note, none nothing. */
+  comparisonState?: LocalComparisonState | null;
   /** Financial-opportunity scenario built server-side (same object the PDF prints). */
   opportunity?: OpportunityScenario | null;
 };
@@ -207,6 +210,8 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
 
       {/* 4b ── Local comparison + financial opportunity: after the priority findings, before the consultation CTA ── */}
       {data.comparison && <LocalComparisonSection comparison={data.comparison} publicToken={publicToken} />}
+      {!data.comparison && data.comparisonState?.state === "pending" && <LocalComparisonPending />}
+      {!data.comparison && data.comparisonState?.state === "unavailable" && <LocalComparisonUnavailable reason={data.comparisonState.reason} />}
       {data.opportunity && <OpportunitySection scenario={data.opportunity} publicToken={publicToken} businessName={business.name} />}
 
       {/* 5 ── Detailed findings ──────────────────────────────────────────── */}

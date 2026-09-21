@@ -1,5 +1,5 @@
-import { buildLocalComparison } from "./competitors/view";
-import type { LocalComparison } from "./competitors/types";
+import { buildLocalComparisonView } from "./competitors/view";
+import type { LocalComparison, LocalComparisonState } from "./competitors/types";
 import { collectOpportunityInputs } from "./opportunity/sources";
 import { buildOpportunityScenario, type ScenarioOptions } from "./opportunity/scenario";
 import type { OpportunityScenario } from "./opportunity/types";
@@ -85,6 +85,8 @@ export interface V2ReportPayload {
   checks: Array<{ checkId: string; pillar: string; status: string; severity: string | null; affectedPageCount: number; pageShare: number; weight: number; penalty: number; reason: string | null }>;
   /** Phase 4: local competitor comparison — null when not collected (feature off, no location, fewer than two comparable practices). Never part of any score. */
   competitors: LocalComparison | null;
+  /** Progress of the post-audit comparison: pending (still analysing), ready, unavailable (genuine failure) or none (omit). */
+  localComparison: LocalComparisonState;
   /** Financial-opportunity scenario (web report and customer PDF render this same object). Derived only from authorised inputs or a labelled illustration — never from scores. */
   opportunity: OpportunityScenario;
 }
@@ -102,6 +104,7 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
   const progress = (audit.progressJson as unknown as AuditProgress | null) ?? null;
   const scoresLocked = audit.status === "COMPLETED" && audit.overallScore !== null;
   const perfRows = performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson, categories: p.categoriesJson ?? null, agentic: p.agenticJson ?? null, lighthouseVersion: p.lighthouseVersion, analysisUtc: p.analysisUtc ? p.analysisUtc.toISOString() : null })) as V2ReportPayload["performance"];
+  const comparisonView = business ? buildLocalComparisonView(business, competitors, perfRows as unknown as PerfRow[], audit.summaryJson) : { state: { state: "none" } as LocalComparisonState, comparison: null };
   return {
     engine: "CRAWL_V2",
     status: audit.status,
@@ -155,7 +158,8 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
     ai: ai.map((a) => ({ url: a.url, pageType: a.pageType, selectionReason: a.selectionReason, status: a.status, errorCode: a.errorCode, error: a.error, model: a.model, result: a.resultJson, scrubbedCount: Array.isArray(a.scrubbedJson) ? (a.scrubbedJson as unknown[]).length : 0 })),
     pages: pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.title, indexable: p.indexable, wordCount: p.wordCount, depth: p.depth, fetchMs: p.fetchMs })),
     checks: checks.map((c) => ({ checkId: c.checkId, pillar: c.pillar, status: c.status, severity: c.severity, affectedPageCount: c.affectedPageCount, pageShare: c.pageShare, weight: c.weight, penalty: c.penalty, reason: c.reason })),
-    competitors: business ? buildLocalComparison(business, competitors, perfRows as unknown as PerfRow[], ((audit.summaryJson as { localComparisonNarrative?: LocalComparison["narrative"] } | null)?.localComparisonNarrative ?? null)) : null,
+    competitors: comparisonView.comparison,
+    localComparison: comparisonView.state,
     opportunity: buildOpportunityScenario(collectOpportunityInputs(audit), opportunityOptions),
   };
 }

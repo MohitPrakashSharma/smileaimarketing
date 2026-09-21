@@ -8,7 +8,7 @@ import { measureHomepage } from "./measure";
 import { verifySite, domainLabel, isPlaceholderName } from "./verify";
 import { buildLocalComparison } from "./view";
 import { generateComparisonNarrative, type ComparisonNarrative } from "./narrative";
-import type { CompetitorMeasurement } from "./types";
+import type { CompetitorMeasurement, LocalComparisonStageRecord } from "./types";
 import type { PerfRow } from "../view/performanceView";
 
 /**
@@ -37,9 +37,27 @@ export function competitorIntelAvailable(): { ok: boolean; reason?: string } {
   return { ok: true };
 }
 
+/**
+ * Records where the stage stands on the audit summary (`summaryJson.localComparison`),
+ * merged into the current summary so nothing saved meanwhile is lost. The report reads
+ * this to show "analysing" vs "unavailable"; the customer PDF cache reads it to know a
+ * file rendered without the comparison is not final. Best effort: never throws.
+ */
+async function recordStage(auditId: string, rec: Omit<LocalComparisonStageRecord, "at">, extra: Record<string, unknown> = {}): Promise<void> {
+  try {
+    const latest = await prisma.audit.findUnique({ where: { id: auditId }, select: { summaryJson: true } });
+    const summary = (latest?.summaryJson as Record<string, unknown> | null) ?? {};
+    const localComparison: LocalComparisonStageRecord = { ...rec, at: new Date().toISOString() };
+    await prisma.audit.update({ where: { id: auditId }, data: { summaryJson: json({ ...summary, ...extra, localComparison }) } });
+  } catch (err) {
+    console.warn(`[Local comparison] ${auditId}: could not record stage ${rec.status}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Fire-and-forget entry point used by the engine once an audit completes. */
 export async function scheduleCompetitorIntel(auditId: string): Promise<void> {
   if (!competitorIntelAvailable().ok) return;
+  await recordStage(auditId, { status: "queued" });
   if (env.AUDIT_EXECUTION === "queue") {
     await auditQueue.add(COMPETITOR_JOB, { auditId }, { jobId: `${COMPETITOR_JOB}_${auditId}_${Date.now()}` });
     return;
@@ -47,14 +65,30 @@ export async function scheduleCompetitorIntel(auditId: string): Promise<void> {
   void runCompetitorIntel(auditId).catch((err) => console.warn(`[Local comparison] ${auditId}: ${err instanceof Error ? err.message : String(err)}`));
 }
 
-export async function runCompetitorIntel(auditId: string): Promise<{ status: "skipped" | "done"; reason?: string; competitors: number; measured: number }> {
+const loadAudit = (auditId: string) => prisma.audit.findUnique({ where: { id: auditId }, include: { business: true, competitorGaps: true, performance: true } });
+
+type StageResult = { status: "skipped" | "done"; reason?: string; competitors: number; measured: number };
+
+export async function runCompetitorIntel(auditId: string): Promise<StageResult> {
   const avail = competitorIntelAvailable();
   if (!avail.ok) return { status: "skipped", reason: avail.reason, competitors: 0, measured: 0 };
+  const audit = await loadAudit(auditId);
+  if (!audit || audit.status !== "COMPLETED" || audit.engine !== "CRAWL_V2") return { status: "skipped", reason: "audit not a completed v2 audit", competitors: 0, measured: 0 };
+  await recordStage(auditId, { status: "running" });
+  try {
+    const result = await runStage(auditId, audit);
+    // A skip ends the stage too (no comparison to wait for); "done" is recorded with the narrative below.
+    if (result.status === "skipped") await recordStage(auditId, { status: "skipped", reason: result.reason, competitors: result.competitors, measured: result.measured });
+    return result;
+  } catch (err) {
+    await recordStage(auditId, { status: "failed", reason: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
+
+async function runStage(auditId: string, audit: NonNullable<Awaited<ReturnType<typeof loadAudit>>>): Promise<StageResult> {
   const started = Date.now();
   const apiKey = env.GOOGLE_PLACES_API_KEY!;
-
-  const audit = await prisma.audit.findUnique({ where: { id: auditId }, include: { business: true, competitorGaps: true, performance: true } });
-  if (!audit || audit.status !== "COMPLETED" || audit.engine !== "CRAWL_V2") return { status: "skipped", reason: "audit not a completed v2 audit", competitors: 0, measured: 0 };
   const business = audit.business;
 
   // 1. Discovery (reused when fresh). Places content is used transiently for
@@ -140,12 +174,12 @@ export async function runCompetitorIntel(auditId: string): Promise<{ status: "sk
   const comparison = buildLocalComparison({ name: business.name, website: business.website, city: business.city }, finalRows, perfRows);
   let narrative: ComparisonNarrative | null = null;
   if (comparison && env.AUDIT_AI_ENABLED) narrative = await generateComparisonNarrative(comparison, { apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL, timeoutMs: 45_000 });
-  // Re-read the summary now: anything saved while this stage ran (opportunity inputs, for one) must survive the merge.
-  const latest = await prisma.audit.findUnique({ where: { id: auditId }, select: { summaryJson: true } });
-  const summary = ((latest?.summaryJson ?? audit.summaryJson) as Record<string, unknown> | null) ?? {};
-  await prisma.audit.update({ where: { id: auditId }, data: { summaryJson: json({ ...summary, localComparisonNarrative: narrative }), pdfStatus: "NOT_REQUESTED" } }).catch(() => undefined);
-
   const okCount = finalRows.filter((r) => (r.measurementJson as CompetitorMeasurement | null)?.status === "ok").length;
+  // Record "done" with the narrative (merged into the latest summary so opportunity inputs saved
+  // meanwhile survive), then drop the cached customer PDF: it was rendered before these results.
+  await recordStage(auditId, { status: "done", competitors: finalRows.length, measured: okCount }, { localComparisonNarrative: narrative });
+  await prisma.audit.update({ where: { id: auditId }, data: { pdfStatus: "NOT_REQUESTED" } }).catch(() => undefined);
+
   console.log(`[Local comparison] ${auditId}: ${finalRows.length} competitors, ${okCount} measured, narrative ${narrative ? "ok" : "none"}, ${Date.now() - started} ms`);
   return { status: "done", competitors: finalRows.length, measured };
 }

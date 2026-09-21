@@ -2,7 +2,7 @@ import type { Competitor } from "@prisma/client";
 import type { PerfRow } from "../view/performanceView";
 import { ownHomepageMeasurement } from "./measure";
 import { normalizeDomain } from "./select";
-import type { ComparisonEntry, ComparisonGap, ComparisonMetricKey, CompetitorMeasurement, LocalComparison } from "./types";
+import type { ComparisonEntry, ComparisonGap, ComparisonMetricKey, CompetitorMeasurement, LocalComparison, LocalComparisonStageRecord, LocalComparisonState } from "./types";
 
 /**
  * Turns stored Competitor rows (source GOOGLE_PLACES) plus the audit's own
@@ -75,3 +75,60 @@ export function buildLocalComparison(business: { name: string; website: string; 
   const method = `Nearby dental practices serving ${business.city || "the same area"} were identified with Google Maps on ${new Date(discoveredAt).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" })}; each practice's name and website were then confirmed from its own website, and its homepage was tested with Google PageSpeed Insights on mobile — the same test, device and page type used for your homepage. ${measuredCount} of ${competitors.length} competitor homepages could be measured; anything Google could not measure is shown as unavailable, never estimated. These are website measurements only: they do not show search rankings, patient numbers or how well a practice is doing.`;
   return { heading, practice, competitors, gaps, source: "GOOGLE_PLACES", discoveredAt, method, attribution: "Nearby practices located with Google Maps · Website measurements by Google PageSpeed Insights", narrative };
 }
+
+/** A queued/running stage older than this is treated as not finishing (worker lost) rather than "still analysing" forever. */
+export const COMPARISON_PENDING_TIMEOUT_MS = 12 * 60 * 1000;
+
+const isRecord = (v: unknown): v is LocalComparisonStageRecord => !!v && typeof v === "object" && typeof (v as { status?: unknown }).status === "string" && typeof (v as { at?: unknown }).at === "string";
+
+/** The stage record stored on the audit summary, if any (tolerates missing or malformed JSON). */
+export function stageRecordFrom(summaryJson: unknown): LocalComparisonStageRecord | null {
+  const rec = (summaryJson as { localComparison?: unknown } | null)?.localComparison;
+  return isRecord(rec) ? rec : null;
+}
+
+const UNMEASURED_REASON = "Google PageSpeed could not measure any of the nearby homepages, so there is nothing to compare.";
+
+/**
+ * Where the comparison stands, from stored data only. Order of trust: the
+ * stage record (written by the job itself), then the rows (for audits that
+ * predate the record). "pending" always carries a start time so a stage that
+ * never reports back turns into "unavailable" after COMPARISON_PENDING_TIMEOUT_MS.
+ */
+export function localComparisonState(rows: Competitor[], summaryJson: unknown, now: Date = new Date()): LocalComparisonState {
+  const local = rows.filter((r) => r.source === "GOOGLE_PLACES" && r.website);
+  const rec = stageRecordFrom(summaryJson);
+  const measured = local.filter((r) => (r.measurementJson as CompetitorMeasurement | null)?.status === "ok").length;
+  const settled = (): LocalComparisonState => {
+    if (local.length < 2) return { state: "none", reason: "fewer than two verified nearby practices" };
+    if (measured === 0) return { state: "unavailable", reason: UNMEASURED_REASON };
+    return { state: "ready", measured, total: local.length };
+  };
+  if (rec) {
+    if (rec.status === "queued" || rec.status === "running") {
+      const since = new Date(rec.at);
+      if (Number.isNaN(since.getTime()) || now.getTime() - since.getTime() > COMPARISON_PENDING_TIMEOUT_MS) return { state: "unavailable", reason: "The comparison of nearby practices did not finish, so no competitor measurements are shown." };
+      return { state: "pending", since: rec.at };
+    }
+    if (rec.status === "failed") return { state: "unavailable", reason: "The comparison of nearby practices could not be completed, so no competitor measurements are shown." };
+    if (rec.status === "skipped") return { state: "none", reason: rec.reason };
+    return settled();
+  }
+  // No record (older audit, or the record write failed): rows still being measured within the
+  // window count as in progress; after it, an unmeasured row is simply unavailable.
+  const unmeasured = local.filter((r) => !r.measuredAt);
+  if (local.length >= 2 && unmeasured.length) {
+    const discovered = Math.max(...local.map((r) => (r.discoveredAt ?? r.createdAt).getTime()));
+    if (now.getTime() - discovered <= COMPARISON_PENDING_TIMEOUT_MS) return { state: "pending", since: new Date(discovered).toISOString() };
+  }
+  return settled();
+}
+
+/** State + comparison together: the comparison exists only in the `ready` state, so nothing renders "unavailable" for a measurement that has not run yet. */
+export function buildLocalComparisonView(business: { name: string; website: string; city: string }, rows: Competitor[], perf: PerfRow[], summaryJson: unknown, now: Date = new Date()): { state: LocalComparisonState; comparison: LocalComparison | null } {
+  const state = localComparisonState(rows, summaryJson, now);
+  if (state.state !== "ready") return { state, comparison: null };
+  const narrative = ((summaryJson as { localComparisonNarrative?: LocalComparison["narrative"] } | null)?.localComparisonNarrative ?? null);
+  return { state, comparison: buildLocalComparison(business, rows, perf, narrative) };
+}
+

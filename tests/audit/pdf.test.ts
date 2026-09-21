@@ -50,6 +50,7 @@ async function buildPayload(opts: { withPerformance: boolean; withCategories?: b
     pages: crawl.pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.facts?.title ?? null, indexable: p.indexable, wordCount: p.facts?.wordCount ?? null, depth: p.depth, fetchMs: p.fetchMs })),
     checks: runs.map((r) => ({ checkId: r.def.id, pillar: r.def.pillar, status: r.outcome.status, severity: r.severity, affectedPageCount: r.affectedPageCount, pageShare: r.pageShare, weight: r.def.weight, penalty: 0, reason: r.outcome.reason ?? null })),
     competitors: null,
+    localComparison: { state: "none" },
     opportunity: buildOpportunityScenario({}, { upliftPoints: 2, illustrativeAllowed: true }),
   };
 }
@@ -155,6 +156,17 @@ describe("v2 report PDF", () => {
     // A competitor measured after the PDF was rendered belongs in the next download.
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() - 1000) }] })).toBe(true);
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() + 1000) }] })).toBe(false);
+    // While the comparison stage is queued/running the file omits it and is provisional → re-render on download;
+    // once the stage reports back after the render, the file is stale; a stage that never reports back stops
+    // forcing re-renders after the pending timeout.
+    const now = new Date("2026-09-16T13:05:00Z");
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "queued", at: "2026-09-16T12:59:00Z" } } }, now)).toBe(false);
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "running", at: "2026-09-16T12:59:00Z" } } }, now)).toBe(false);
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "done", at: "2026-09-16T13:01:00Z" } } }, now)).toBe(false);
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "done", at: "2026-09-16T12:59:00Z" } } }, now)).toBe(true);
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "skipped", at: "2026-09-16T12:59:00Z" } } }, now)).toBe(true);
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { localComparison: { status: "running", at: "2026-09-16T12:30:00Z" } } }, now)).toBe(true); // timed out → no longer provisional
+    expect(customerPdfIsCurrent({ ...base, summaryJson: { garbage: true } }, now)).toBe(true);
     expect(customerPdfIsCurrent({ ...base, pdfGeneratedAt: new Date("2026-09-16T11:00:00Z") })).toBe(false); // older than the run
     expect(customerPdfIsCurrent({ ...base, pdfStatus: "FAILED" })).toBe(false);
     expect(resolvePdfPath("private:audit-tok-customer-cust-r1.pdf")).toMatch(/\/storage\/reports\/audit-tok-customer-cust-r1\.pdf$/);

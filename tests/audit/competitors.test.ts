@@ -3,7 +3,7 @@ import type { Competitor } from "@prisma/client";
 import { selectCompetitors, isPediatric } from "@/lib/audit/competitors/select";
 import { parsePlaces, haversineKm } from "@/lib/audit/competitors/places";
 import { fromPerfResult, ownHomepageMeasurement } from "@/lib/audit/competitors/measure";
-import { buildLocalComparison, competitorGaps } from "@/lib/audit/competitors/view";
+import { buildLocalComparison, buildLocalComparisonView, competitorGaps, localComparisonState, COMPARISON_PENDING_TIMEOUT_MS } from "@/lib/audit/competitors/view";
 import { normalizePsiResponse } from "@/lib/audit/providers/pagespeed";
 import { psiResponse, POOR_MOBILE_LH13 } from "../fixtures/pagespeed";
 import LH13_ALL from "../fixtures/psi-lighthouse13-all-categories.json";
@@ -163,3 +163,45 @@ describe("site verification names", () => {
     expect(domainLabel("https://www.cwfamilydental.ca/")).toBe("cwfamilydental.ca");
   });
 });
+
+describe("local comparison state (what the report and PDF act on)", () => {
+  const now = new Date("2026-09-17T09:10:00Z");
+  const ok = row({ name: "Lakeside Dental", measurementJson: good as never });
+  const ok2 = row({ name: "Yonge Dental", rank: 2, measurementJson: { ...good, url: "https://yongedental.ca/" } as never });
+  const pendingRow = row({ name: "Harbour Dental", rank: 3, measuredAt: null, measurementJson: null });
+  const failedRow = row({ name: "Harbour Dental", rank: 3, measurementJson: failed as never });
+
+  it("follows the stage record: queued/running → pending (with a start time), done → ready, failed → unavailable, skipped → none", () => {
+    expect(localComparisonState([ok, pendingRow], { localComparison: { status: "queued", at: "2026-09-17T09:09:00Z" } }, now)).toEqual({ state: "pending", since: "2026-09-17T09:09:00Z" });
+    expect(localComparisonState([ok, pendingRow], { localComparison: { status: "running", at: "2026-09-17T09:09:00Z" } }, now)).toEqual({ state: "pending", since: "2026-09-17T09:09:00Z" });
+    expect(localComparisonState([ok, ok2, failedRow], { localComparison: { status: "done", at: "2026-09-17T09:09:30Z" } }, now)).toEqual({ state: "ready", measured: 2, total: 3 });
+    expect(localComparisonState([ok, ok2], { localComparison: { status: "failed", at: "2026-09-17T09:09:30Z", reason: "boom" } }, now).state).toBe("unavailable");
+    expect(localComparisonState([], { localComparison: { status: "skipped", at: "2026-09-17T09:09:30Z", reason: "insufficient comparable competitors" } }, now)).toEqual({ state: "none", reason: "insufficient comparable competitors" });
+  });
+
+  it("never reports 'unavailable' for a measurement that has not run yet, but does once the stage is over or lost", () => {
+    // stage finished with every measurement failed → genuine failure
+    const s = localComparisonState([row({ name: "A", measurementJson: failed as never }), row({ name: "B", rank: 2, measurementJson: failed as never })], { localComparison: { status: "done", at: "2026-09-17T09:09:30Z" } }, now);
+    expect(s.state).toBe("unavailable");
+    expect((s as { reason: string }).reason).toMatch(/could not measure/);
+    // stage lost (no report back within the window) → unavailable, not "analysing" forever
+    const lost = localComparisonState([ok, pendingRow], { localComparison: { status: "running", at: "2026-09-17T08:00:00Z" } }, now);
+    expect(lost.state).toBe("unavailable");
+    // no record at all (older audit): unmeasured rows inside the window are pending, after it they are simply unavailable
+    expect(localComparisonState([ok, pendingRow], null, now).state).toBe("pending");
+    expect(localComparisonState([ok, pendingRow], null, new Date(now.getTime() + COMPARISON_PENDING_TIMEOUT_MS + 60_000))).toEqual({ state: "ready", measured: 1, total: 2 });
+    expect(localComparisonState([ok, ok2], null, now)).toEqual({ state: "ready", measured: 2, total: 2 });
+    expect(localComparisonState([ok], null, now).state).toBe("none");
+    expect(localComparisonState([], null, now).state).toBe("none");
+  });
+
+  it("builds the comparison only in the ready state, so a pending analysis shows no cards, no gaps and no call-out", () => {
+    const pending = buildLocalComparisonView(business, [ok, pendingRow], [ownRow()], { localComparison: { status: "running", at: "2026-09-17T09:09:00Z" } }, now);
+    expect(pending.state.state).toBe("pending");
+    expect(pending.comparison).toBeNull();
+    const ready = buildLocalComparisonView(business, [ok, ok2], [ownRow()], { localComparison: { status: "done", at: "2026-09-17T09:09:30Z" }, localComparisonNarrative: null }, now);
+    expect(ready.state.state).toBe("ready");
+    expect(ready.comparison?.competitors.map((c) => c.name)).toEqual(["Lakeside Dental", "Yonge Dental"]);
+  });
+});
+

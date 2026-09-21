@@ -79,6 +79,23 @@ Changes:
   bumped to `cust-r3`, so any PDF cached under the old file name is regenerated on its next download
   (`customerPdfIsCurrent` also already treats a PDF older than the latest competitor measurement as stale).
 
+## 2026-09-21 — live updates while the comparison runs
+
+The stage runs after the audit is COMPLETED, so a report opened straight away used to show the
+competitor rows (created at discovery) with every metric "Unavailable" until a manual reload.
+
+- The stage now records its progress on `audit.summaryJson.localComparison`
+  (`queued → running → done | skipped | failed`, with a timestamp). `localComparisonState()` in
+  `lib/audit/competitors/view.ts` turns that plus the rows into `pending | ready | unavailable | none`;
+  the comparison object exists only in `ready`, so nothing ever renders "unavailable" for a
+  measurement that has not run. A queued/running record older than 12 minutes counts as lost
+  (`unavailable`), never "analysing" forever.
+- The report page polls `GET /api/audit/[token]/local-comparison` every 10 s while the state is
+  `pending` (max 12 min, one request at a time, paused in a hidden tab, stopped on unmount). The
+  endpoint only reads stored rows — no Places or PageSpeed calls, no report-view tracking.
+- The customer PDF omits the comparison and the call-out while the state is `pending`; the cache
+  treats such a file as provisional (re-rendered on download) and stale once the stage reports back.
+
 ## Decisions needed before enabling in production (unchanged, restated)
 1. **Terms reading** — competitor names/URLs shown come from each competitor's *own* website (never
    from Google); only the Places place id is stored. This is our reading of the Maps Service Terms
