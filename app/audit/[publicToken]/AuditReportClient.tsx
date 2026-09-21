@@ -7,6 +7,7 @@ import { IconMapPin, IconSearch, IconStar, IconMonitor, IconPhoneWave, IconUsers
 import { industryFromCategory, cap, type IndustryProfile } from "@/lib/industry";
 import type { PerfRow } from "@/lib/audit/view/performanceView";
 import type { LocalComparison } from "@/lib/audit/competitors/types";
+import type { OpportunityScenario } from "@/lib/audit/opportunity/types";
 import V2Report from "./V2Report";
 import ConsultationSidebar from "./ConsultationSidebar";
 
@@ -91,6 +92,7 @@ type V2Payload = {
   performance?: PerfRow[];
   checks?: Array<{ checkId: string; pillar: string; status: string }>;
   competitors?: LocalComparison | null;
+  opportunity?: OpportunityScenario | null;
   progress?: { stages: Array<{ key: string; status: string; detail?: string }> } | null;
 };
 
@@ -156,7 +158,14 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
         if (cancelled) return;
         setData(json);
         // Progressive audit: keep polling until the engine finishes or fails.
-        if (json.status === "PENDING" || json.status === "RUNNING") timer = setTimeout(fetchReport, 2000);
+        if (json.status === "PENDING" || json.status === "RUNNING") {
+          timer = setTimeout(fetchReport, 2000);
+        } else if (json.status === "COMPLETED" && json.engine === "CRAWL_V2" && !json.v2?.competitors) {
+          // The local comparison runs after completion (about a minute): keep checking for a few
+          // minutes so a report opened straight after the audit picks it up without a reload.
+          const completedMs = json.checkedAt ? Date.now() - new Date(json.checkedAt).getTime() : Infinity;
+          if (completedMs < 6 * 60 * 1000) timer = setTimeout(fetchReport, 15_000);
+        }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -284,6 +293,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               stageStatus: perfStage?.status,
               stageDetail: perfStage?.detail,
               comparison: v2.competitors ?? null,
+              opportunity: v2.opportunity ?? null,
             }}
           />
           <ConsultationSidebar publicToken={publicToken} ind={ind} />
