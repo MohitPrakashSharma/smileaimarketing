@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildAuditNarrative } from "@/lib/auditNarrative";
 import { trackEvent } from "@/lib/analytics";
+import { opportunityOptionsFromEnv } from "@/lib/audit/opportunity";
 import { buildV2Payload, legacyShapeFromV2 } from "@/lib/audit/report";
 import type { AuditProgress } from "@/lib/audit/progress";
 
@@ -74,7 +75,7 @@ export async function GET(
         scorecard: legacy.scorecard,
         findings: legacy.cards,
         competitors: audit.competitorGaps.map((c) => ({ name: c.name, rank: c.rank, mapScore: c.mapScore })),
-        v2: buildV2Payload(audit, findings, pages, checks, performance, ai, audit.competitorGaps, { name: audit.business.name, website: audit.business.website, city: audit.business.city }),
+        v2: buildV2Payload(audit, findings, pages, checks, performance, ai, audit.competitorGaps, { name: audit.business.name, website: audit.business.website, city: audit.business.city }, opportunityOptionsFromEnv()),
       });
     }
 

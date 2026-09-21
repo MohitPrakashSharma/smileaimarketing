@@ -4,6 +4,7 @@ import { renderTechnicalPdf } from "@/lib/audit/pdf/technicalPdf";
 import { renderCustomerPdf } from "@/lib/audit/pdf/customerPdf";
 import { pdfSafe } from "@/lib/audit/pdf/layout";
 import { downloadFileName, customerPdfIsCurrent, pdfFileName, resolvePdfPath } from "@/lib/audit/pdf/generate";
+import { buildOpportunityScenario } from "@/lib/audit/opportunity/scenario";
 import { normalizePsiResponse } from "@/lib/audit/providers/pagespeed";
 import { crawlSite } from "@/lib/audit/core/crawler";
 import { Fetcher } from "@/lib/audit/core/fetch";
@@ -49,6 +50,7 @@ async function buildPayload(opts: { withPerformance: boolean; withCategories?: b
     pages: crawl.pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.facts?.title ?? null, indexable: p.indexable, wordCount: p.facts?.wordCount ?? null, depth: p.depth, fetchMs: p.fetchMs })),
     checks: runs.map((r) => ({ checkId: r.def.id, pillar: r.def.pillar, status: r.outcome.status, severity: r.severity, affectedPageCount: r.affectedPageCount, pageShare: r.pageShare, weight: r.def.weight, penalty: 0, reason: r.outcome.reason ?? null })),
     competitors: null,
+    opportunity: buildOpportunityScenario({}, { upliftPoints: 2, illustrativeAllowed: true }),
   };
 }
 
@@ -148,6 +150,8 @@ describe("v2 report PDF", () => {
     expect(customerPdfIsCurrent(base)).toBe(true);
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok.pdf" })).toBe(false); // legacy public file → regenerate privately
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok-v2r1.pdf" })).toBe(false); // previous layout
+    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r3.pdf" })).toBe(false); // layout before the financial scenario → regenerate
+    expect(pdfFileName("tok", "customer")).toContain("cust-r4");
     expect(customerPdfIsCurrent({ ...base, pdfGeneratedAt: new Date("2026-09-16T11:00:00Z") })).toBe(false); // older than the run
     expect(customerPdfIsCurrent({ ...base, pdfStatus: "FAILED" })).toBe(false);
     expect(resolvePdfPath("private:audit-tok-customer-cust-r1.pdf")).toMatch(/\/storage\/reports\/audit-tok-customer-cust-r1\.pdf$/);
@@ -183,13 +187,14 @@ describe("customer PDF + personalised message", () => {
     expect(t.toLowerCase()).not.toMatch(/is costing you|lost patients|more patients|you are losing/);
     expect(t).toContain("https://smileaimarketing.com/audit/tok");
     // the financial section is a labelled what-if, never a stated loss, and links to the interactive calculator
-    expect(t).toContain("What could your website be costing you?");
+    expect(t).toContain("What Could These Website Issues Be Costing Your Practice?");
     expect(t).toContain("ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES");
-    expect(t).toContain("Run the calculator with your own numbers");
+    expect(t).toContain("Discover Your Practice's Growth Opportunities");
     expect(t).toMatch(/not benchmarks, not measurements from this audit/);
+    expect(t).not.toMatch(/\$0\b/); // never CAD $0 for missing data
     // the financial section sits after the action plan and before the consultation CTA
     const plan = t.indexOf("Action plan");
-    const fin = t.indexOf("What could your website be costing you?");
+    const fin = t.indexOf("What Could These Website Issues Be Costing Your Practice?");
     const cta = t.indexOf("Let's Review Your Website's Priority Fixes");
     expect(plan).toBeGreaterThan(-1);
     expect(fin).toBeGreaterThan(plan);
@@ -276,5 +281,48 @@ describe("customer PDF + personalised message", () => {
     expect(small.paragraphs.join(" ")).toMatch(/[Nn]o issue crossed our thresholds/);
     expect(small.paragraphs.join(" ")).not.toMatch(/PageSpeed|Most consequential/);
     expect(small.wordCount).toBeLessThan(80);
+  });
+});
+
+
+describe("financial opportunity in the customer PDF", () => {
+  const sv = (value: number, source: "ga4" | "crm" | "finance", period: string | null, label: string) => ({ value, source, label, period });
+
+  it("prints the verified scenario with the same figures the web report receives, plus sources, period and assumptions", async () => {
+    const payload = await buildPayload({ withPerformance: true });
+    const scenario = buildOpportunityScenario(
+      { monthlyVisitors: sv(1000, "ga4", "Aug 2026", "GA4 sessions"), currentRate: sv(0.02, "ga4", "Aug 2026", "GA4 enquiry conversions"), patientRate: sv(0.5, "crm", "Aug 2026", "booking export"), contribution: sv(400, "finance", "FY2025", "practice financials") },
+      { upliftPoints: 2, illustrativeAllowed: true }
+    );
+    const out = await renderCustomerPdf(input({ ...payload, opportunity: scenario }));
+    const t = out.transcript;
+    expect(t).toContain("PRACTICE-SPECIFIC SCENARIO - ESTIMATE");
+    // figures come from the shared scenario object — web and PDF cannot diverge
+    expect(t).toContain(`$${Math.round(scenario.figures.monthlyContribution!).toLocaleString("en-CA")} a month`);
+    expect(t).toContain(`($${Math.round(scenario.figures.dailyContribution!).toLocaleString("en-CA")} a day)`);
+    expect(t).toContain("about 20 additional enquiries a month; 10 additional patients a month");
+    expect(t).toContain("Measurement period: Aug 2026; FY2025.");
+    expect(t).toMatch(/Improvement assumption: enquiry rate rises from 2% to 4%/);
+    expect(t).toMatch(/Google Analytics, Aug 2026/);
+    expect(t).not.toMatch(/losing \$|is costing you/);
+  });
+
+  it("prints a partial scenario without a dollar amount and names what is missing", async () => {
+    const payload = await buildPayload({ withPerformance: true });
+    const scenario = buildOpportunityScenario({ monthlyVisitors: sv(2000, "ga4", "Aug 2026", "GA4 sessions"), currentRate: sv(0.01, "ga4", "Aug 2026", "GA4 enquiries") }, { upliftPoints: 2, illustrativeAllowed: true });
+    const t = (await renderCustomerPdf(input({ ...payload, opportunity: scenario }))).transcript;
+    expect(t).toContain("PARTIAL SCENARIO - ESTIMATE");
+    expect(t).toContain("about 40 additional enquiries a month");
+    expect(t).toMatch(/A dollar figure needs enquiries that become patients and contribution per new patient/);
+    expect(t).not.toMatch(/\$0\b/);
+  });
+
+  it("prints the formula only (no amount) when illustrations are disabled and no data is authorised", async () => {
+    const payload = await buildPayload({ withPerformance: true });
+    const scenario = buildOpportunityScenario({}, { upliftPoints: 2, illustrativeAllowed: false });
+    const t = (await renderCustomerPdf(input({ ...payload, opportunity: scenario }))).transcript;
+    expect(t).toContain("NO DOLLAR FIGURE - DATA NOT AUTHORISED");
+    expect(t).not.toMatch(/\$\d/);
+    expect(t).toContain("Discover Your Practice's Growth Opportunities");
   });
 });

@@ -10,7 +10,9 @@ import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL, type PillarK
 import GoogleChecksSection from "./GoogleChecksSection";
 import LocalComparisonSection from "./LocalComparisonSection";
 import OpportunitySection from "./OpportunitySection";
+import CompetitorAlertCard from "./CompetitorAlertCard";
 import type { LocalComparison } from "@/lib/audit/competitors/types";
+import type { OpportunityScenario } from "@/lib/audit/opportunity/types";
 import FindingCard, { type FindingView } from "./FindingCard";
 import DownloadPdfButton from "./DownloadPdfButton";
 import RequestTechnicalReportLink from "./RequestTechnicalReportLink";
@@ -44,6 +46,8 @@ export type V2ReportData = {
   stageDetail?: string;
   /** Local competitor comparison — null means not collected; the section is simply omitted. */
   comparison?: LocalComparison | null;
+  /** Financial-opportunity scenario built server-side (same object the PDF prints). */
+  opportunity?: OpportunityScenario | null;
 };
 
 const ICONS: Record<PillarKey, typeof IconSearch> = { technical: IconMonitor, content: IconSearch, performance: IconTrendingUp, search: IconUsers, local: IconMapPin };
@@ -121,6 +125,9 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
           </div>
         </div>
       </section>
+
+      {/* 1b ── Competitor call-out: only when nearby practices measured better ─ */}
+      {data.comparison && <CompetitorAlertCard comparison={data.comparison} publicToken={publicToken} />}
 
       {/* 2 ── Google website checks ──────────────────────────────────────── */}
       <GoogleChecksSection rows={data.performance} pillarScore={scores?.performance ?? null} auditScore={overall} auditChecks={data.checksRun} pagesCrawled={pagesCrawled} findings={perfFindings} stageStatus={data.stageStatus} stageDetail={data.stageDetail} />
@@ -200,7 +207,7 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
 
       {/* 4b ── Local comparison + financial opportunity: after the priority findings, before the consultation CTA ── */}
       {data.comparison && <LocalComparisonSection comparison={data.comparison} publicToken={publicToken} />}
-      <OpportunitySection publicToken={publicToken} businessName={business.name} />
+      {data.opportunity && <OpportunitySection scenario={data.opportunity} publicToken={publicToken} businessName={business.name} />}
 
       {/* 5 ── Detailed findings ──────────────────────────────────────────── */}
       {findings.length > 0 && (

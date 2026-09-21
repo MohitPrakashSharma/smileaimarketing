@@ -1,5 +1,8 @@
 import { buildLocalComparison } from "./competitors/view";
 import type { LocalComparison } from "./competitors/types";
+import { collectOpportunityInputs } from "./opportunity/sources";
+import { buildOpportunityScenario, type ScenarioOptions } from "./opportunity/scenario";
+import type { OpportunityScenario } from "./opportunity/types";
 import type { PerfRow } from "./view/performanceView";
 import type { Audit, AuditFinding, AuditPage, AuditCheckResult, AuditPerformance, AuditAiPageAnalysis, Competitor } from "@prisma/client";
 import { gradeFor } from "./scoring";
@@ -82,6 +85,8 @@ export interface V2ReportPayload {
   checks: Array<{ checkId: string; pillar: string; status: string; severity: string | null; affectedPageCount: number; pageShare: number; weight: number; penalty: number; reason: string | null }>;
   /** Phase 4: local competitor comparison — null when not collected (feature off, no location, fewer than two comparable practices). Never part of any score. */
   competitors: LocalComparison | null;
+  /** Financial-opportunity scenario (web report and customer PDF render this same object). Derived only from authorised inputs or a labelled illustration — never from scores. */
+  opportunity: OpportunityScenario;
 }
 
 export function severityCounts(findings: Pick<AuditFinding, "severity">[]): Record<Severity, number> {
@@ -90,7 +95,10 @@ export function severityCounts(findings: Pick<AuditFinding, "severity">[]): Reco
   return c;
 }
 
-export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[], performance: AuditPerformance[] = [], ai: AuditAiPageAnalysis[] = [], competitors: Competitor[] = [], business?: { name: string; website: string; city: string }): V2ReportPayload {
+/** Defaults when a caller has no environment (tests, scripts); the API route and PDF generator pass the configured values. */
+export const DEFAULT_OPPORTUNITY_OPTIONS: ScenarioOptions = { upliftPoints: 2, illustrativeAllowed: true };
+
+export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: AuditPage[], checks: AuditCheckResult[], performance: AuditPerformance[] = [], ai: AuditAiPageAnalysis[] = [], competitors: Competitor[] = [], business?: { name: string; website: string; city: string }, opportunityOptions: ScenarioOptions = DEFAULT_OPPORTUNITY_OPTIONS): V2ReportPayload {
   const progress = (audit.progressJson as unknown as AuditProgress | null) ?? null;
   const scoresLocked = audit.status === "COMPLETED" && audit.overallScore !== null;
   const perfRows = performance.map((p) => ({ url: p.url, strategy: p.strategy, pageType: p.pageType, selectionReason: p.selectionReason, status: p.status, error: p.error, field: p.fieldJson, lab: p.labJson, lcpElement: p.lcpElementJson, diagnostics: p.diagnosticsJson, categories: p.categoriesJson ?? null, agentic: p.agenticJson ?? null, lighthouseVersion: p.lighthouseVersion, analysisUtc: p.analysisUtc ? p.analysisUtc.toISOString() : null })) as V2ReportPayload["performance"];
@@ -148,6 +156,7 @@ export function buildV2Payload(audit: Audit, findings: AuditFinding[], pages: Au
     pages: pages.map((p) => ({ url: p.url, statusCode: p.statusCode, title: p.title, indexable: p.indexable, wordCount: p.wordCount, depth: p.depth, fetchMs: p.fetchMs })),
     checks: checks.map((c) => ({ checkId: c.checkId, pillar: c.pillar, status: c.status, severity: c.severity, affectedPageCount: c.affectedPageCount, pageShare: c.pageShare, weight: c.weight, penalty: c.penalty, reason: c.reason })),
     competitors: business ? buildLocalComparison(business, competitors, perfRows as unknown as PerfRow[], ((audit.summaryJson as { localComparisonNarrative?: LocalComparison["narrative"] } | null)?.localComparisonNarrative ?? null)) : null,
+    opportunity: buildOpportunityScenario(collectOpportunityInputs(audit), opportunityOptions),
   };
 }
 

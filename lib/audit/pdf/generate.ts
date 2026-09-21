@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { env, publicReportBaseUrl } from "@/lib/env.server";
 import { industryFromCategory, cap } from "@/lib/industry";
 import { buildV2Payload, legacyShapeFromV2 } from "../report";
+import { opportunityOptionsFromEnv } from "../opportunity";
 import { renderCustomerPdf, CUSTOMER_PDF_LAYOUT } from "./customerPdf";
 import { renderTechnicalPdf, TECHNICAL_PDF_LAYOUT, type ReportPdfInput } from "./technicalPdf";
 import { consultationUrl, technicalReportRequestUrl } from "../technicalReport";
@@ -81,7 +82,7 @@ async function loadInput(auditId: string): Promise<{ input: ReportPdfInput; publ
   ]);
   const business = audit.business;
   const ind = industryFromCategory(business.category);
-  const payload = buildV2Payload(audit, findings, pages, checks, performance, ai, competitors, { name: business.name, website: business.website, city: business.city });
+  const payload = buildV2Payload(audit, findings, pages, checks, performance, ai, competitors, { name: business.name, website: business.website, city: business.city }, opportunityOptionsFromEnv());
   const legacy = legacyShapeFromV2(audit, findings, pages, { name: business.name, city: business.city, category: business.category });
   const completedAt = audit.completedAt ?? audit.createdAt;
   return {

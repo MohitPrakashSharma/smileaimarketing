@@ -7,7 +7,7 @@ import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../vi
 import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
 import type { ReportPdfInput } from "./technicalPdf";
 import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../competitors/types";
-import { ILLUSTRATIVE_INPUTS, computeOpportunity } from "@/lib/opportunityCalculator";
+import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type SourcedValue } from "../opportunity/types";
 
 /**
  * Customer report PDF — the version a practice owner reads. Same stored data
@@ -31,7 +31,7 @@ import { ILLUSTRATIVE_INPUTS, computeOpportunity } from "@/lib/opportunityCalcul
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r3"; // r3: local comparison + financial opportunity moved after the action plan; r2: consultation CTAs, technical report by request, evidence-led message
+export const CUSTOMER_PDF_LAYOUT = "cust-r4"; // r4: automated financial-opportunity scenario (data-mode aware); r3: local comparison after the action plan; r2: consultation CTAs, technical report by request
 
 type Finding = V2ReportPayload["findings"][number];
 const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
@@ -174,29 +174,51 @@ function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts
 }
 
 /**
- * Financial opportunity, for print. The audit measures the website, not the
- * practice's traffic or bookings, so there are no verified inputs to use: the
- * page explains the maths, shows one clearly labelled illustrative scenario,
- * and links to the interactive calculator in the online report. Nothing here
- * is presented as a measured loss.
+ * Financial opportunity, for print — the same scenario object the web report
+ * renders, so the two can never disagree. What appears depends on the data
+ * the practice authorised (verified / partial / illustrative / formula only);
+ * no figure here is derived from the audit score, and nothing is presented as
+ * a measured loss.
  */
-function financialOpportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, input: ReportPdfInput) {
+function financialOpportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, sc: OpportunityScenario, input: ReportPdfInput) {
   const cad = (n: number) => `$${Math.round(n).toLocaleString("en-CA")}`;
-  const ex = ILLUSTRATIVE_INPUTS;
-  const r = computeOpportunity({ monthlyVisitors: Number(ex.monthlyVisitors), currentRate: Number(ex.currentRate), targetRate: Number(ex.targetRate), patientRate: Number(ex.patientRate), contribution: Number(ex.contribution) });
-  fl.section("What could your website be costing you?", "The findings in this report are verified measurements of your website. This section is different: it is a what-if. It estimates what improving your website's enquiry rate could be worth, using numbers only you have - visitors, enquiry rate and what a new patient is worth to your practice.");
+  const num = (n: number) => n.toLocaleString("en-CA", { maximumFractionDigits: 1 });
+  const rateKeys: OpportunityInputKey[] = ["currentRate", "targetRate", "patientRate"];
+  const fmtInput = (key: OpportunityInputKey, v: SourcedValue) => (rateKeys.includes(key) ? `${num(v.value * 100)}%` : key === "contribution" ? cad(v.value) : num(v.value));
+  const sourceWord: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "example" };
+  const intro =
+    sc.mode === "verified"
+      ? `A practice-specific scenario built from data ${input.business.name} authorised, with one stated improvement assumption.`
+      : sc.mode === "partial"
+        ? `Built from the data ${input.business.name} authorised so far - only the figures that data supports are shown.`
+        : sc.mode === "illustrative"
+          ? "The audit measured the website, not your visitors, enquiries or income. Until those are shared, here is how the maths works on clearly labelled example numbers."
+          : "The audit measured the website, not your visitors, enquiries or income - so no dollar figure is shown. Here is how the opportunity is worked out.";
+  fl.section(sc.heading, intro);
   fl.text("How it is worked out", { font: f.bold, size: 9.5, color: C.dark });
   fl.text("Additional enquiries per month = monthly visitors × (improved enquiry rate minus current enquiry rate). Additional patients = additional enquiries × the share of enquiries that become patients. Potential additional contribution = additional patients × contribution per new patient. Per day = monthly ÷ 30.", { size: 8.5, color: C.secondary });
   fl.gap(5);
   const pad = 10;
+  const used = (Object.keys(sc.inputs) as OpportunityInputKey[]).filter((k) => sc.inputs[k]);
   const inner = () => {
-    fl.text("ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES", { font: f.bold, size: 7, color: C.accent, x: fl.left + pad });
+    const tag = sc.illustrative ? "ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES" : sc.mode === "verified" ? "PRACTICE-SPECIFIC SCENARIO - ESTIMATE" : sc.mode === "partial" ? "PARTIAL SCENARIO - ESTIMATE" : "NO DOLLAR FIGURE - DATA NOT AUTHORISED";
+    fl.text(tag, { font: f.bold, size: 7, color: C.accent, x: fl.left + pad });
     fl.gap(2);
-    fl.text(`Example inputs: ${Number(ex.monthlyVisitors).toLocaleString("en-CA")} visitors a month · enquiry rate ${ex.currentRate}% today, ${ex.targetRate}% improved · ${ex.patientRate}% of enquiries become patients · ${cad(Number(ex.contribution))} contribution per new patient.`, { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    fl.gap(2);
-    fl.text(`Result: about ${r.additionalEnquiries.toLocaleString("en-CA", { maximumFractionDigits: 1 })} additional enquiries and ${r.additionalPatients.toLocaleString("en-CA", { maximumFractionDigits: 1 })} additional patients a month - a potential ${cad(r.monthlyContribution)} a month (${cad(r.dailyContribution)} a day).`, { font: f.bold, size: 9.5, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    fl.gap(2);
-    fl.text("These example numbers are placeholders chosen to show the maths. They are not benchmarks, not measurements from this audit and say nothing about your practice.", { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    if (sc.mode === "formula_only") {
+      fl.text("We have no authorised analytics, booking or financial data for this practice, so no amount is shown. Share your visitors, enquiry rate and what a new patient is worth in a website review and we will build the scenario with you.", { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    } else {
+      if (used.length) fl.text(`${sc.illustrative ? "Example inputs" : "Inputs used"}: ${used.map((k) => `${INPUT_LABEL[k].toLowerCase()} ${fmtInput(k, sc.inputs[k]!)} (${sourceWord[sc.inputs[k]!.source]}${sc.inputs[k]!.period ? `, ${sc.inputs[k]!.period}` : ""})`).join(" · ")}.`, { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+      fl.gap(2);
+      const parts: string[] = [];
+      if (sc.figures.additionalEnquiries !== null) parts.push(`about ${num(sc.figures.additionalEnquiries)} additional enquiries a month`);
+      if (sc.figures.additionalPatients !== null) parts.push(`${num(sc.figures.additionalPatients)} additional patients a month`);
+      if (sc.figures.monthlyContribution !== null && sc.figures.dailyContribution !== null) parts.push(`potential additional contribution under this scenario: ${cad(sc.figures.monthlyContribution)} a month (${cad(sc.figures.dailyContribution)} a day)`);
+      if (parts.length) fl.text(`Result: ${parts.join("; ")}.`, { font: f.bold, size: 9.5, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+      if (sc.mode === "partial" && sc.figures.monthlyContribution === null) fl.text(`A dollar figure needs ${sc.missing.map((k) => INPUT_LABEL[k].toLowerCase()).join(" and ")} - not available from authorised data yet, so none is shown.`, { size: 8.5, color: C.secondary, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    }
+    if (sc.periods.length) fl.text(`Measurement period: ${sc.periods.join("; ")}.`, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    for (const a of sc.assumptions) fl.text(a, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
+    fl.text(sc.disclaimer, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
   };
   fl.keepTogether(() => {
     const h = fl.measure(inner) + pad * 2;
@@ -206,10 +228,10 @@ function financialOpportunitySection(fl: Flow, f: Awaited<ReturnType<typeof load
     fl.y -= pad;
   });
   fl.gap(5);
-  fl.link("Run the calculator with your own numbers", `${input.reportUrl}#opportunity`, { size: 10 });
-  fl.text("Enter your visitors, enquiry rate and patient value in the interactive calculator in your online report. Your numbers stay in your browser - they are not stored or sent to us.", { size: 8.5, color: C.secondary });
+  fl.link("Discover Your Practice's Growth Opportunities", input.consultationUrl, { size: 10 });
+  fl.text("Book a website review: we will go through these findings with you and, with your real numbers, turn them into a plan.", { size: 8.5, color: C.secondary });
   fl.gap(3);
-  fl.text("This audit identifies verified problems on your website and listing. It does not prove that fixing them will produce the figures above - those depend on your own numbers and on what you change. No result here is a measured loss or a forecast.", { size: 7.5, color: C.muted });
+  fl.text("This audit identifies verified problems on your website and listing. It does not prove that fixing them will produce the figures above. No result here is a measured loss or a forecast.", { size: 7.5, color: C.muted });
 }
 
 export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutput> {
@@ -425,7 +447,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
 
   // ───────── 4c. Financial opportunity (illustrative + interactive link) ─────────
   fl.ensure(240);
-  financialOpportunitySection(fl, f, input);
+  financialOpportunitySection(fl, f, payload.opportunity, input);
 
   fl.gap(8);
   consultationCta(fl, f, input);

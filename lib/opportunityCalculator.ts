@@ -102,3 +102,14 @@ export function computeOpportunity(v: Record<OpportunityField, number>): Opportu
     noUplift: uplift === 0,
   };
 }
+
+/**
+ * Same formula, with the three rates given as fractions (0–1) rather than
+ * percentages — the form the automated report engine works in. Kept here so
+ * there is exactly one place the arithmetic lives.
+ */
+export function computeOpportunityFromFractions(v: { monthlyVisitors: number; currentRate: number; targetRate: number; patientRate: number; contribution: number }): OpportunityResult {
+  // Percent conversion rounded to 9 decimals so 0.04 → 4 exactly (no float noise between the two entry points).
+  const pct = (f: number) => Math.round(f * 100 * 1e9) / 1e9;
+  return computeOpportunity({ monthlyVisitors: v.monthlyVisitors, currentRate: pct(v.currentRate), targetRate: pct(v.targetRate), patientRate: pct(v.patientRate), contribution: v.contribution });
+}

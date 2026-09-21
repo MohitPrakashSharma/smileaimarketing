@@ -132,6 +132,11 @@ const envSchema = z.object({
   // Google Places API (New) Text Search (billed SKU) plus 2–3 extra PageSpeed
   // runs per audit, and runs after the audit completes, never inside it.
   AUDIT_COMPETITORS_ENABLED: boolFlag(false),
+  // Financial-opportunity section of the report. With no authorised practice data the section
+  // shows a clearly labelled illustrative scenario (true) or the formula without a dollar amount (false).
+  AUDIT_OPPORTUNITY_ILLUSTRATIVE: boolFlag(true),
+  // The improvement assumption applied to a practice's verified enquiry rate: +N percentage points.
+  AUDIT_OPPORTUNITY_UPLIFT_POINTS: z.coerce.number().positive().max(50).default(2),
   AUDIT_COMPETITORS_MAX: z.coerce.number().int().positive().max(5).default(3),
   AUDIT_COMPETITORS_RADIUS_KM: z.coerce.number().positive().max(100).default(15),
 
