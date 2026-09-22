@@ -36,7 +36,7 @@ export default function FAQ() {
                 {item.q}
                 <span
                   aria-hidden
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink transition-[transform,background-color,color] duration-[var(--duration-normal)] ease-[var(--ease-out)] group-open:rotate-180 group-open:bg-primary group-open:text-white"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-ink transition-[transform,background-color,color] duration-[var(--duration-normal)] ease-[var(--ease-out)] group-open:rotate-180 group-open:bg-primary group-open:text-white"
                 >
                   <IconChevronDown className="h-4 w-4" />
                 </span>

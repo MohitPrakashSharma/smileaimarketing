@@ -74,13 +74,13 @@ export default function PatientJourney() {
                 variants={revealItem}
                 className="card-gradient group flex items-center gap-4 p-5"
               >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink transition-[background-color,color] duration-[var(--duration-normal)] group-hover:bg-[image:var(--color-accent-gradient)] group-hover:text-white">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-ink transition-[background-color,color] duration-[var(--duration-normal)] group-hover:bg-[image:var(--color-accent-gradient)] group-hover:text-white">
                   <step.Icon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-3">
                     <h3 className="text-heading-4 text-foreground">{step.title}</h3>
-                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-border-strong transition-colors duration-[var(--duration-normal)] group-hover:text-accent-gradient">
+                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-text-faint transition-colors duration-[var(--duration-normal)] group-hover:text-accent-gradient">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                   </div>

@@ -19,6 +19,8 @@ const ORGANIZATION_JSON_LD = {
     "Digital marketing agency for Canadian dental practices — local search visibility, qualified patient enquiries, and websites that help practices grow.",
   url: "https://smileaimarketing.com",
   email: "hello@smileaimarketing.com",
+  telephone: "+1-437-971-4014",
+  address: { "@type": "PostalAddress", streetAddress: "98 Personna Cir", addressLocality: "Brampton", addressRegion: "ON", postalCode: "L6X 0P2", addressCountry: "CA" },
   areaServed: "CA",
   knowsAbout: [
     "Dental marketing",

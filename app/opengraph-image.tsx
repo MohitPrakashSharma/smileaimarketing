@@ -15,11 +15,11 @@ export default function OpengraphImage() {
           alignItems: "flex-start",
           justifyContent: "center",
           padding: "80px",
-          background: "#082c3a",
+          background: "#1e3560",
           color: "#ffffff",
         }}
       >
-        <div style={{ display: "flex", fontSize: 34, color: "#0eaa9b", letterSpacing: 2 }}>
+        <div style={{ display: "flex", fontSize: 34, color: "#3ba2b3", letterSpacing: 2 }}>
           SMILE AI MARKETING
         </div>
         <div
@@ -37,7 +37,7 @@ export default function OpengraphImage() {
           <path
             d="M10 8c10 28 110 28 120 0"
             fill="none"
-            stroke="#0eaa9b"
+            stroke="#3ba2b3"
             strokeWidth="7"
             strokeLinecap="round"
           />

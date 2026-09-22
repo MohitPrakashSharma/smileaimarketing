@@ -89,7 +89,7 @@ export default function ServicesIndexPage() {
                 className="card group flex flex-col overflow-hidden p-6 transition-[border-color,box-shadow,transform] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-foreground hover:shadow-md"
               >
                 <ServiceVisual variant={s.icon} size="mini" flush className="-mx-6 -mt-6" />
-                <span className="mt-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                <span className="mt-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-ink">
                   <ServiceIcon icon={s.icon} />
                 </span>
                 <h3 className="mt-4 text-heading-4 text-foreground">{s.title}</h3>

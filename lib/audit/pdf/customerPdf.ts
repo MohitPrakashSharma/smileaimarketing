@@ -1,155 +1,67 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, type RGB } from "pdf-lib";
 import type { V2ReportPayload } from "../report";
-import { buildPerformanceView, metricsFor, googleChecksFor, testDateLabel, type PerfRow } from "../view/performanceView";
-import { primaryAction, type FindingLike } from "../view/findingView";
-import { buildBusinessMessage, plainEvidence } from "../view/message";
-import { CUSTOMER_PILLARS, PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "../view/pillars";
-import { Flow, C, LEVEL_COLOR, LEVEL_LABEL, AUDIT_LEVEL_LABEL, SEVERITY_COLOR, googleLevel, auditLevel, loadFonts, dateLabel, pdfSafe, type Level, type PdfOutput } from "./layout";
+import { buildBriefing, type BriefingFinding, type ReportBriefing } from "../view/briefing";
+import type { FindingLike } from "../view/findingView";
+import { Flow, C, SEVERITY_COLOR, googleLevel, loadFonts, dateLabel, pdfSafe, type PdfOutput } from "./layout";
+import { buildPerformanceView, googleChecksFor, testDateLabel, type PerfRow } from "../view/performanceView";
 import type { ReportPdfInput } from "./technicalPdf";
 import type { LocalComparison, ComparisonEntry, ComparisonMetricKey } from "../competitors/types";
 import { METRIC_LABEL } from "../competitors/view";
 import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type SourcedValue } from "../opportunity/types";
 
 /**
- * Customer report PDF — the version a practice owner reads. Same stored data
- * as the web report, presented in plain English:
+ * Customer report PDF — a business briefing a practice owner can read in a
+ * minute and a half, in the same order as the web report:
  *
- *   1. Cover + personalised message      (business, date, scope, our score, message)
- *   1b. Competitor call-out                (only when nearby practices measured better — same rule as the web card)
- *   2. Website health                      (our pillars; Google's five checks per tested page)
- *   3. Problems and recommendations        (the most consequential findings, one card each)
- *   4. Action plan                         (five priority actions — a checklist, not a repeat)
- *   4b. Local comparison                   (only when verified nearby practices were identified)
- *   4c. Financial opportunity              (illustrative scenario + link to the interactive calculator)
- *   5. Complete findings summary           (every stored finding, grouped by area)
+ *   A  Executive briefing            headline, ≤60-word summary, four numbers,
+ *                                     Google's PageSpeed rings for the homepage
+ *   B  Your three biggest problems    measured → what it can mean → do this
+ *   C  What could this be worth?      the automated opportunity scenario
+ *   D  Your local competitors         verified side-by-side measurements
+ *   E  Your next three actions
+ *   F  One closing consultation CTA
  *
- * No raw HTML, check identifiers, code or long diagnostic lists here — those
- * live in the technical report, which our team provides after a website
- * review (the closing note links to the request form; there is no public
- * technical download). Every finding is accounted for; nothing is dropped to
- * save pages.
+ * Sections A, B and E come from `buildBriefing`, the same function the web
+ * report calls, so the two documents always state the same headline, summary,
+ * problems, counts and actions; C and D print the same scenario and comparison
+ * objects the web renders. No raw HTML, check identifiers, per-page API errors
+ * or URL inventories appear here — that evidence lives in the technical report,
+ * which our team still provides by hand after a website review.
  *
  * `CUSTOMER_PDF_LAYOUT` is part of the stored file name — bump it whenever the
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r5"; // r5: competitor call-out after the cover, website URLs in the comparison table; r4: automated financial-opportunity scenario (data-mode aware); r3: local comparison after the action plan; r2: consultation CTAs, technical report by request
+export const CUSTOMER_PDF_LAYOUT = "cust-r6"; // r6: business briefing (A-F: three problems, three actions); r5: competitor call-out + website URLs; r4: automated financial scenario; r3: local comparison after the action plan
 
 type Finding = V2ReportPayload["findings"][number];
-const toLike = (f: Finding): FindingLike => ({ title: f.title, affectedPageCount: f.affectedPageCount, detectedValue: f.detectedValue, developerDetails: f.developerDetails as FindingLike["developerDetails"], recommendedFix: f.recommendedFix, whyItMatters: f.whyItMatters, device: f.device });
-const pathOnly = (url: string) => {
-  try {
-    const p = new URL(url).pathname;
-    return p === "/" ? "homepage" : p.replace(/\/$/, "");
-  } catch {
-    return url;
-  }
-};
-const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-const SEVERITY_WORD: Record<string, string> = { CRITICAL: "Critical", HIGH: "High", MEDIUM: "Medium", LOW: "Low", OPPORTUNITY: "Suggestion" };
-const severityLevel = (s: string): Level | null => (s === "CRITICAL" || s === "HIGH" ? "attention" : s === "MEDIUM" ? "opportunity" : null);
 
-/** Plain-language "what we found" for a finding: measurement + the pages it was seen on (paths only, capped). */
-function whatWeFound(f: Finding, pagesCrawled: number): { measured: string; pages: string } {
-  const raw = plainEvidence({ ...f, developerDetails: f.developerDetails as FindingLike["developerDetails"] }, pagesCrawled);
-  // Performance findings group several checks; say so, so "across 4 pages" and "affects 5 pages" read consistently.
-  const related = f.pillar === "PERFORMANCE" ? (f.developerDetails as FindingLike["developerDetails"] | null)?.filter((d) => d.affectedPageCount > 0).length ?? 0 : 0;
-  const withNote = related > 1 ? `${raw.replace(/[.!?]$/, "")} (${related - 1} related check${related === 2 ? "" : "s"} also failed)` : raw;
-  const measured = /[.!?]$/.test(withNote) ? withNote : `${withNote.charAt(0).toUpperCase()}${withNote.slice(1)}.`;
-  const urls = [...new Set(f.affectedUrls.map(pathOnly))];
-  const shown = urls.slice(0, 4);
-  const pages = urls.length ? `${shown.join(", ")}${urls.length > shown.length ? ` and ${urls.length - shown.length} more` : ""}` : "";
-  return { measured, pages };
-}
+const cad = (n: number) => `$${Math.round(n).toLocaleString("en-CA")}`;
+const num = (n: number) => n.toLocaleString("en-CA", { maximumFractionDigits: 1 });
 
-/** Fix lines without developer-only phrasing (code, selectors, HTTP headers stay in the technical report). */
-function ownerFixLines(f: Finding): string[] {
-  const lines = f.recommendedFix
-    .split("\n")
-    .map((l) => l.replace(/^•\s*/, "").trim())
-    .filter((l) => l && !/[<>{}`]|Cache-Control|@font-face|fetchpriority|srcset|<link|rel=|\.css|\.js/i.test(l));
-  // The intro line and a bullet often say the same thing — keep the first phrasing only
-  // (two lines sharing more than half of their meaningful words count as the same advice).
-  const words = (l: string) => new Set(l.toLowerCase().replace(/[^a-z ]/g, "").split(" ").filter((w) => w.length > 3));
-  const kept: Set<string>[] = [];
-  return lines.filter((l) => {
-    const w = words(l);
-    const dup = kept.some((k) => {
-      let common = 0;
-      for (const x of w) if (k.has(x)) common++;
-      return common / Math.max(1, Math.min(w.size, k.size)) > 0.5;
-    });
-    if (!dup) kept.push(w);
-    return !dup;
-  });
-}
-const clean = (s: string) => s.replace(/`/g, "").replace(/<([a-z-]+)>/g, "$1"); // Lighthouse titles quote tags in markdown — plain words for the owner
+const toBriefingFinding = (f: Finding): BriefingFinding => ({
+  id: f.id,
+  title: f.title,
+  pillar: f.pillar,
+  severity: f.severity,
+  bucket: f.bucket,
+  owner: f.owner,
+  effort: f.effort,
+  affectedPageCount: f.affectedPageCount,
+  detectedValue: f.detectedValue,
+  developerDetails: f.developerDetails as FindingLike["developerDetails"],
+  recommendedFix: f.recommendedFix,
+  whyItMatters: f.whyItMatters,
+  device: f.device,
+});
 
-/** The one conversion block in the customer PDF: a boxed invitation to review the priority fixes with our team (existing consultation page). */
-function consultationCta(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, input: ReportPdfInput) {
-  const pad = 12;
-  const inner = () => {
-    fl.text("Let's Review Your Website's Priority Fixes", { font: f.bold, size: 13, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    fl.gap(3);
-    fl.text("Book a website review with our team to understand the findings and discuss which improvements to prioritize. Fifteen minutes, no obligation — you leave knowing what to fix first.", { size: 9.5, color: C.secondary, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    fl.gap(5);
-    fl.link("Book a website review", input.consultationUrl, { size: 10.5, x: fl.left + pad });
-    fl.text(input.consultationUrl, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-  };
-  fl.keepTogether(() => {
-    // Box first (pdf-lib paints in call order), sized from a dry run of the content.
-    const h = fl.measure(inner) + pad * 2;
-    if (!fl.dryRun) fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.accent, borderWidth: 0.8, color: C.accentSoft });
-    fl.y -= pad;
-    inner();
-    fl.y -= pad;
-  });
-}
-
-/**
- * Print twin of the web report's CompetitorAlertCard: a boxed call-out right
- * after the cover, only when the measured comparison shows nearby practices
- * ahead on at least one metric. Largest measured gap per metric (max three),
- * verified names, and the same wording limits as the web — measurements on
- * the tested page, never rankings or patient numbers.
- */
-function competitorAlertCallout(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison, input: ReportPdfInput) {
-  const advantages = cmp.gaps.filter((g) => g.direction === "competitor_better");
-  if (!advantages.length) return;
-  const metrics = [...new Set(advantages.map((g) => g.metric))] as ComparisonMetricKey[];
-  const competitors = [...new Set(advantages.map((g) => g.competitor))];
-  const measured = cmp.competitors.filter((c) => c.measurement?.status === "ok").length;
-  const top = metrics.map((m) => advantages.filter((g) => g.metric === m).sort((a, b) => Math.abs(b.competitorValue - b.practiceValue) - Math.abs(a.competitorValue - a.practiceValue))[0]).slice(0, 3);
-  const heading = advantages.length >= 2 ? "Your competitors are doing better" : "A nearby practice measured better";
-  const pad = 14;
-  const bar = 4;
-  const x = fl.left + bar + pad;
-  const w = fl.usable - bar - pad * 2;
-  const inner = () => {
-    fl.text("LOCAL COMPARISON", { font: f.bold, size: 7.5, color: C.accent, x, maxWidth: w });
-    fl.gap(2);
-    fl.text(heading, { font: f.bold, size: 15, color: C.dark, x, maxWidth: w, lineHeight: 18 });
-    fl.gap(3);
-    fl.text(`On ${metrics.length} of the 5 website measures we tested, ${competitors.length === 1 ? competitors[0] : `${competitors.length} nearby practices`} scored higher than ${cmp.practice.name} - same Google PageSpeed test, same device (mobile), same page (the homepage). Website measurements only, not rankings or patient numbers.`, { size: 9, color: C.secondary, x, maxWidth: w });
-    fl.gap(5);
-    for (const g of top) {
-      const y0 = fl.y;
-      if (!fl.dryRun) fl.page.drawCircle({ x: x + 3, y: y0 - 6.5, size: 2, color: C.accent });
-      fl.text(`${METRIC_LABEL[g.metric]}: ${g.sentence}`, { size: 9, color: C.ink, x: x + 11, maxWidth: w - 11 });
-      fl.gap(2);
-    }
-    fl.gap(3);
-    fl.text(`${measured} of ${cmp.competitors.length} nearby homepages could be measured. The full comparison - every practice, every measure - is in the "${cmp.heading}" section of this report.`, { size: 7.5, color: C.muted, x, maxWidth: w });
-    fl.gap(5);
-    fl.link("See the full comparison online", `${input.reportUrl}#local-comparison`, { size: 9.5, x });
-    fl.gap(1);
-    fl.link("Book a website review", input.consultationUrl, { size: 9.5, x });
-  };
+/** A boxed panel sized from a dry run of its own content (pdf-lib paints in call order). */
+function panel(fl: Flow, pad: number, inner: () => void, o: { fill?: RGB; border?: RGB; bar?: boolean } = {}) {
   fl.keepTogether(() => {
     const h = fl.measure(inner) + pad * 2;
     if (!fl.dryRun) {
-      fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.accent, borderWidth: 0.8, color: C.accentSoft });
-      fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: bar, height: h, color: C.accent });
+      fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: o.border ?? C.border, borderWidth: 0.8, color: o.fill ?? C.surface });
+      if (o.bar) fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: 3.5, height: h, color: C.accent });
     }
     fl.y -= pad;
     inner();
@@ -157,143 +69,346 @@ function competitorAlertCallout(fl: Flow, f: Awaited<ReturnType<typeof loadFonts
   });
 }
 
-/** Local comparison, adapted for print: one row per practice with the five measured columns, the evidence-backed gaps, the method note and a CTA. Only called when the comparison exists. */
-function localComparisonSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison, input: ReportPdfInput) {
+
+/**
+ * Google's PageSpeed Insights scores for the homepage, as the rings the tool
+ * itself shows. Drawn only from a stored "ok" run: when Google could not test
+ * the site nothing is drawn, and no ring is ever invented.
+ */
+function googleRings(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, rows: PerfRow[]) {
+  const view = buildPerformanceView(rows);
+  const page = view.pages.find((p) => p.pageType === "home") ?? view.pages[0];
+  const row = page?.mobile ?? page?.desktop ?? null;
+  if (!row || row.status !== "ok") return;
+  const scores = googleChecksFor(row).filter((c) => c.kind === "score" && c.available && c.score !== null);
+  if (!scores.length) return;
+  const device = page?.mobile ? "mobile" : "desktop";
+  const date = testDateLabel(row.analysisUtc);
+  fl.ensure(96);
+  fl.text(`GOOGLE PAGESPEED INSIGHTS · HOMEPAGE · ${device.toUpperCase()}${date ? ` · TESTED ${date.toUpperCase()}` : ""}`, { font: f.bold, size: 6.5, color: C.secondaryAccent });
+  fl.gap(4);
+  const r = 22;
+  const step = fl.usable / scores.length;
+  const top = fl.y;
+  scores.forEach((c, i) => {
+    fl.ring(fl.left + step * i + r + 6, top - r - 2, r, c.score, googleLevel(c.score!), { stroke: 5, numberSize: 16, caption: c.label });
+    fl.transcript.push(`${c.label}: ${c.score}/100 (Google, ${device})`);
+  });
+  fl.y = top - (r * 2 + 22);
+  fl.gap(4);
+}
+
+// ───────── A. Executive briefing ─────────
+function executiveBriefing(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBriefing, input: ReportPdfInput, date: string, perf: PerfRow[]) {
+  fl.gap(4);
+  fl.text("EXECUTIVE BRIEFING", { font: f.bold, size: 8, color: C.accent });
+  fl.gap(3);
+  fl.text(`${b.practice.name}${b.practice.city ? ` · ${b.practice.city}` : ""}`, { font: f.bold, size: 20, color: C.dark, lineHeight: 24 });
+  fl.text(`${b.practice.domain} · Audited ${date}`, { size: 9, color: C.secondary });
+  fl.gap(10);
+  fl.text(b.headline, { font: f.bold, size: 17, color: C.dark, lineHeight: 21 });
+  fl.gap(5);
+  fl.text(b.summary, { size: 10.5, color: C.ink, lineHeight: 15 });
+  if (!b.performanceMeasured) fl.text("Google PageSpeed could not test this site during the audit, so speed is not scored here.", { size: 8, color: C.muted });
+  fl.gap(10);
+
+  // Four numbers, evenly spaced: the score is one of them, not the story.
+  const stats: Array<[string, string, string]> = [
+    [b.stats.score === null ? "-" : String(b.stats.score), "Audit score", "out of 100"],
+    [String(b.stats.findings), "Verified issues", `from ${b.stats.checksRun} checks`],
+    [String(b.stats.criticalHigh), "Critical & high", `${b.stats.critical} critical · ${b.stats.high} high`],
+    [String(b.stats.pagesCrawled), "Pages crawled", "this audit"],
+  ];
+  fl.keepTogether(() => {
+    const h = 48;
+    const w = fl.usable / stats.length;
+    const top = fl.y;
+    if (!fl.dryRun) {
+      fl.page.drawRectangle({ x: fl.left, y: top - h, width: fl.usable, height: h, color: C.accentSoft, borderColor: C.accent, borderWidth: 0.8 });
+      stats.forEach(([v, l, note], i) => {
+        const x = fl.left + i * w + 12;
+        fl.page.drawText(v, { x, y: top - 24, size: 18, font: f.bold, color: C.dark });
+        fl.page.drawText(pdfSafe(l.toUpperCase()), { x, y: top - 34, size: 6.5, font: f.bold, color: C.accent });
+        fl.page.drawText(pdfSafe(note), { x, y: top - 43, size: 6.5, font: f.regular, color: C.muted });
+        fl.transcript.push(`${v} ${l} (${note})`);
+        if (i > 0) fl.page.drawLine({ start: { x: fl.left + i * w, y: top - h + 8 }, end: { x: fl.left + i * w, y: top - 8 }, thickness: 0.5, color: C.accent });
+      });
+    }
+    fl.y = top - h;
+  });
+  fl.gap(12);
+  googleRings(fl, f, perf);
+  if (b.stats.topProblem) {
+    panel(fl, 10, () => {
+      fl.text("MOST CONSEQUENTIAL PROBLEM", { font: f.bold, size: 6.5, color: C.accent, x: fl.left + 14, maxWidth: fl.usable - 26 });
+      fl.gap(2);
+      fl.text(b.stats.topProblem!, { font: f.bold, size: 11.5, color: C.dark, x: fl.left + 14, maxWidth: fl.usable - 26 });
+    }, { bar: true });
+  }
+  fl.gap(8);
+  fl.link(`Online report (interactive, with every measurement): ${input.reportUrl}`, input.reportUrl, { size: 8.5 });
+}
+
+// ───────── B. Three biggest problems ─────────
+function problemsSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBriefing) {
+  if (!b.problems.length) {
+    fl.section("Your biggest website problems", "Nothing crossed our thresholds in the checks we ran — there is no priority list this time.");
+    return;
+  }
+  fl.section(`Your ${b.problems.length === 1 ? "biggest website problem" : `${b.problems.length} biggest website problems`}`, "Verified on your own pages: what we measured, what it can mean, and what to do about it.");
+  b.problems.forEach((p, i) => {
+    panel(fl, 10, () => {
+      const x = fl.left + 14;
+      const w = fl.usable - 26;
+      // Severity keeps its own colour here: a critical finding must not read as "brand blue".
+      fl.text(`${String(i + 1).padStart(2, "0")} · ${p.severityLabel.toUpperCase()} · ${p.area.toUpperCase()} · ${p.ownerLabel.toUpperCase()}`, { font: f.bold, size: 6.5, color: SEVERITY_COLOR[p.severity] ?? C.accent, x, maxWidth: w });
+      fl.gap(2);
+      fl.text(p.headline, { font: f.bold, size: 12.5, color: C.dark, x, maxWidth: w, lineHeight: 15 });
+      fl.gap(4);
+      const line = (label: string, body: string, color = C.ink) => {
+        const lw = f.bold.widthOfTextAtSize(`${label} `, 8.5);
+        const y0 = fl.y;
+        if (!fl.dryRun) {
+          fl.page.drawText(label, { x, y: y0 - 8.5, size: 8.5, font: f.bold, color: C.dark });
+          fl.transcript.push(label);
+        }
+        fl.text(body, { size: 8.5, color, x: x + lw, maxWidth: w - lw, lineHeight: 12 });
+        fl.gap(1.5);
+      };
+      line("Measured:", p.evidence);
+      line("What it can mean:", p.implication, C.secondary);
+      line("Do this:", p.action);
+    }, { bar: true });
+    fl.gap(5);
+  });
+  if (b.more.total > 0) {
+    fl.gap(2);
+    fl.keepTogether(() => {
+      fl.text(`Also found: ${b.more.total} further finding${b.more.total === 1 ? "" : "s"} — ${b.more.byArea.map((a) => `${a.count} ${a.label.toLowerCase()}`).join(", ")}.`, { font: f.bold, size: 9, color: C.dark });
+      if (b.more.titles.length) fl.text(`Including: ${b.more.titles.join("; ")}${b.more.total > b.more.titles.length ? "; and more" : ""}. Every one is listed with its full evidence in the technical report.`, { size: 8, color: C.muted });
+    });
+  }
+}
+
+// ───────── C. What could this be worth? ─────────
+function opportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, sc: OpportunityScenario, input: ReportPdfInput) {
+  const rateKeys: OpportunityInputKey[] = ["currentRate", "targetRate", "patientRate"];
+  const fmtInput = (key: OpportunityInputKey, v: SourcedValue) => (rateKeys.includes(key) ? `${num(v.value * 100)}%` : key === "contribution" ? cad(v.value) : num(v.value));
+  const sourceWord: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "example" };
+  const intro =
+    sc.mode === "verified"
+      ? `A scenario built from the data ${input.business.name} authorised, with one stated improvement assumption.`
+      : sc.mode === "partial"
+        ? `Built from the data ${input.business.name} authorised so far - only what that data supports is shown.`
+        : sc.mode === "illustrative"
+          ? "This audit measured the website, not your visitors, enquiries or income. Until those are shared, here is how the maths works on example numbers."
+          : "This audit measured the website, not your visitors, enquiries or income - so no dollar figure is shown.";
+  fl.section("What could this be worth?", intro);
+
+  const tag = sc.illustrative ? "ILLUSTRATIVE EXAMPLE - NOT YOUR FIGURES" : sc.mode === "verified" ? "PRACTICE-SPECIFIC SCENARIO - ESTIMATE" : sc.mode === "partial" ? "PARTIAL SCENARIO - ESTIMATE" : "NO DOLLAR FIGURE - DATA NOT AUTHORISED";
+  const used = (Object.keys(sc.inputs) as OpportunityInputKey[]).filter((k) => sc.inputs[k]);
+  panel(
+    fl,
+    12,
+    () => {
+      const x = fl.left + 16;
+      const w = fl.usable - 32;
+      fl.text(tag, { font: f.bold, size: 7, color: C.accent, x, maxWidth: w });
+      fl.gap(3);
+      if (sc.illustrative) {
+        // A labelled worked example: the same numbers for every practice, so they are never the headline.
+        const bits: string[] = [];
+        if (sc.figures.additionalEnquiries !== null) bits.push(`${num(sc.figures.additionalEnquiries)} additional enquiries a month`);
+        if (sc.figures.additionalPatients !== null) bits.push(`${num(sc.figures.additionalPatients)} additional patients a month`);
+        if (sc.figures.monthlyContribution !== null) bits.push(`${cad(sc.figures.monthlyContribution)} a month in additional contribution`);
+        fl.text("How the maths works, on example numbers", { font: f.bold, size: 11, color: C.dark, x, maxWidth: w });
+        fl.gap(2);
+        if (bits.length) fl.text(`On the example inputs below, an enquiry rate lifted by two percentage points would mean ${bits.join(", ")}. These are placeholder numbers used to show the method - they are the same for every practice and say nothing about yours.`, { size: 9, color: C.ink, x, maxWidth: w });
+        fl.gap(2);
+        fl.text("Share your visitors, enquiry rate and what a new patient is worth in a website review and we will build this scenario with your figures.", { size: 8.5, color: C.secondary, x, maxWidth: w });
+      } else if (sc.figures.monthlyContribution !== null) {
+        fl.text(cad(sc.figures.monthlyContribution), { font: f.bold, size: 28, color: C.growth, x, maxWidth: w, lineHeight: 31 });
+        fl.text(`Potential additional contribution a month under this scenario - about ${cad(sc.figures.dailyContribution!)} a day over 30 days.`, { size: 8.5, color: C.secondary, x, maxWidth: w });
+        const bits: string[] = [];
+        if (sc.figures.additionalEnquiries !== null) bits.push(`${num(sc.figures.additionalEnquiries)} additional enquiries a month`);
+        if (sc.figures.additionalPatients !== null) bits.push(`${num(sc.figures.additionalPatients)} additional patients a month`);
+        if (bits.length) fl.text(`From ${bits.join(" and ")}.`, { size: 8.5, color: C.ink, x, maxWidth: w });
+      } else if (sc.figures.additionalEnquiries !== null) {
+        fl.text(num(sc.figures.additionalEnquiries), { font: f.bold, size: 24, color: C.dark, x, maxWidth: w, lineHeight: 27 });
+        fl.text(`Additional enquiries a month under this scenario. A dollar figure needs ${sc.missing.map((k) => INPUT_LABEL[k].toLowerCase()).join(" and ")} - not authorised yet, so none is shown.`, { size: 8.5, color: C.secondary, x, maxWidth: w });
+      } else {
+        fl.text("Additional enquiries a month = monthly visitors × (improved enquiry rate minus current enquiry rate); additional patients = enquiries × the share that become patients; contribution = patients × contribution per new patient.", { size: 9, color: C.ink, x, maxWidth: w });
+        fl.gap(2);
+        fl.text("Share your visitors, enquiry rate and what a new patient is worth in a website review and we will build the scenario with you.", { size: 8.5, color: C.secondary, x, maxWidth: w });
+      }
+      fl.gap(4);
+      if (used.length) fl.text(`${sc.illustrative ? "Example inputs" : "Inputs used"}: ${used.map((k) => `${INPUT_LABEL[k].toLowerCase()} ${fmtInput(k, sc.inputs[k]!)} (${sourceWord[sc.inputs[k]!.source]}${sc.inputs[k]!.period ? `, ${sc.inputs[k]!.period}` : ""})`).join(" · ")}.`, { size: 7.5, color: C.muted, x, maxWidth: w });
+      if (sc.periods.length) fl.text(`Measurement period: ${sc.periods.join("; ")}.`, { size: 7.5, color: C.muted, x, maxWidth: w });
+      for (const a of sc.assumptions) fl.text(a, { size: 7.5, color: C.muted, x, maxWidth: w });
+      fl.text(sc.disclaimer, { size: 7.5, color: C.muted, x, maxWidth: w });
+    },
+    { fill: C.accentSoft, border: C.accent },
+  );
+  fl.gap(4);
+  fl.text("Method: one calculation for the whole report - additional enquiries a month = monthly visitors × (improved rate minus current rate); patients = enquiries × the share that become patients; contribution = patients × contribution per new patient; per day = monthly ÷ 30. No separate loss is added up per issue, and no figure here comes from the audit score, PageSpeed or the competitor measurements.", { size: 7.5, color: C.muted });
+}
+
+// ───────── D. Local competitors ─────────
+function competitorsSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, cmp: LocalComparison) {
   const cols: ComparisonMetricKey[] = ["performanceScore", "lcpMs", "accessibility", "bestPractices", "seo"];
-  const colLabel: Record<ComparisonMetricKey, string> = { performanceScore: "Performance", lcpMs: "Main content", accessibility: "Accessibility", bestPractices: "Best Practices", seo: "Google SEO" };
+  const colLabel: Record<ComparisonMetricKey, string> = { performanceScore: "Performance", lcpMs: "Main content", accessibility: "Accessibility", bestPractices: "Best practices", seo: "Google SEO" };
   const fmt = (key: ComparisonMetricKey, v: number | null) => (v === null ? "-" : key === "lcpMs" ? `${(v / 1000).toFixed(1)} s` : `${v}/100`);
-  const nameW = 186;
+  // Pending (never tested) and a genuine measurement failure are different states and are never conflated.
+  const state = (e: ComparisonEntry) => (e.measurement?.status === "ok" ? "ok" : !e.measurement && !e.measuredAt ? "pending" : "failed");
+  const leads = (key: ComparisonMetricKey, v: number | null, p: number | null | undefined) => (v === null || p === null || p === undefined ? false : key === "lcpMs" ? v < p : v > p);
+  const advantages = cmp.gaps.filter((g) => g.direction === "competitor_better");
+  const measured = cmp.competitors.filter((c) => state(c) === "ok").length;
+  // The same selection the web report makes: the practices that measured ahead on at least one
+  // of the five measures, plus any still being analysed; when none are ahead, every measured
+  // practice is listed instead.
+  const ahead = new Set(advantages.map((g) => g.competitor));
+  const pending = cmp.competitors.filter((c) => state(c) === "pending");
+  const shown = ahead.size > 0 ? cmp.competitors.filter((c) => ahead.has(c.name) || state(c) === "pending") : cmp.competitors;
+  const shownNames = new Set(shown.map((c) => c.name));
+  const strengths = cmp.gaps.filter((g) => g.direction === "practice_better" && shownNames.has(g.competitor));
+  const heading = advantages.length > 0 ? "Nearby practices have measurable website advantages" : "How your website compares nearby";
+
+  const nameW = 172;
   const colW = (fl.usable - nameW) / cols.length;
-  const rowH = 32;
-  const shownUrl = (url: string) => url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
-  // Fit a string to the name column by measured width, ending with an ellipsis if needed.
-  const fit = (str: string, font: typeof f.bold, size: number, maxW = nameW - 8) => {
+  const fit = (str: string, font: typeof f.bold, size: number, maxW = nameW - 10) => {
     let t = pdfSafe(str);
     if (font.widthOfTextAtSize(t, size) <= maxW) return t;
     while (t.length > 1 && font.widthOfTextAtSize(`${t}…`, size) > maxW) t = t.slice(0, -1);
     return pdfSafe(`${t.trimEnd()}…`);
   };
-  fl.section(cmp.heading, "See how your website compares with other dental practices serving your area. Same Google PageSpeed test, same device (mobile), same page (the homepage). Website measurements only - not rankings, patient numbers or how well a practice is doing.");
-  const rows: Array<{ label: string; entry: ComparisonEntry }> = [{ label: `${cmp.practice.name} (you)`, entry: cmp.practice }, ...cmp.competitors.map((c) => ({ label: c.name, entry: c }))];
+  const shownUrl = (url: string) => url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+
+  const lead =
+    ahead.size > 0
+      ? `${ahead.size} of the ${measured} nearby ${measured === 1 ? "practice" : "practices"} we measured scored ahead of your homepage on at least one of the five measures - those are the ones below.${pending.length ? ` ${pending.length} more ${pending.length === 1 ? "is" : "are"} still being analysed.` : ""}`
+      : `${measured} of ${cmp.competitors.length} nearby ${cmp.competitors.length === 1 ? "practice" : "practices"} could be measured.`;
+  fl.section(heading, `${lead} Same Google PageSpeed test: mobile, homepage, the test used on your site. Website measurements only: not rankings, patient numbers or how well a practice is doing.`);
+
+  const rows: Array<{ label: string; entry: ComparisonEntry }> = [{ label: `${cmp.practice.name} (you)`, entry: cmp.practice }, ...shown.map((c) => ({ label: c.name, entry: c }))];
   fl.keepTogether(() => {
-    // header
     const top = fl.y;
     if (!fl.dryRun) {
       fl.page.drawText("PRACTICE / WEBSITE", { x: fl.left, y: top - 8, size: 6.5, font: f.bold, color: C.muted });
       cols.forEach((key, i) => fl.page.drawText(pdfSafe(colLabel[key].toUpperCase()), { x: fl.left + nameW + i * colW, y: top - 8, size: 6.5, font: f.bold, color: C.muted }));
     }
     fl.y = top - 12;
-    fl.rule();
+    fl.rule(C.accent);
     for (const r of rows) {
       const y0 = fl.y;
+      const st = state(r.entry);
       const m = r.entry.measurement;
-      const ok = m?.status === "ok";
+      const isPractice = r.entry === cmp.practice;
       if (!fl.dryRun) {
-        fl.page.drawText(fit(r.label, f.bold, 8.5), { x: fl.left, y: y0 - 10, size: 8.5, font: f.bold, color: r.entry === cmp.practice ? C.accent : C.ink });
-        // The verified website, as a clickable URL; the discovery note (category, distance) under it.
+        if (isPractice) fl.page.drawRectangle({ x: fl.left - 5, y: y0 - 34, width: fl.usable + 10, height: 34, color: C.accentSoft });
+        fl.page.drawText(fit(r.label, f.bold, 9), { x: fl.left, y: y0 - 11, size: 9, font: f.bold, color: isPractice ? C.accent : C.ink });
         const site = r.entry.website ?? (r.entry.domain ? `https://${r.entry.domain}` : null);
         if (site) {
           const label = fit(shownUrl(site), f.regular, 7);
-          fl.page.drawText(label, { x: fl.left, y: y0 - 19, size: 7, font: f.regular, color: C.accent });
-          fl.addLinkAnnotation(fl.page, fl.left, y0 - 21, f.regular.widthOfTextAtSize(label, 7), 9, site);
+          fl.page.drawText(label, { x: fl.left, y: y0 - 20, size: 7, font: f.regular, color: C.accent });
+          fl.addLinkAnnotation(fl.page, fl.left, y0 - 22, f.regular.widthOfTextAtSize(label, 7), 9, site);
         }
-        if (r.entry.relevance) fl.page.drawText(fit(r.entry.relevance, f.regular, 6.5), { x: fl.left, y: y0 - 27.5, size: 6.5, font: f.regular, color: C.muted });
-        cols.forEach((key, i) => {
-          const v = ok ? fmt(key, m![key]) : "unavailable";
-          fl.page.drawText(v, { x: fl.left + nameW + i * colW, y: y0 - 14, size: ok && m![key] !== null ? 9 : 7.5, font: ok && m![key] !== null ? f.bold : f.regular, color: ok && m![key] !== null ? C.ink : C.faint });
-        });
-        fl.transcript.push(`${r.label}${r.entry.website ? ` (${r.entry.website})` : ""}: ${cols.map((key) => `${colLabel[key]} ${ok ? fmt(key, m![key]) : "unavailable"}`).join(", ")}`);
+        if (r.entry.relevance && !isPractice) fl.page.drawText(fit(r.entry.relevance, f.regular, 6.5), { x: fl.left, y: y0 - 28, size: 6.5, font: f.regular, color: C.muted });
+        if (st === "ok") {
+          const pm = cmp.practice.measurement?.status === "ok" ? cmp.practice.measurement : null;
+          cols.forEach((key, i) => {
+            const x = fl.left + nameW + i * colW;
+            // On a competitor row, only the measures where they lead are filled in; a dash elsewhere,
+            // explained under the table.
+            if (!isPractice && ahead.size > 0 && !leads(key, m![key], pm?.[key] ?? null)) {
+              fl.page.drawText("-", { x, y: y0 - 16, size: 10, font: f.bold, color: C.faint });
+              return;
+            }
+            // Performance keeps Google's ring, the dial PageSpeed Insights itself shows.
+            if (key === "performanceScore" && m![key] !== null) {
+              fl.ring(x + 13, y0 - 16, 13, m![key], googleLevel(m![key]!), { stroke: 3.5, numberSize: 10 });
+              return;
+            }
+            fl.page.drawText(fmt(key, m![key]), { x, y: y0 - 16, size: m![key] !== null ? 10 : 8, font: m![key] !== null ? f.bold : f.regular, color: m![key] !== null ? C.ink : C.faint });
+          });
+        } else {
+          fl.page.drawText(st === "pending" ? "Analysis in progress" : "Could not be measured", { x: fl.left + nameW, y: y0 - 16, size: 8, font: f.regular, color: C.faint });
+        }
+        const pmT = cmp.practice.measurement?.status === "ok" ? cmp.practice.measurement : null;
+        const cells = st === "ok" ? cols.map((key) => `${colLabel[key]} ${!isPractice && ahead.size > 0 && !leads(key, m![key], pmT?.[key] ?? null) ? "-" : fmt(key, m![key])}`).join(", ") : "";
+        fl.transcript.push(`${r.label}${r.entry.website ? ` (${r.entry.website})` : ""}: ${st === "ok" ? cells : st === "pending" ? "Analysis in progress" : "Could not be measured"}`);
       }
-      fl.y = y0 - rowH;
+      fl.y = y0 - 36;
       fl.rule();
     }
   });
-  fl.gap(4);
-  const adv = cmp.gaps.filter((g) => g.direction === "competitor_better");
-  const str = cmp.gaps.filter((g) => g.direction === "practice_better");
-  if (adv.length) {
-    fl.text("Where nearby practices measured better", { font: f.bold, size: 9.5, color: C.dark });
-    for (const g of adv) fl.text(`• ${g.sentence}`, { size: 8.5, color: C.secondary });
+
+  fl.gap(5);
+  if (ahead.size > 0) {
+    fl.text("A dash means that practice did not measure ahead of your homepage on that measure, so no number is shown for it.", { size: 7.5, color: C.muted });
     fl.gap(3);
   }
-  if (str.length) {
-    fl.text("Where your practice measured better", { font: f.bold, size: 9.5, color: C.dark });
-    for (const g of str) fl.text(`• ${g.sentence}`, { size: 8.5, color: C.secondary });
+  if (advantages.length) {
+    fl.text("Where nearby practices measured better", { font: f.bold, size: 10, color: C.dark });
+    for (const g of advantages) fl.text(`• ${METRIC_LABEL[g.metric]}: ${g.sentence}`, { size: 9, color: C.ink, lineHeight: 12.5 });
     fl.gap(3);
   }
-  if (!cmp.gaps.length) fl.text("No difference large enough to call out on the metrics that could be measured.", { size: 8.5, color: C.secondary });
+  if (strengths.length) {
+    fl.text("Where your practice measured better", { font: f.bold, size: 10, color: C.dark });
+    for (const g of strengths) fl.text(`• ${g.sentence}`, { size: 8.5, color: C.secondary, lineHeight: 12 });
+    fl.gap(3);
+  }
+  if (!cmp.gaps.length) fl.text("No difference large enough to call out on the measurements available.", { size: 8.5, color: C.secondary });
   if (cmp.narrative) {
-    fl.gap(3);
+    fl.gap(2);
     fl.text(cmp.narrative.text, { size: 9, color: C.ink });
-    fl.text("Explanation written from the measurements above; every number is from the data.", { size: 7, color: C.muted });
+    fl.text("Written from the measurements above; every number is from the data.", { size: 7, color: C.muted });
   }
-  fl.gap(4);
-  fl.link("See How Your Practice Can Close the Gap", input.consultationUrl, { size: 10 });
-  fl.text("Book a website review and we will go through these gaps with you and what it would take to close them.", { size: 8.5, color: C.secondary });
   fl.gap(4);
   fl.text(`How this comparison was made: ${cmp.method}`, { size: 7.5, color: C.muted });
   fl.text(cmp.attribution, { size: 7.5, color: C.muted });
 }
 
-/**
- * Financial opportunity, for print — the same scenario object the web report
- * renders, so the two can never disagree. What appears depends on the data
- * the practice authorised (verified / partial / illustrative / formula only);
- * no figure here is derived from the audit score, and nothing is presented as
- * a measured loss.
- */
-function financialOpportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, sc: OpportunityScenario, input: ReportPdfInput) {
-  const cad = (n: number) => `$${Math.round(n).toLocaleString("en-CA")}`;
-  const num = (n: number) => n.toLocaleString("en-CA", { maximumFractionDigits: 1 });
-  const rateKeys: OpportunityInputKey[] = ["currentRate", "targetRate", "patientRate"];
-  const fmtInput = (key: OpportunityInputKey, v: SourcedValue) => (rateKeys.includes(key) ? `${num(v.value * 100)}%` : key === "contribution" ? cad(v.value) : num(v.value));
-  const sourceWord: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "example" };
-  const intro =
-    sc.mode === "verified"
-      ? `A practice-specific scenario built from data ${input.business.name} authorised, with one stated improvement assumption.`
-      : sc.mode === "partial"
-        ? `Built from the data ${input.business.name} authorised so far - only the figures that data supports are shown.`
-        : sc.mode === "illustrative"
-          ? "The audit measured the website, not your visitors, enquiries or income. Until those are shared, here is how the maths works on clearly labelled example numbers."
-          : "The audit measured the website, not your visitors, enquiries or income - so no dollar figure is shown. Here is how the opportunity is worked out.";
-  fl.section(sc.heading, intro);
-  fl.text("How it is worked out", { font: f.bold, size: 9.5, color: C.dark });
-  fl.text("Additional enquiries per month = monthly visitors × (improved enquiry rate minus current enquiry rate). Additional patients = additional enquiries × the share of enquiries that become patients. Potential additional contribution = additional patients × contribution per new patient. Per day = monthly ÷ 30.", { size: 8.5, color: C.secondary });
-  fl.gap(5);
-  const pad = 10;
-  const used = (Object.keys(sc.inputs) as OpportunityInputKey[]).filter((k) => sc.inputs[k]);
-  const inner = () => {
-    const tag = sc.illustrative ? "ILLUSTRATIVE SCENARIO - NOT YOUR FIGURES" : sc.mode === "verified" ? "PRACTICE-SPECIFIC SCENARIO - ESTIMATE" : sc.mode === "partial" ? "PARTIAL SCENARIO - ESTIMATE" : "NO DOLLAR FIGURE - DATA NOT AUTHORISED";
-    fl.text(tag, { font: f.bold, size: 7, color: C.accent, x: fl.left + pad });
-    fl.gap(2);
-    if (sc.mode === "formula_only") {
-      fl.text("We have no authorised analytics, booking or financial data for this practice, so no amount is shown. Share your visitors, enquiry rate and what a new patient is worth in a website review and we will build the scenario with you.", { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    } else {
-      if (used.length) fl.text(`${sc.illustrative ? "Example inputs" : "Inputs used"}: ${used.map((k) => `${INPUT_LABEL[k].toLowerCase()} ${fmtInput(k, sc.inputs[k]!)} (${sourceWord[sc.inputs[k]!.source]}${sc.inputs[k]!.period ? `, ${sc.inputs[k]!.period}` : ""})`).join(" · ")}.`, { size: 8.5, color: C.ink, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-      fl.gap(2);
-      const parts: string[] = [];
-      if (sc.figures.additionalEnquiries !== null) parts.push(`about ${num(sc.figures.additionalEnquiries)} additional enquiries a month`);
-      if (sc.figures.additionalPatients !== null) parts.push(`${num(sc.figures.additionalPatients)} additional patients a month`);
-      if (sc.figures.monthlyContribution !== null && sc.figures.dailyContribution !== null) parts.push(`potential additional contribution under this scenario: ${cad(sc.figures.monthlyContribution)} a month (${cad(sc.figures.dailyContribution)} a day)`);
-      if (parts.length) fl.text(`Result: ${parts.join("; ")}.`, { font: f.bold, size: 9.5, color: C.dark, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-      if (sc.mode === "partial" && sc.figures.monthlyContribution === null) fl.text(`A dollar figure needs ${sc.missing.map((k) => INPUT_LABEL[k].toLowerCase()).join(" and ")} - not available from authorised data yet, so none is shown.`, { size: 8.5, color: C.secondary, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    }
-    if (sc.periods.length) fl.text(`Measurement period: ${sc.periods.join("; ")}.`, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    for (const a of sc.assumptions) fl.text(a, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-    fl.text(sc.disclaimer, { size: 7.5, color: C.muted, x: fl.left + pad, maxWidth: fl.usable - pad * 2 });
-  };
-  fl.keepTogether(() => {
-    const h = fl.measure(inner) + pad * 2;
-    if (!fl.dryRun) fl.page.drawRectangle({ x: fl.left, y: fl.y - h, width: fl.usable, height: h, borderColor: C.border, borderWidth: 0.8, color: C.surface });
-    fl.y -= pad;
-    inner();
-    fl.y -= pad;
+// ───────── E. Next three actions ─────────
+function actionsSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBriefing) {
+  if (!b.actions.length) return;
+  fl.section(`Your next ${b.actions.length === 1 ? "action" : `${b.actions.length} actions`}`, "Start at the top. Each one comes straight from a verified finding in this report.");
+  b.actions.forEach((a, i) => {
+    fl.keepTogether(() => {
+      const top = fl.y;
+      if (!fl.dryRun) fl.page.drawText(String(i + 1).padStart(2, "0"), { x: fl.left, y: top - 14, size: 16, font: f.bold, color: C.accent });
+      const x = fl.left + 30;
+      fl.text(a.title, { font: f.bold, size: 11, color: C.dark, x, maxWidth: fl.usable - 30 });
+      fl.text(a.detail, { size: 9, color: C.secondary, x, maxWidth: fl.usable - 30 });
+      fl.text(`${a.severityLabel}${a.whenLabel ? ` · ${a.whenLabel.toLowerCase()}` : ""} · ${a.ownerLabel}`, { font: f.bold, size: 7.5, color: SEVERITY_COLOR[a.severity] ?? C.muted, x, maxWidth: fl.usable - 30 });
+      fl.gap(6);
+    });
   });
-  fl.gap(5);
-  fl.link("Discover Your Practice's Growth Opportunities", input.consultationUrl, { size: 10 });
-  fl.text("Book a website review: we will go through these findings with you and, with your real numbers, turn them into a plan.", { size: 8.5, color: C.secondary });
-  fl.gap(3);
-  fl.text("This audit identifies verified problems on your website and listing. It does not prove that fixing them will produce the figures above. No result here is a measured loss or a forecast.", { size: 7.5, color: C.muted });
+  fl.text("Severity is the audit's own rating of each finding. Fixing these addresses what we measured; it is not a promise of rankings, enquiries or revenue.", { size: 7.5, color: C.muted });
+}
+
+// ───────── F. Consultation CTA ─────────
+function consultationCta(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, input: ReportPdfInput) {
+  fl.gap(10);
+  panel(
+    fl,
+    14,
+    () => {
+      const x = fl.left + 16;
+      const w = fl.usable - 32;
+      fl.text("Find Out What's Holding Your Practice Back", { font: f.bold, size: 15, color: C.dark, x, maxWidth: w, lineHeight: 18 });
+      fl.gap(3);
+      fl.text("We'll walk you through the findings, explain the opportunities and help you decide which improvements to prioritise.", { size: 9.5, color: C.secondary, x, maxWidth: w });
+      fl.gap(5);
+      fl.link("Book your website review", input.consultationUrl, { size: 11, x });
+      fl.text(input.consultationUrl, { size: 7.5, color: C.muted, x, maxWidth: w });
+      fl.gap(4);
+      fl.link("Request Your Full Technical Report", input.technicalReportRequestUrl, { size: 9.5, x });
+      fl.text("The full technical report - every measurement, affected URL and developer instruction - is provided by our team after a website review, not sent automatically.", { size: 7.5, color: C.muted, x, maxWidth: w });
+    },
+    { fill: C.accentSoft, border: C.accent },
+  );
+  fl.gap(6);
+  fl.text("This report is based only on data collected during the audit; scores describe how the site measured on the audit date and are not predictions of rankings, traffic or revenue.", { size: 7.5, color: C.muted });
 }
 
 export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutput> {
@@ -305,251 +420,37 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   const f = await loadFonts(doc);
   const date = dateLabel(input.completedAt);
   const fl = new Flow(doc, f, { business: business.name, date, url: input.reportUrl, kind: "SEO AUDIT" });
-  const scores = payload.scores;
-  const findings = payload.findings;
-  const sc = payload.severityCounts;
-  const pagesCrawled = ((payload.crawlStats as { pagesCrawled?: number } | null)?.pagesCrawled ?? 0) as number;
-  const checksRun = payload.checks.filter((c) => c.status === "PASS" || c.status === "FAIL").length;
-  const rows = payload.performance as PerfRow[];
-  const view = buildPerformanceView(rows);
-  const message = buildBusinessMessage({ businessName: business.name, website: business.website, customersWord: business.customersWord, pagesCrawled, checksRun, scores, severityCounts: sc, findings: findings.map((x) => ({ ...x, developerDetails: x.developerDetails as FindingLike["developerDetails"] })), performance: rows });
 
-  // ───────── 1. Cover + personalised message ─────────
-  fl.gap(6);
-  fl.text("SEO AUDIT REPORT", { font: f.bold, size: 8, color: C.accent });
-  fl.gap(4);
-  fl.text(business.name, { font: f.bold, size: 24, color: C.dark, lineHeight: 28 });
-  fl.text(`${input.headline.line1} ${input.headline.line2}`, { font: f.bold, size: 12, color: C.secondary });
-  fl.gap(6);
-  fl.text(`${business.website}${business.city ? ` · ${business.city}` : ""} · Audited ${date}`, { size: 9.5, color: C.secondary });
-  const scopeBits = [`${pagesCrawled} page${pagesCrawled === 1 ? "" : "s"} crawled`, `${checksRun} checks`];
-  if (view.pages.length) scopeBits.push(`Google PageSpeed on ${view.pages.length} page${view.pages.length === 1 ? "" : "s"}`);
-  fl.text(`Scope: ${scopeBits.join(" · ")}`, { size: 9.5, color: C.secondary });
-  fl.gap(14);
-  {
-    const overall = scores?.overall ?? null;
-    const level = overall === null ? null : auditLevel(overall);
-    const r = 36;
-    const top = fl.y;
-    fl.ring(fl.left + r + 6, top - r - 4, r, overall, level, { stroke: 7, numberSize: 27, caption: "SEO health" });
-    const x = fl.left + r * 2 + 28;
-    fl.text(overall === null ? "Overall SEO health: not measured" : `Overall SEO health: ${overall}/100 — ${AUDIT_LEVEL_LABEL[level!]}`, { x, font: f.bold, size: 12 });
-    fl.text("Our audit score. It starts at 100 and loses points for every verified issue across the crawled pages. This is not a Google score — Google's own checks are on the next page.", { x, size: 8.5, color: C.muted });
-    fl.gap(6);
-    const crit = sc.CRITICAL ?? 0;
-    const high = sc.HIGH ?? 0;
-    const stats: Array<[string, string]> = [[String(findings.length), "verified findings"], [String(crit), crit === 1 ? "critical issue" : "critical issues"], [String(high), "high priority"], [String((sc.MEDIUM ?? 0) + (sc.LOW ?? 0)), "medium & low"]];
-    const w = (fl.right - x) / 4;
-    const sy = fl.y;
-    stats.forEach(([v, l], i) => {
-      if (!fl.dryRun) {
-        fl.page.drawText(v, { x: x + i * w, y: sy - 16, size: 16, font: f.bold, color: i === 1 && crit ? C.attention : C.ink });
-        fl.page.drawText(pdfSafe(l), { x: x + i * w, y: sy - 27, size: 7, font: f.regular, color: C.muted });
-      }
-      fl.transcript.push(`${v} ${l}`);
-    });
-    fl.y = Math.min(fl.y - 34, top - (r * 2 + 30));
-  }
+  const briefing = buildBriefing({
+    business: { name: business.name, website: business.website, city: business.city },
+    scores: payload.scores ? { overall: payload.scores.overall, performance: payload.scores.performance } : null,
+    severityCounts: payload.severityCounts,
+    findings: payload.findings.map(toBriefingFinding),
+    pagesCrawled: ((payload.crawlStats as { pagesCrawled?: number } | null)?.pagesCrawled ?? 0) as number,
+    checksRun: payload.checks.filter((c) => c.status === "PASS" || c.status === "FAIL").length,
+  });
+
+  // A — the briefing owns the first page.
+  executiveBriefing(fl, f, briefing, input, date, payload.performance as unknown as PerfRow[]);
+
+  // B — flows straight on from the briefing; each card is kept whole.
   fl.gap(10);
-  fl.section(message.heading);
-  for (const p of message.paragraphs) {
-    fl.text(p, { size: 10, lineHeight: 14.5 });
-    fl.gap(5);
-  }
+  problemsSection(fl, f, briefing);
 
-  // ───────── 1b. Competitor call-out (only when nearby practices measured better) ─────────
-  fl.newPage();
+  // C, D, E, F — flow on, each kept whole where it fits.
+  fl.ensure(300);
+  opportunitySection(fl, f, payload.opportunity, input);
+
   if (payload.competitors) {
-    competitorAlertCallout(fl, f, payload.competitors, input);
-    fl.gap(10);
+    fl.ensure(330);
+    competitorsSection(fl, f, payload.competitors);
   }
 
-  // ───────── 2. Website health ─────────
-  fl.section("Website health", `Two different measurements, side by side: our SEO audit (all crawled pages, ${CUSTOMER_PILLARS.length} areas) and Google's own five checks (one page and one device per test).`);
-  fl.text("Our SEO audit — by area", { font: f.bold, size: 11, color: C.dark });
-  fl.gap(4);
-  for (const p of CUSTOMER_PILLARS) {
-    const score = scores ? scores[p.key] : null;
-    const mine = findings.filter((x) => x.pillar === p.pillar);
-    const level = score === null ? null : auditLevel(score);
-    fl.keepTogether(() => {
-      const top = fl.y;
-      fl.text(p.label, { font: f.bold, size: 10, maxWidth: fl.usable - 150 });
-      fl.text(score === null ? p.notMeasured(business.city) : mine.length ? `${mine.length} finding${mine.length === 1 ? "" : "s"} — ${mine.slice(0, 2).map((x) => lower(x.title)).join("; ")}${mine.length > 2 ? "; and more" : "."}` : "No problems found in the checks we ran.", { size: 8.5, color: C.muted, maxWidth: fl.usable - 150 });
-      if (!fl.dryRun) {
-        fl.page.drawText(score === null ? "Not measured" : `${score}/100`, { x: fl.right - 140, y: top - 12, size: 12, font: f.bold, color: score === null ? C.faint : C.ink });
-        if (level) fl.pill(AUDIT_LEVEL_LABEL[level], level, fl.right - 72, top - 1);
-        fl.transcript.push(`${p.label}: ${score === null ? "Not measured" : `${score}/100 (${AUDIT_LEVEL_LABEL[level!]})`}`);
-      }
-      fl.gap(2);
-      fl.rule();
-      fl.gap(3);
-    });
-  }
-  fl.gap(8);
-  fl.text("Google's website checks", { font: f.bold, size: 11, color: C.dark });
-  const perfStage = payload.progress?.stages.find((s) => s.key === "performance");
-  if (!view.okRuns) {
-    fl.text(rows.length ? "Google PageSpeed Insights could not test this site during the audit, so Google's checks are not available for this report and do not affect your score." : `Google's checks were not run for this audit${perfStage?.detail ? ` (${perfStage.detail})` : ""}.`, { size: 9.5, color: C.muted });
-  } else {
-    fl.text("Google tests one page on one device at a time. Performance, Accessibility, Best Practices and Google SEO are 0–100 scores; Agentic Browsing is a short pass/fail checklist for AI assistants that Google marks as experimental. Google's SEO check covers ten technical basics — it is not the same as our SEO audit above.", { size: 8.5, color: C.muted });
-    fl.gap(6);
-    let siteWideField = false;
-    for (const pg of view.pages) {
-      for (const device of ["mobile", "desktop"] as const) {
-        const row = pg[device];
-        if (!row) continue;
-        const checks = googleChecksFor(row);
-        const when = testDateLabel(row.analysisUtc);
-        fl.keepTogether(() => {
-          fl.text(`${pg.path} · ${device === "mobile" ? "Mobile" : "Desktop"}${when ? ` · tested ${when}` : ""}`, { font: f.bold, size: 10 });
-          fl.gap(6);
-          const slot = fl.usable / 5;
-          const r = 17;
-          const top = fl.y;
-          checks.forEach((c, i) => {
-            const cx = fl.left + slot * i + slot / 2;
-            const cy = top - r - 2;
-            if (c.kind === "score") fl.ring(cx, cy, r, c.available ? c.score : null, c.available && c.score !== null ? googleLevel(c.score) : null, { stroke: 4, numberSize: 12 });
-            else if (!fl.dryRun) {
-              const lvl: Level | null = c.available ? (c.passed === c.applicable ? "healthy" : "opportunity") : null;
-              fl.page.drawCircle({ x: cx, y: cy, size: r, borderColor: lvl ? LEVEL_COLOR[lvl] : C.track, borderWidth: 4 });
-              const lbl = c.available ? `${c.passed}/${c.applicable}` : "-";
-              fl.page.drawText(lbl, { x: cx - f.bold.widthOfTextAtSize(lbl, 10) / 2, y: cy - 2, size: 10, font: f.bold, color: c.available ? C.ink : C.faint });
-              fl.page.drawText("PASSED", { x: cx - f.bold.widthOfTextAtSize("PASSED", 4.5) / 2, y: cy - 9, size: 4.5, font: f.bold, color: C.muted });
-            }
-            if (!fl.dryRun) {
-              const name = pdfSafe(c.label);
-              fl.page.drawText(name, { x: cx - f.bold.widthOfTextAtSize(name, 7.5) / 2, y: cy - r - 12, size: 7.5, font: f.bold, color: C.ink });
-              const status = c.kind === "score" ? (c.available ? LEVEL_LABEL[googleLevel(c.score!)] : "Not collected") : c.available ? (c.passed === c.applicable ? "All passed" : "Some failed") : "Not collected";
-              fl.page.drawText(status, { x: cx - f.regular.widthOfTextAtSize(status, 6.5) / 2, y: cy - r - 20, size: 6.5, font: f.regular, color: C.muted });
-              fl.transcript.push(`${c.label}: ${c.kind === "score" ? (c.available ? `${c.score}/100 (${status})` : "not collected") : c.available ? `${c.passed} of ${c.applicable} checks passed` : "not collected"}`);
-            }
-          });
-          fl.y = top - (r * 2 + 30);
-          // one plain-English line per page × device
-          const perf = checks[0];
-          const m = perf.available ? Object.fromEntries(metricsFor(row).map((x) => [x.key, x])) : null;
-          const bits: string[] = [];
-          if (perf.available) {
-            if (m?.lcp?.source === "field" && m.lcp.fieldLevel === "origin") siteWideField = true;
-            const lcpSrc = m?.lcp?.source === "field" ? (m.lcp.fieldLevel === "origin" ? " for real visitors (site-wide figure — see note below)" : " for real visitors of this page (Chrome UX Report)") : " in Google's simulated Lighthouse test";
-            bits.push(`Google scores this page ${perf.score}/100 for speed on ${device} (Lighthouse lab test)${m?.lcp?.value != null ? ` — main content appears after ${m.lcp.display}${lcpSrc}; Google's target is 2.5 s` : ""}`);
-          }
-          else bits.push(`Google could not measure speed for this page on ${device}`);
-          const cats = checks.slice(1, 4).filter((c) => c.available);
-          if (cats.length) {
-            const fails = cats.flatMap((c) => c.failed.map((a) => clean(a.title)));
-            bits.push(fails.length ? `Google's other checks flagged: ${fails.slice(0, 4).join("; ")}${fails.length > 4 ? "; and more" : ""}` : "Google's accessibility, best-practice and basic SEO checks all passed");
-          }
-          const ag = checks[4];
-          if (ag.available && ag.applicable !== null && ag.passed !== ag.applicable) bits.push(`Agentic Browsing: ${ag.applicable - (ag.passed ?? 0)} of ${ag.applicable} checks failed`);
-          fl.text(bits.map((b) => (/[.!?]$/.test(b) ? b : `${b}.`)).join(" "), { size: 8.5, color: C.secondary });
-          fl.gap(8);
-        });
-      }
-    }
-    if (siteWideField) fl.text("Note on real-visitor figures: Google's Chrome UX Report only has site-wide data for this site, so the same real-visitor timing is reported for every page tested. The performance score and the other timings are Google's per-page lab measurements.", { size: 8, color: C.muted });
-    if (view.failedRuns.length) fl.text(`${view.failedRuns.length} of ${view.totalRuns} Google test runs could not complete and are simply not shown.`, { size: 8, color: C.muted });
-    if (scores?.performance != null) fl.text(`Why our Performance score (${scores.performance}/100) is lower than Google's: our score deducts points for every verified performance issue across all ${view.pages.length} tested page${view.pages.length === 1 ? "" : "s"} on both devices; Google's number is for one page on one device.`, { size: 8, color: C.muted });
-  }
-
-  // ───────── 3. Problems and recommendations ─────────
-  const featured = (() => {
-    const byPriority = findings.slice(0, 5);
-    const criticals = findings.filter((x) => x.severity === "CRITICAL" && !byPriority.includes(x));
-    return [...byPriority, ...criticals];
-  })();
-  fl.ensure(220);
-  fl.section("Problems and recommendations", `The ${featured.length} findings that matter most, most serious first. For each: what we measured, why it deserves attention, and what to do. Every one is a verified measurement from this audit; all ${findings.length} findings are listed in the summary at the end.`);
-  featured.forEach((fd, i) => {
-    const like = toLike(fd);
-    const { measured, pages } = whatWeFound(fd, pagesCrawled);
-    const fixes = ownerFixLines(fd);
-    fl.keepTogether(() => {
-      const top = fl.y;
-      const startPage = fl.page;
-      const w = fl.pill(SEVERITY_WORD[fd.severity] ?? fd.severity, severityLevel(fd.severity), fl.left, top);
-      if (!fl.dryRun) fl.page.drawText(pdfSafe(`${PILLAR_LABEL[fd.pillar] ?? fd.pillar} · affects ${fd.affectedPageCount} page${fd.affectedPageCount === 1 ? "" : "s"} · ${fd.owner === "developer" ? "needs a developer" : fd.owner === "owner" ? "you can do this yourself" : "we can handle this"}`), { x: fl.left + w + 6, y: top - 8.4, size: 7.5, font: f.regular, color: C.muted });
-      fl.y = top - 14;
-      fl.text(`${i + 1}. ${fd.title}`, { font: f.bold, size: 12 });
-      fl.gap(2);
-      fl.kv("What we found", `${measured}${pages ? ` Seen on: ${pages}.` : ""}`, { labelWidth: 78, size: 9.5 });
-      fl.kv("Why it matters", fd.whyItMatters, { labelWidth: 78, size: 9.5 });
-      fl.kv("What to do", fixes[0] ?? primaryAction(like), { labelWidth: 78, size: 9.5 });
-      for (const line of fixes.slice(1, 4)) fl.text(`• ${line}`, { size: 9, x: fl.left + 78, color: C.secondary });
-      fl.text(`Priority: ${BUCKET_LABEL[fd.bucket] ?? fd.bucket} · effort ${fd.effort}/5${fd.severity === "CRITICAL" && fd.effort >= 4 ? " · a larger job, but critical — start it now" : ""}`, { size: 8, color: C.muted, x: fl.left + 78 });
-      if (!fl.dryRun && fl.page === startPage) fl.page.drawRectangle({ x: fl.left - 8, y: fl.y - 2, width: 2.5, height: top - fl.y + 2, color: SEVERITY_COLOR[fd.severity] ?? C.muted });
-      fl.gap(8);
-      fl.rule();
-      fl.gap(8);
-    });
-  });
-  if (!featured.length) fl.text("Nothing crossed our thresholds — the site is in good shape on the checks we ran.", { size: 10 });
-
-  // ───────── 4. Action plan ─────────
-  const plan = findings.slice(0, 5);
-  fl.section("Action plan", "Where to start: the same five findings as a checklist, most serious first. Quick wins are marked so you can bank them early; larger jobs are flagged for whoever maintains the site.");
-  plan.forEach((fd, i) => {
-    fl.keepTogether(() => {
-      const top = fl.y;
-      if (!fl.dryRun) {
-        fl.page.drawCircle({ x: fl.left + 9, y: top - 9, size: 9, color: C.accentSoft });
-        fl.page.drawText(String(i + 1), { x: fl.left + 9 - f.bold.widthOfTextAtSize(String(i + 1), 9) / 2, y: top - 12.2, size: 9, font: f.bold, color: C.accent });
-      }
-      fl.text(fd.title, { font: f.bold, size: 10.5, x: fl.left + 26 });
-      fl.text(`${primaryAction(toLike(fd))} ${OWNER_LABEL[fd.owner] ? `(${OWNER_LABEL[fd.owner]}${fd.effort >= 4 ? "; a larger job" : ""})` : ""}`, { size: 9, x: fl.left + 26, color: C.secondary });
-      fl.text(`${BUCKET_LABEL[fd.bucket] ?? fd.bucket}`, { size: 8, x: fl.left + 26, color: C.muted });
-      fl.gap(6);
-    });
-  });
-  if (!plan.length) fl.text("No actions required from this audit.", { size: 10 });
-  fl.gap(4);
-  fl.text("Next steps: work through the list top to bottom and re-run the audit once the first two items are done. Each item above stays a problem for every visitor until it is fixed. Whoever maintains the website will want the full technical report — request it below and our team will provide it after the review.", { size: 9, color: C.secondary });
-
-  // ───────── 4b. Local comparison (only with verified nearby practices) ─────────
-  if (payload.competitors) {
-    fl.ensure(260);
-    localComparisonSection(fl, f, payload.competitors, input);
-  }
-
-  // ───────── 4c. Financial opportunity (illustrative + interactive link) ─────────
   fl.ensure(240);
-  financialOpportunitySection(fl, f, payload.opportunity, input);
+  actionsSection(fl, f, briefing);
 
-  fl.gap(8);
+  fl.ensure(200);
   consultationCta(fl, f, input);
-
-  // ───────── 5. Complete findings summary ─────────
-  fl.section(`All ${findings.length} findings`, "Everything the audit verified, grouped by area. Full measurements, affected URLs and developer instructions for each item are in the technical report and the online report.");
-  for (const p of CUSTOMER_PILLARS) {
-    const mine = findings.filter((x) => x.pillar === p.pillar);
-    if (!mine.length) continue;
-    fl.ensure(70);
-    fl.text(`${p.label} (${mine.length})`, { font: f.bold, size: 10, color: C.dark });
-    fl.gap(3);
-    for (const fd of mine) {
-      const { measured, pages } = whatWeFound(fd, pagesCrawled);
-      fl.keepTogether(() => {
-        const top = fl.y;
-        const w = fl.pill(SEVERITY_WORD[fd.severity] ?? fd.severity, severityLevel(fd.severity), fl.left, top, 6.5);
-        fl.y = top;
-        fl.text(fd.title, { font: f.bold, size: 9.5, x: fl.left + w + 6 });
-        fl.text(`${measured}${pages ? ` · ${pages}` : ""}`, { size: 8.5, color: C.secondary, x: fl.left + w + 6 });
-        fl.text(`${primaryAction(toLike(fd)).replace(/[:;,]\s*$/, "")} · ${BUCKET_LABEL[fd.bucket]?.toLowerCase() ?? fd.bucket} · ${OWNER_LABEL[fd.owner] ?? fd.owner}`, { size: 8, color: C.muted, x: fl.left + w + 6 });
-        fl.gap(5);
-      });
-    }
-    fl.gap(4);
-  }
-
-  fl.gap(8);
-  fl.rule();
-  fl.gap(6);
-  fl.link(`Online report (interactive, with every measurement): ${input.reportUrl}`, input.reportUrl, { size: 9 });
-  fl.gap(2);
-  fl.link("Request Your Full Technical Report", input.technicalReportRequestUrl, { size: 9.5 });
-  fl.text("The full technical report — every measurement, affected URL and developer instruction — is provided by our team after a website review, not sent automatically. Use the link above to book the review and request it. This report is based only on data collected during the audit; scores describe how the site measured on the audit date and are not predictions of rankings, traffic or revenue.", { size: 8, color: C.muted });
 
   fl.finish();
   const bytes = await doc.save();

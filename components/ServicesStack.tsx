@@ -77,10 +77,10 @@ export default function ServicesStack() {
                 </div>
                 <div className="flex flex-col p-6 sm:p-8 lg:p-10">
                   <div className="flex items-center gap-4">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink transition-[background-color,color] duration-[var(--duration-normal)] group-hover:bg-[image:var(--color-accent-gradient)] group-hover:text-white">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-ink transition-[background-color,color] duration-[var(--duration-normal)] group-hover:bg-[image:var(--color-accent-gradient)] group-hover:text-white">
                       <ServiceIcon icon={s.icon} />
                     </span>
-                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-border-strong">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.03em] text-text-faint">{String(i + 1).padStart(2, "0")}</span>
                   </div>
                   <h3 className="mt-5 text-heading-3 text-foreground">{s.title}</h3>
                   <p className="mt-3 max-w-xl text-body text-muted-foreground">{s.summary}</p>

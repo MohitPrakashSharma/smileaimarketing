@@ -18,7 +18,7 @@ export default async function ThankYouPage({ searchParams }: { searchParams: Pro
   return (
     <MinimalShell>
       <div className="card-elevated animate-scale-in w-full max-w-lg p-8 text-center sm:p-10">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-growth-soft text-growth-ink">
           <IconCheck className="h-7 w-7" />
         </div>
         <div className="mt-6 space-y-3">

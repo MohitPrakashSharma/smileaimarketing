@@ -210,9 +210,9 @@ export default function ArcShowcase() {
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
             <defs>
               <linearGradient id="arc-stroke" x1="0" x2="1">
-                <stop offset="0" stopColor="#d81b6a" stopOpacity="0" />
-                <stop offset="0.5" stopColor="#d81b6a" stopOpacity="0.4" />
-                <stop offset="1" stopColor="#ff6b3c" stopOpacity="0" />
+                <stop offset="0" stopColor="#3b67b2" stopOpacity="0" />
+                <stop offset="0.5" stopColor="#3b67b2" stopOpacity="0.4" />
+                <stop offset="1" stopColor="#3ba2b3" stopOpacity="0" />
               </linearGradient>
             </defs>
             <circle
@@ -235,7 +235,7 @@ export default function ArcShowcase() {
               ref={(el) => {
                 itemRefs.current[i] = el;
               }}
-              className={`absolute left-0 top-0 h-20 w-20 rounded-[22px] border border-white/80 bg-white/60 p-1.5 shadow-[0_24px_50px_-20px_rgba(30,27,71,0.3)] backdrop-blur-md will-change-transform sm:h-28 sm:w-28 lg:h-36 lg:w-36 ${
+              className={`absolute left-0 top-0 h-20 w-20 rounded-[22px] border border-white/80 bg-white/60 p-1.5 shadow-[0_24px_50px_-20px_rgba(30,53,96,0.3)] backdrop-blur-md will-change-transform sm:h-28 sm:w-28 lg:h-36 lg:w-36 ${
                 reduced ? "" : "opacity-0"
               }`}
               style={reduced ? staticPosition(i) : undefined}
@@ -251,7 +251,7 @@ export default function ArcShowcase() {
           <div className="absolute inset-x-0 top-[66%] z-20 -translate-y-1/2 px-[var(--page-gutter)] sm:top-[58%]">
             <div
               key={active}
-              className="arc-copy mx-auto max-w-lg rounded-[var(--radius-xl)] border border-white/80 bg-white/55 px-6 py-6 text-center shadow-[0_28px_60px_-32px_rgba(30,27,71,0.25)] backdrop-blur-xl [-webkit-backdrop-filter:blur(24px)] sm:px-9 sm:py-8"
+              className="arc-copy mx-auto max-w-lg rounded-[var(--radius-xl)] border border-white/80 bg-white/55 px-6 py-6 text-center shadow-[0_28px_60px_-32px_rgba(30,53,96,0.25)] backdrop-blur-xl [-webkit-backdrop-filter:blur(24px)] sm:px-9 sm:py-8"
             >
               <span className="text-eyebrow text-primary-ink">{current.eyebrow}</span>
               <h2 className="mt-3 font-display text-[1.625rem] font-bold leading-[1.15] tracking-[-0.02em] text-foreground sm:text-heading-2">{current.headline}</h2>

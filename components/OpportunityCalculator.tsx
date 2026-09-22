@@ -36,9 +36,10 @@ export default function OpportunityCalculator() {
                 className="object-cover"
                 quality={80}
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[rgba(30,27,71,0.7)] to-transparent p-5 pt-16 text-white sm:p-6">
-                <p className="text-eyebrow text-white/70">Where enquiries are won</p>
-                <p className="mt-2 max-w-sm text-body-small text-white/90">
+              {/* The desk at the bottom of the photo is near-white: a deep, tall plum wash keeps the caption legible. */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[rgba(30,53,96,0.94)] via-[rgba(30,53,96,0.72)] to-transparent p-5 pt-28 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] sm:p-6 sm:pt-32">
+                <p className="text-eyebrow text-white/85">Where enquiries are won</p>
+                <p className="mt-2 max-w-sm text-body-small text-white">
                   Every visitor who leaves without calling or booking is an enquiry your front desk never gets to convert.
                 </p>
               </div>

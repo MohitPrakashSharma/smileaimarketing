@@ -19,7 +19,7 @@ export default function VideoHero() {
   const reduced = useReducedMotion();
 
   return (
-    <section id="clinic" className="relative isolate overflow-hidden bg-[#14122f] text-white" aria-labelledby="clinic-heading">
+    <section id="clinic" className="relative isolate overflow-hidden bg-[#17294c] text-white" aria-labelledby="clinic-heading">
       {/* Backdrop video (poster only when the visitor prefers reduced motion) */}
       <div className="absolute inset-0" aria-hidden>
         {reduced ? (
@@ -38,8 +38,8 @@ export default function VideoHero() {
           />
         )}
         {/* Cinematic wash: heavier on the copy side, darker at the foot for the cards */}
-        <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(20,18,47,0.82)_0%,rgba(20,18,47,0.55)_45%,rgba(20,18,47,0.28)_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(180deg,transparent_0%,rgba(20,18,47,0.75)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(23,41,76,0.82)_0%,rgba(23,41,76,0.55)_45%,rgba(23,41,76,0.28)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(180deg,transparent_0%,rgba(23,41,76,0.75)_100%)]" />
       </div>
 
       <div className="container-site relative flex min-h-[38rem] flex-col justify-between gap-12 py-14 sm:py-16 lg:min-h-[44rem] lg:py-20">
@@ -67,7 +67,7 @@ export default function VideoHero() {
             <li key={f.title}>
             <Link
               href={f.href}
-              className="group relative isolate block overflow-hidden rounded-[var(--radius-large)] border border-white/20 bg-[linear-gradient(135deg,rgba(216,27,106,0.42)_0%,rgba(255,38,103,0.22)_50%,rgba(255,107,60,0.30)_100%)] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)] backdrop-blur-md transition-[transform,border-color,box-shadow] duration-[var(--duration-normal)] ease-[var(--ease-out)] [-webkit-backdrop-filter:blur(12px)] hover:-translate-y-1 hover:border-white/50 hover:shadow-[0_28px_50px_-24px_rgba(216,27,106,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
+              className="group relative isolate block overflow-hidden rounded-[var(--radius-large)] border border-white/20 bg-[linear-gradient(135deg,rgba(59,103,178,0.42)_0%,rgba(59,103,178,0.22)_50%,rgba(59,162,179,0.30)_100%)] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)] backdrop-blur-md transition-[transform,border-color,box-shadow] duration-[var(--duration-normal)] ease-[var(--ease-out)] [-webkit-backdrop-filter:blur(12px)] hover:-translate-y-1 hover:border-white/50 hover:shadow-[0_28px_50px_-24px_rgba(59,103,178,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
             >
               {/* Solid gradient fills in on hover; a light sheen sweeps across */}
               <span className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--color-accent-gradient)] opacity-0 transition-opacity duration-[var(--duration-normal)] group-hover:opacity-90" aria-hidden />

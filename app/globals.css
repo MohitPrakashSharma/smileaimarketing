@@ -10,47 +10,91 @@
 
 :root {
   /* ---------------------------------------------------------------------------
-     0. Canonical colour tokens
-     Warm-neutral text, white + warm off-white light surfaces, a deep
-     indigo-violet dark band and a pink/coral accent. Every other colour name
-     in this file is an alias of one of these.
+     0. Canonical colour tokens — Smile AI Marketing brand palette
+     The palette is five colours. Nothing outside these hues is introduced:
+     every other value here is a darker or lighter step of one of them, so the
+     site stays in the brand family while meeting WCAG AA.
+
+       Primary blue   #3B67B2   identity, buttons, links, dark bands (darkened)
+       Secondary teal #3BA2B3   icons and subtle accents (ink step for text)
+       Soft grey      #DCE4E6   panels, borders, alternating bands, body text (dark step)
+       White          #FFFFFF   page background and cards
+       Growth green   #3AB285   positive results and success (ink step for text)
+
+     Steps (all derived from the five hues):
+       blue    900 #1E3560 · 800 #2B4A7D · 700 #2F5391 · 500 #3B67B2 · 200 #A9C8F2 · 50 #E8EFF9
+       grey    700 #485D66 · 650 #4F636B · 600 #607379 · 500 #7E9299 · 200 #DCE4E6 · 100 #E9EFF1 · 50 #EFF4F5
+       teal    ink #26707E · 600 #2F8D9E · 500 #3BA2B3 · 50 #E4F2F4
+       green   ink #1F6B52 · 500 #3AB285 · 50 #E4F4EE
+
+     Teal and green are too light for text on white (3.0:1 and 2.7:1), so each
+     has an ink step; the brand hue itself stays for fills, rings and icons.
      --------------------------------------------------------------------------- */
+  --color-brand-blue: #3b67b2;
+  --color-brand-teal: #3ba2b3;
+  --color-brand-green: #3ab285;
+  --color-brand-grey: #dce4e6;
+
+  --color-blue-900: #1e3560;
+  --color-blue-800: #2b4a7d;
+  --color-blue-700: #2f5391;
+  --color-blue-600: #33589b;
+  --color-blue-500: #3b67b2;
+  --color-blue-200: #a9c8f2;
+  --color-blue-50: #e8eff9;
+  --color-grey-700: #485d66;
+  --color-grey-650: #4f636b;
+  --color-grey-600: #607379;
+  --color-grey-500: #7e9299;
+  --color-grey-200: #dce4e6;
+  --color-grey-100: #e9eff1;
+  --color-grey-50: #eff4f5;
+
   --color-bg: #ffffff;                 /* page background */
-  --color-bg-alt: #f7f6f4;             /* warm off-white alternate band */
-  --color-bg-dark: #1e1b47;            /* deep indigo-violet band */
-  --color-bg-dark-edge: #3a1d5c;       /* plum edge used in the dark-band gradient */
-  --color-bg-footer: #14122f;          /* footer: darker than the band, not black */
-  --color-surface: #ffffff;            /* cards on light */
-  --color-surface-alt: #f3f1ee;        /* muted surface (progress tracks, chips) */
-  --color-surface-dark: #2a2660;       /* cards / rows inside the dark band */
-  --color-input: #f5f4f1;              /* input fill on light */
+  --color-bg-alt: var(--color-grey-50);       /* alternating band */
+  --color-bg-dark: var(--color-blue-900);     /* dark band — deep step of the primary blue */
+  --color-bg-dark-edge: #26437a;              /* lighter blue edge used in the dark-band gradient */
+  --color-bg-footer: #17294c;                 /* footer: a step below the band */
+  --color-surface: #ffffff;                   /* cards on light */
+  --color-surface-alt: var(--color-grey-100); /* muted surface (progress tracks, chips) */
+  --color-surface-dark: var(--color-blue-800);/* cards / rows inside the dark band */
+  --color-input: #f3f7f8;                     /* input fill on light */
   --color-input-dark: rgba(255, 255, 255, 0.08);
 
-  --color-text: #2d2c2b;               /* headings, body */
-  --color-text-secondary: #4a4948;     /* supporting body */
-  --color-text-muted: #6b6a70;         /* captions (5.4:1 on white) */
-  --color-text-faint: #8e8c94;         /* placeholders, decorative numerals */
+  --color-text: var(--color-blue-900);        /* headings, primary text (12.1:1 on white) */
+  --color-text-secondary: var(--color-grey-700); /* supporting body (6.9:1) */
+  --color-text-muted: var(--color-grey-650);  /* captions (6.3:1) */
+  --color-text-faint: var(--color-grey-600);  /* small print inside sample UI (5.0:1) */
   --color-text-on-dark: #ffffff;
-  --color-text-on-dark-muted: #c9c7d9; /* 9.7:1 on bg-dark */
+  --color-text-on-dark-muted: #bcd0e0;        /* 7.6:1 on the dark band */
 
-  --color-accent: #d81b6a;             /* pink accent — 4.9:1 with white text (AA) */
-  --color-accent-hover: #c4175f;
-  --color-accent-active: #a9134f;
-  --color-accent-soft: #fde9f1;        /* accent wash on light */
-  --color-accent-soft-dark: rgba(255, 38, 103, 0.18);
-  --color-accent-on-dark: #ff7a8c;     /* accent as text on the dark band (6.5:1) */
-  --color-accent-gradient: linear-gradient(266deg, #ff2667 0%, #ff6b3c 100%);
-  --color-coral: #ff6b3c;
+  --color-accent: var(--color-blue-500);      /* primary blue — 5.6:1 with white text (AA) */
+  --color-accent-hover: var(--color-blue-600);
+  --color-accent-active: #2b4a84;
+  --color-accent-ink: var(--color-blue-700);  /* blue as text: 7.6:1 on white, 5.9:1 on a grey panel */
+  --color-accent-soft: var(--color-blue-50);
+  --color-accent-soft-dark: rgba(169, 200, 242, 0.16);
+  --color-accent-on-dark: var(--color-blue-200); /* blue as text on the dark band (7.1:1) */
+  --color-accent-gradient: linear-gradient(266deg, #3b67b2 0%, #3ba2b3 100%);
 
-  --color-border: #e6e4e1;
-  --color-border-subtle: #efedea;
-  --color-border-strong: #b9b6b1;
-  --color-border-dark: rgba(255, 255, 255, 0.14);
-  --color-focus: #d81b6a;
+  --color-teal-brand: var(--color-brand-teal);
+  --color-teal-600: #2f8d9e;           /* teal for rules, strokes and small marks (3.9:1 on white, 3.5:1 on the band) */
+  --color-teal-ink: #26707e;           /* 5.7:1 on white */
+  --color-teal-soft: #e4f2f4;
+  --color-green-brand: var(--color-brand-green);
+  --color-green-ink: #1f6b52;          /* 6.4:1 on white */
+  --color-green-soft: #e4f4ee;
+  --color-coral: var(--color-brand-teal); /* legacy name, now the teal accent */
 
-  --color-success: #1f8a4c;
-  --color-warning: #b96a08;
-  --color-error: #d12e2e;
+  --color-border: var(--color-grey-200);
+  --color-border-subtle: var(--color-grey-100);
+  --color-border-strong: var(--color-grey-500); /* 3.3:1 on white — visible control boundary */
+  --color-border-dark: rgba(255, 255, 255, 0.16);
+  --color-focus: var(--color-blue-500);
+
+  --color-success: var(--color-green-ink);
+  --color-warning: #8d5309;            /* severity only — see the status block below */
+  --color-error: #b3382a;
 
   /* ---------------------------------------------------------------------------
      1. Semantic aliases consumed by components (kept stable across passes)
@@ -66,24 +110,36 @@
   --color-primary-hover: var(--color-accent-hover);
   --color-primary-pressed: var(--color-accent-active);
   --color-primary-foreground: #ffffff;
-  --color-primary-ink: var(--color-accent);          /* accent used as text */
+  --color-primary-ink: var(--color-accent-ink);
+  --color-secondary: var(--color-teal-brand);
+  --color-secondary-mark: var(--color-teal-600);
+  --color-secondary-ink: var(--color-teal-ink);
+  --color-secondary-soft: var(--color-teal-soft);
+  --color-growth: var(--color-green-brand);
+  --color-growth-ink: var(--color-green-ink);
+  --color-growth-soft: var(--color-green-soft);
   --color-muted-foreground: var(--color-text-muted);
-  --color-placeholder: var(--color-text-muted);     /* 4.9:1 on the input fill (WCAG AA); faint was 3.1:1 */
+  --color-placeholder: var(--color-text-muted);
   --color-danger: var(--color-error);
   --color-focus-ring: var(--color-focus);
   --color-foreground-on-navy: var(--color-text-on-dark);
   --color-foreground-on-navy-muted: var(--color-text-on-dark-muted);
   --color-navy-dark: var(--color-bg-dark);
   --color-navy-surface: var(--color-surface-dark);
+  --color-link: var(--color-accent-ink);
+  --color-link-hover: var(--color-accent-active);
 
-  /* Status vocabulary: calm, non-alarmist diagnostic language (never colour alone) */
-  --color-status-healthy-fg: #1f7a45;
-  --color-status-healthy-bg: #eaf6ee;
-  --color-status-healthy-border: #c3e4cf;
-  --color-status-opportunity-fg: #a85f06;
+  /* Status vocabulary. "Healthy" is the brand growth green; a failing or
+     at-risk finding keeps a red/amber hue because no step of the five brand
+     colours can signal severity without being mistaken for the brand itself
+     (the report must never make critical and healthy look alike). */
+  --color-status-healthy-fg: var(--color-green-ink);
+  --color-status-healthy-bg: var(--color-green-soft);
+  --color-status-healthy-border: #bfe3d3;
+  --color-status-opportunity-fg: #8d5309;
   --color-status-opportunity-bg: #fbf2e4;
   --color-status-opportunity-border: #f0dab5;
-  --color-status-attention-fg: #c23b2e;
+  --color-status-attention-fg: #b3382a;
   --color-status-attention-bg: #fcefec;
   --color-status-attention-border: #f4cdc6;
 
@@ -92,8 +148,8 @@
   --color-mist: var(--color-surface-muted);
   --color-ink: var(--color-foreground);
   --color-ink-2: var(--color-navy-surface);
-  --color-teal: var(--color-primary);
-  --color-teal-deep: var(--color-primary-hover);
+  --color-teal: var(--color-teal-brand);
+  --color-teal-deep: var(--color-teal-ink);
   --color-slate: var(--color-muted-foreground);
   --color-sky: var(--color-accent-soft);
   --color-line: var(--color-border);
@@ -212,11 +268,21 @@
   --color-accent-hover: var(--color-accent-hover);
   --color-accent-active: var(--color-accent-active);
   --color-accent-soft: var(--color-accent-soft);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-mark: var(--color-secondary-mark);
+  --color-secondary-ink: var(--color-secondary-ink);
+  --color-secondary-soft: var(--color-secondary-soft);
+  --color-growth: var(--color-growth);
+  --color-growth-ink: var(--color-growth-ink);
+  --color-growth-soft: var(--color-growth-soft);
+  --color-link: var(--color-link);
+  --color-link-hover: var(--color-link-hover);
   --color-border: var(--color-border);
   --color-border-dark: var(--color-border-dark);
   --color-border-subtle: var(--color-border-subtle);
   --color-border-strong: var(--color-border-strong);
   --color-muted-foreground: var(--color-muted-foreground);
+  --color-text-faint: var(--color-text-faint);
   --color-placeholder: var(--color-placeholder);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
@@ -512,19 +578,22 @@ input:disabled {
   --color-background: var(--color-bg-dark);
   --color-background-alt: var(--color-surface-dark);
   --color-foreground: var(--color-text-on-dark);
-  --color-foreground-secondary: #e4e2f0;
+  --color-foreground-secondary: #dbe6f2;
   --color-surface: var(--color-surface-dark);
   --color-surface-muted: rgba(255, 255, 255, 0.07);
   --color-surface-elevated: var(--color-surface-dark);
   --color-input: var(--color-input-dark);
   --color-muted-foreground: var(--color-text-on-dark-muted);
-  --color-placeholder: #9a97b3;
+  --color-placeholder: #a7bdd6;
   --color-border: var(--color-border-dark);
   --color-border-subtle: rgba(255, 255, 255, 0.08);
   --color-border-strong: rgba(255, 255, 255, 0.34);
   --color-primary-ink: var(--color-accent-on-dark);
+  --color-secondary-ink: #7ed3e1;
+  --color-growth-ink: #74d6b0;
+  --color-link: var(--color-accent-on-dark);
   --color-accent-soft: var(--color-accent-soft-dark);
-  --color-focus-ring: #ff7a8c;
+  --color-focus-ring: var(--color-blue-200);
 
   --color-paper: var(--color-background);
   --color-mist: var(--color-surface-muted);
@@ -547,14 +616,14 @@ input:disabled {
   --color-surface: #ffffff;
   --color-surface-muted: var(--color-surface-alt);
   --color-surface-elevated: #ffffff;
-  --color-input: #f5f4f1;
+  --color-input: #f3f7f8;
   --color-muted-foreground: var(--color-text-muted);
-  --color-placeholder: var(--color-text-faint);
-  --color-border: #e6e4e1;
-  --color-border-subtle: #efedea;
-  --color-border-strong: #b9b6b1;
-  --color-primary-ink: var(--color-accent);
-  --color-accent-soft: #fde9f1;
+  --color-placeholder: var(--color-text-muted);
+  --color-border: var(--color-grey-200);
+  --color-border-subtle: var(--color-grey-100);
+  --color-border-strong: var(--color-grey-500);
+  --color-primary-ink: var(--color-accent-ink);
+  --color-accent-soft: var(--color-blue-50);
   --color-focus-ring: var(--color-focus);
 
   --color-paper: var(--color-background);
@@ -593,25 +662,25 @@ input:disabled {
 @utility band-soft {
   background-color: var(--color-surface);
   background-image:
-    radial-gradient(60% 70% at 100% 0%, rgba(255, 38, 103, 0.08) 0%, transparent 60%),
-    radial-gradient(55% 60% at 0% 100%, rgba(255, 107, 60, 0.07) 0%, transparent 60%),
-    linear-gradient(180deg, var(--color-surface) 0%, #fbf8f7 100%);
+    radial-gradient(60% 70% at 100% 0%, rgba(59, 103, 178, 0.07) 0%, transparent 60%),
+    radial-gradient(55% 60% at 0% 100%, rgba(59, 162, 179, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, var(--color-surface) 0%, #f6fafb 100%);
 }
 @utility band-soft-glow {
-  background: radial-gradient(circle, rgba(255, 38, 103, 0.16) 0%, rgba(255, 38, 103, 0) 68%);
+  background: radial-gradient(circle, rgba(59, 103, 178, 0.14) 0%, rgba(59, 103, 178, 0) 68%);
   filter: blur(48px);
 }
 @utility band-soft-glow-coral {
-  background: radial-gradient(circle, rgba(255, 107, 60, 0.14) 0%, rgba(255, 107, 60, 0) 68%);
+  background: radial-gradient(circle, rgba(59, 162, 179, 0.12) 0%, rgba(59, 162, 179, 0) 68%);
 }
 /* Prism wash — the prism gradient laid over a backdrop photo: the pink glow
    along the top edge, white over the copy side, easing to translucent on the
    side where a frosted card sits. */
 @utility band-prism-wash {
   background-image:
-    radial-gradient(90% 55% at 50% 0%, rgba(216, 27, 106, 0.30) 0%, rgba(216, 27, 106, 0.13) 38%, transparent 72%),
+    radial-gradient(90% 55% at 50% 0%, rgba(59, 103, 178, 0.22) 0%, rgba(59, 103, 178, 0.10) 38%, transparent 72%),
     radial-gradient(40% 45% at 4% 60%, rgba(58, 29, 92, 0.10) 0%, transparent 70%),
-    radial-gradient(42% 45% at 97% 50%, rgba(255, 107, 60, 0.12) 0%, transparent 70%),
+    radial-gradient(42% 45% at 97% 50%, rgba(59, 162, 179, 0.12) 0%, transparent 70%),
     linear-gradient(100deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.90) 42%, rgba(255, 255, 255, 0.62) 100%);
 }
 /* Prism band — an airy light section in the primary colour: a soft pink
@@ -620,16 +689,16 @@ input:disabled {
 @utility band-prism {
   background-color: #ffffff;
   background-image:
-    radial-gradient(90% 55% at 50% 0%, rgba(216, 27, 106, 0.30) 0%, rgba(216, 27, 106, 0.13) 38%, transparent 72%),
+    radial-gradient(90% 55% at 50% 0%, rgba(59, 103, 178, 0.22) 0%, rgba(59, 103, 178, 0.10) 38%, transparent 72%),
     radial-gradient(40% 45% at 4% 55%, rgba(58, 29, 92, 0.10) 0%, transparent 70%),
-    radial-gradient(42% 45% at 97% 45%, rgba(255, 107, 60, 0.12) 0%, transparent 70%),
-    linear-gradient(180deg, #fbeaf1 0%, #ffffff 62%);
+    radial-gradient(42% 45% at 97% 45%, rgba(59, 162, 179, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #e9f0fa 0%, #ffffff 62%);
 }
 /* Back face of a step flip card on the prism band: white with the same tints. */
 @utility band-prism-card {
   background-image:
-    radial-gradient(80% 60% at 100% 0%, rgba(216, 27, 106, 0.18) 0%, transparent 60%),
-    radial-gradient(70% 60% at 0% 100%, rgba(255, 107, 60, 0.14) 0%, transparent 60%);
+    radial-gradient(80% 60% at 100% 0%, rgba(59, 103, 178, 0.16) 0%, transparent 60%),
+    radial-gradient(70% 60% at 0% 100%, rgba(59, 162, 179, 0.12) 0%, transparent 60%);
 }
 /* A face of a 3D flip card (both vendor spellings — Safari still needs the prefix). */
 @utility flip-face {
@@ -680,9 +749,9 @@ input:disabled {
     linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
     linear-gradient(
         135deg,
-        rgba(255, 38, 103, calc(0.18 + 0.82 * var(--card-glow))) 0%,
-        rgba(255, 107, 60, calc(0.12 + 0.88 * var(--card-glow))) 55%,
-        color-mix(in srgb, var(--color-border) calc(100% - 100% * var(--card-glow)), #ff6b3c) 100%
+        rgba(59, 103, 178, calc(0.22 + 0.78 * var(--card-glow))) 0%,
+        rgba(59, 162, 179, calc(0.16 + 0.84 * var(--card-glow))) 55%,
+        color-mix(in srgb, var(--color-border) calc(100% - 100% * var(--card-glow)), #3ba2b3) 100%
       )
       border-box;
   box-shadow: var(--shadow-xs);
@@ -698,8 +767,8 @@ input:disabled {
     z-index: -1;
     pointer-events: none;
     background:
-      radial-gradient(120% 90% at 100% 0%, rgba(255, 38, 103, 0.14), transparent 55%),
-      radial-gradient(90% 80% at 0% 100%, rgba(255, 107, 60, 0.10), transparent 55%);
+      radial-gradient(120% 90% at 100% 0%, rgba(59, 103, 178, 0.10), transparent 55%),
+      radial-gradient(90% 80% at 0% 100%, rgba(59, 162, 179, 0.08), transparent 55%);
     opacity: calc(0.45 + 0.55 * var(--card-glow));
     transition: opacity var(--duration-normal) var(--ease-out);
   }
@@ -824,6 +893,11 @@ input:disabled {
 @keyframes arc-copy-in {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+/* Focus carousel (about page): countdown bar to the next slide */
+@keyframes focus-progress {
+  from { width: 0%; }
+  to { width: 100%; }
 }
 .arc-copy {
   animation: arc-copy-in var(--duration-slow, 450ms) var(--ease-out) both;

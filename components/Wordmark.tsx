@@ -8,7 +8,7 @@ export function Wordmark({ className = "", full = false }: { className?: string;
         <svg
           aria-hidden
           viewBox="0 0 40 10"
-          className="absolute -bottom-1 left-0 h-2 w-full text-primary"
+          className="absolute -bottom-1 left-0 h-2 w-full text-secondary-mark"
         >
           <path
             d="M2 2 C 12 10, 28 10, 38 2"

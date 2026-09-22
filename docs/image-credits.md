@@ -16,9 +16,9 @@ sharp (mozjpeg, quality 80). `next/image` serves the responsive variants.
 | `dental-xray-review.jpg` | Homepage — Services intro (split layout) | https://unsplash.com/photos/-m-4tYmtLlI (CDN id `photo-1606811841689-23dfddce3e95`) | Caroline LM — **Unsplash License** (free, commercial use, no attribution required) | 1600×1200 (4:3) |
 | `dental-reception-booking.jpg` | Homepage — Patient journey | https://www.pexels.com/photo/woman-at-reception-desk-showing-a-calendar-to-a-man-6809657/ | Pavel Danilyuk | 1600×1200 (4:3) |
 | `step-enter-website.jpg` | Homepage — How it works, step 01 flip card | https://www.pexels.com/photo/a-receptionist-looking-at-a-tablet-4269275/ | Cedric Fauntleroy | 1000×1250 (4:5) |
-| `step-patient-search.jpg` | Homepage — How it works, step 02 flip card | https://www.pexels.com/photo/person-using-smartphone-looking-for-directions-5448171/ | Theo Decker | 1000×1250 (4:5) |
+| `step-patient-search.jpg` | Homepage — How it works, step 02 flip card; About — focus card "Local Visibility" | https://www.pexels.com/photo/person-using-smartphone-looking-for-directions-5448171/ | Theo Decker | 1000×1250 (4:5) |
 | `step-growth-review.jpg` | Homepage — How it works, step 03 flip card | https://www.pexels.com/photo/dentist-by-dental-chair-6812452/ | Pavel Danilyuk | 1000×1250 (4:5), offset left |
-| `step-review-findings.jpg` | Homepage — How it works, step 04 flip card | https://www.pexels.com/photo/two-men-looking-at-the-monitor-6812518/ | Pavel Danilyuk | 1000×1250 (4:5), centre |
+| `step-review-findings.jpg` | Homepage — How it works, step 04 flip card; About — focus card "Performance & Insights" | https://www.pexels.com/photo/two-men-looking-at-the-monitor-6812518/ | Pavel Danilyuk | 1000×1250 (4:5), centre |
 | `audit-backdrop-dental-model.jpg` | Homepage — Free website audit section backdrop (washed to near-white) | https://images.unsplash.com/photo-1684607631747-045ecfeeb4c7 (supplied CDN URL; standard `images.unsplash.com` host, not Unsplash+) | Unsplash contributor — **Unsplash License**; photo page/photographer to be confirmed | 2000×1125 (16:9) |
 | `tools/tool-mirror.jpg` | Homepage — arc showcase card 1 | https://www.pexels.com/photo/close-up-of-a-dental-instrument-12374351/ | Anna Astakhova | 720×720, tight crop on the mirror |
 | `tools/tool-explorer.jpg` | Homepage — arc showcase card 2 | https://www.pexels.com/photo/essential-dental-tools-on-neutral-background-39257053/ | artmondday | 720×720 |
@@ -28,6 +28,12 @@ sharp (mozjpeg, quality 80). `next/image` serves the responsive variants.
 | `tools/tool-syringe.jpg` | Homepage — arc showcase card 6 | https://www.pexels.com/photo/close-up-shot-of-a-dental-syringe-and-other-dental-tools-on-blue-surface-6502746/ | cottonbro | 720×720 |
 | `reception-enquiry.jpg` | Homepage — missed-opportunity calculator | https://www.pexels.com/photo/a-receptionist-smiling-at-a-person-4269206/ | Cedric Fauntleroy | 1200×1500 (4:5) |
 | `dental-consultation-smile.jpg` | Homepage — Trust / consultation card | https://www.pexels.com/photo/a-dentist-explaining-to-a-patient-using-a-dental-cast-5355723/ | Tima Miroshnichenko | 1600×1000 (16:10) |
+| `about-hero.jpg` | About — hero | https://www.pexels.com/photo/3845553/ | Shvetsa | 1600×1280 (5:4) |
+| `about-team-tablet.jpg` | About — Who we help | https://www.pexels.com/photo/3952136/ | Olly | 1600×1200 (4:3) |
+| `focus-consultation.jpg` | About — focus card "Website Experience" | https://www.pexels.com/photo/12635375/ | Jerussa Paredes | 1200×900 (4:3) |
+| `focus-imaging.jpg` | About — focus card "SEO & Content" | https://www.pexels.com/photo/9951392/ | Bakytzhan Baurzhanov | 1200×900 (4:3) |
+| `about-evidence-xray.jpg` | About — Evidence before assumptions | https://www.pexels.com/photo/4270093/ | Cedric Fauntleroy | 1200×1500 (4:5) |
+| `about-clinic-wide.jpg` | About — Canadian dental focus banner | https://www.pexels.com/photo/7800669/ | Nadezhda Moryak | 2000×900 (20:9), upper section of the portrait source |
 
 Pre-existing assets (added before this record was kept; source not recorded in
 the repository):

@@ -8,10 +8,12 @@ import { IconMapPin, IconSearch } from "@/components/icons";
 import { ButtonArrow } from "@/components/ui/buttonStyles";
 import { CtaCards } from "@/components/visuals/compositions";
 import { trackEvent } from "@/lib/analytics.client";
-import { SOCIAL_LINKS, TARGET_CITY, TARGET_PROVINCE } from "@/lib/siteConfig";
+import { SOCIAL_LINKS } from "@/lib/siteConfig";
 import { SERVICES } from "@/lib/services";
 
 const CONTACT_EMAIL = "hello@smileaimarketing.com";
+const CONTACT_PHONE = { display: "+1 437-971-4014", href: "tel:+14379714014" };
+const CONTACT_ADDRESS = ["98 Personna Cir", "Brampton, ON L6X 0P2, Canada"];
 
 const SECTION_LINKS = [
   { href: "#seo-audit", label: "Free Website Audit" },
@@ -118,7 +120,7 @@ function AuditBanner() {
             <label htmlFor="footer-website" className="sr-only">Practice website</label>
             <div className="flex flex-col gap-2 sm:block">
             <div className={`flex items-center gap-2 rounded-full border bg-white p-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/20 ${error ? "border-danger" : "border-border"}`}>
-              <IconSearch className="h-4 w-4 shrink-0 text-[#8e8c94]" />
+              <IconSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 id="footer-website"
                 type="text"
@@ -137,7 +139,7 @@ function AuditBanner() {
                 }}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? "footer-website-error" : undefined}
-                className="h-10 min-w-0 flex-1 bg-transparent text-body text-[#2d2c2b] placeholder:text-placeholder focus:outline-none"
+                className="h-10 min-w-0 flex-1 bg-transparent text-body text-foreground placeholder:text-placeholder focus:outline-none"
               />
               <button
                 type="submit"
@@ -198,7 +200,7 @@ export default function Footer() {
       {/* Wider than the site container: ~80% of the viewport on large screens */}
       <div className="relative mx-auto w-full px-[var(--page-gutter)] lg:w-[80vw] lg:px-0">
         {/* White panel; the banner straddles its top edge */}
-        <div className="mt-24 rounded-t-[var(--radius-xl)] border border-b-0 border-border bg-white px-5 shadow-[0_-12px_40px_-24px_rgba(30,27,71,0.25)] sm:px-8 lg:px-12 lg:mt-28">
+        <div className="mt-24 rounded-t-[var(--radius-xl)] border border-b-0 border-border bg-white px-5 shadow-[0_-12px_40px_-24px_rgba(30,53,96,0.25)] sm:px-8 lg:px-12 lg:mt-28">
           <div className="relative z-10 -mt-24 lg:-mt-28">
             <AuditBanner />
           </div>
@@ -274,11 +276,21 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-primary-ink" aria-hidden>
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4.5 3h3l1.5 3.5-2 1.5a10 10 0 005 5l1.5-2 3.5 1.5v3a1.5 1.5 0 01-1.5 1.5A13 13 0 013 4.5 1.5 1.5 0 014.5 3z" />
+                  </svg>
+                </span>
+                <a href={CONTACT_PHONE.href} className={linkClass}>{CONTACT_PHONE.display}</a>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-primary-ink" aria-hidden>
                   <IconMapPin className="h-4 w-4" />
                 </span>
-                <span className="text-body-small text-muted-foreground">
-                  {TARGET_CITY}, {TARGET_PROVINCE} — serving practices across Canada
-                </span>
+                <address className="text-body-small not-italic text-muted-foreground">
+                  {CONTACT_ADDRESS[0]}
+                  <br />
+                  {CONTACT_ADDRESS[1]}
+                </address>
               </li>
             </ul>
           </div>

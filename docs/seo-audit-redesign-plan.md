@@ -617,3 +617,41 @@ package.json                         + node-html-parser (or cheerio); + playwrig
 
 **Reused as-is**
 `lib/siteProfile.server.ts` (identity, Places), `lib/discoveryProvider.ts#findLocalMarketPosition` (map pack), `lib/websiteCheck.server.ts` (preview tiles), `lib/analytics.ts`/`lib/events.ts` (events), `lib/queue.ts` pattern, `components/ui/*`, consultation endpoints (`book-meeting`, `request-visit`), outreach pipeline.
+
+---
+
+## 2026-09-22 — Customer report redesigned as a business briefing (web + free PDF)
+
+The free customer report (web and PDF) is now one six-section briefing a practice
+owner can read in 60–90 seconds. The technical report is untouched: it still holds
+every measurement, affected URL and developer instruction, and is still delivered by
+hand after a website review.
+
+**Structure (identical order on both surfaces)**
+
+| | Section | Source |
+| --- | --- | --- |
+| A | Executive briefing — headline, ≤60-word summary, four numbers (score, verified issues, critical & high, pages crawled), the most consequential problem | `lib/audit/view/briefing.ts` |
+| B | Your three biggest website problems — headline / measured / what it can mean / do this, plus a tally of the rest | `buildBriefing` (top 3 by the audit's own priority order) |
+| C | What could this be worth? — the automated opportunity scenario, one calculation, method in an expandable note (web) / footnote (PDF) | `lib/audit/opportunity` |
+| D | Your local competitors — verified names, domains and side-by-side PageSpeed measurements | `lib/audit/competitors` |
+| E | Your next three actions | `buildBriefing` |
+| F | One closing consultation CTA + the unchanged technical-report request | — |
+
+**Key decisions**
+
+- `lib/audit/view/briefing.ts` is the single source for A, B and E; the web report and
+  `customerPdf.ts` both call it, so headline, summary, problems, counts and actions can
+  never diverge. A test asserts the PDF prints exactly the briefing's strings.
+- Removed from the free report: the Google-checks dashboard, the per-finding detail cards,
+  the full findings inventory and the personalised message (`lib/audit/view/message.ts`
+  deleted — the briefing replaced it). All of that evidence remains in the technical PDF.
+- Illustrative opportunity mode no longer headlines a dollar amount: the same
+  $5,760/month example for every practice is shown as a labelled worked example, not a
+  figure about this practice. Verified/partial modes keep the practice-specific number.
+- Section D headline claims an advantage ("Nearby practices have measurable website
+  advantages") only when the comparison produced competitor-ahead gaps; otherwise "How
+  your website compares nearby". A competitor never tested reads "Analysis in progress",
+  a failed test "Could not be measured" — the two are never conflated.
+- Customer PDF layout `cust-r6`; cached files from earlier layouts regenerate on download.
+  Typical length: 2–4 pages (was 7–11).

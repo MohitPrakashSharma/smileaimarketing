@@ -13,7 +13,7 @@ export default function Eyebrow({
         tone === "dark" ? "text-primary-ink" : "text-primary-ink"
       } ${className}`}
     >
-      <span aria-hidden className="h-px w-6 bg-current opacity-70" />
+      <span aria-hidden className="h-px w-6 bg-secondary-mark" />
       {children}
     </span>
   );

@@ -89,7 +89,7 @@ export default function Hero() {
                 <p className="mt-0.5 font-display text-[1rem] font-semibold text-foreground">Illustrative scenario</p>
               </div>
               <span className="shrink-0 text-right">
-                <span className="block font-display text-[1.375rem] font-bold leading-none tracking-[-0.03em] text-accent-gradient">{cad.format(SCENARIO.monthlyContribution)}</span>
+                <span className="block font-display text-[1.375rem] font-bold leading-none tracking-[-0.03em] text-growth">{cad.format(SCENARIO.monthlyContribution)}</span>
                 <span className="font-copy text-[0.8125rem] font-normal text-muted-foreground">per month</span>
               </span>
             </div>

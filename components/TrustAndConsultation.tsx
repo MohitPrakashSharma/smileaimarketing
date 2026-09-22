@@ -55,7 +55,7 @@ export default function TrustAndConsultation() {
               <ul className="mt-5 space-y-2.5">
                 {TRUST_POINTS.map((point) => (
                   <li key={point} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-growth-soft text-growth-ink">
                       <IconCheck className="h-3.5 w-3.5" />
                     </span>
                     <span className="text-body-small font-medium text-foreground">{point}</span>

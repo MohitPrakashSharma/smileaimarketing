@@ -11,7 +11,7 @@ export function LocalComparisonPending() {
   return (
     <section id="local-comparison" aria-labelledby="local-comparison-heading" aria-busy="true" className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
       <div className="flex items-start gap-3">
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-ink">
           <span className="absolute inset-0 animate-ping rounded-full bg-primary/20 motion-reduce:hidden" aria-hidden />
           <IconMapPin className="relative h-5 w-5" />
         </span>

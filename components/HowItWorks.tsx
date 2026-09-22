@@ -44,7 +44,7 @@ function StepCard({ step, index }: { step: (typeof STEPS)[number]; index: number
         aria-expanded={flipped}
         aria-label={`Step ${number}: ${step.title}. ${flipped ? "Hide" : "Show"} details`}
         onClick={() => setFlipped((f) => !f)}
-        className="group block w-full rounded-[var(--radius-xl)] text-left [perspective:1400px] focus:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(255,38,103,0.45)]"
+        className="group block w-full rounded-[var(--radius-xl)] text-left [perspective:1400px] focus:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(59,103,178,0.45)]"
       >
         <div
           className={`relative aspect-[5/4] w-full transition-transform sm:aspect-[4/5] duration-700 ease-[var(--ease-out)] [transform-style:preserve-3d] motion-reduce:transition-none ${
@@ -52,7 +52,7 @@ function StepCard({ step, index }: { step: (typeof STEPS)[number]; index: number
           }`}
         >
           {/* Front: photo */}
-          <div className="flip-face absolute inset-0 overflow-hidden rounded-[var(--radius-xl)] border border-black/5 bg-surface-muted shadow-[0_24px_50px_-28px_rgba(30,27,71,0.35)]">
+          <div className="flip-face absolute inset-0 overflow-hidden rounded-[var(--radius-xl)] border border-black/5 bg-surface-muted shadow-[0_24px_50px_-28px_rgba(30,53,96,0.35)]">
             <Image
               src={step.image}
               alt={step.alt}
@@ -61,8 +61,8 @@ function StepCard({ step, index }: { step: (typeof STEPS)[number]; index: number
               className="object-cover transition-transform duration-700 ease-[var(--ease-out)] group-hover:scale-[1.04] motion-reduce:transition-none"
               quality={80}
             />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-[rgba(30,27,71,0.92)] via-[rgba(30,27,71,0.45)] to-transparent" aria-hidden />
-            <span className="absolute left-4 top-4 inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-white/90 px-3 font-display text-[0.9375rem] font-semibold text-[#2d2c2b] shadow-sm backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-[rgba(30,53,96,0.92)] via-[rgba(30,53,96,0.45)] to-transparent" aria-hidden />
+            <span className="absolute left-4 top-4 inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-white/90 px-3 font-display text-[0.9375rem] font-semibold text-foreground shadow-sm backdrop-blur">
               {number}
             </span>
             <div className="absolute inset-x-0 bottom-0 p-5">
@@ -78,7 +78,7 @@ function StepCard({ step, index }: { step: (typeof STEPS)[number]; index: number
           </div>
 
           {/* Back: explanation on the brand gradient */}
-          <div className="flip-face absolute inset-0 flex flex-col overflow-hidden rounded-[var(--radius-xl)] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_50px_-28px_rgba(30,27,71,0.35)] backdrop-blur [transform:rotateY(180deg)] band-prism-card">
+          <div className="flip-face absolute inset-0 flex flex-col overflow-hidden rounded-[var(--radius-xl)] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_50px_-28px_rgba(30,53,96,0.35)] backdrop-blur [transform:rotateY(180deg)] band-prism-card">
             <span className="font-display text-[2rem] font-bold leading-none tracking-[-0.03em] text-accent-gradient">{number}</span>
             <h3 className="mt-4 text-heading-4 text-foreground">{step.title}</h3>
             <p className="mt-3 text-body-small text-muted-foreground">{step.detail}</p>

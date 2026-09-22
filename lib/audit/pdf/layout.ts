@@ -9,25 +9,29 @@ import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type
  * can check content parity with the web report.
  */
 
-// ---------- brand palette (app/globals.css) ----------
+// ---------- brand palette (mirrors the tokens in app/globals.css) ----------
 const hex = (h: string): RGB => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
 export const C = {
-  ink: hex("#2d2c2b"),
-  secondary: hex("#4a4948"),
-  muted: hex("#6b6a70"),
-  faint: hex("#8e8c94"),
-  accent: hex("#d81b6a"),
-  accentSoft: hex("#fde9f1"),
-  dark: hex("#1e1b47"),
-  border: hex("#e6e4e1"),
-  surface: hex("#f7f6f4"),
-  track: hex("#f3f1ee"),
+  ink: hex("#1e3560"),
+  secondary: hex("#485d66"),
+  muted: hex("#4f636b"),
+  faint: hex("#7e9299"),
+  accent: hex("#3b67b2"),
+  accentInk: hex("#2f5391"),
+  accentSoft: hex("#e8eff9"),
+  secondaryAccent: hex("#26707e"),   // teal ink — measurement captions
+  growth: hex("#1f6b52"),            // growth green — positive figures
+  dark: hex("#1e3560"),
+  border: hex("#dce4e6"),
+  surface: hex("#f7fafb"),
+  track: hex("#e9eff1"),
   white: rgb(1, 1, 1),
-  healthy: hex("#1f7a45"),
-  healthyBg: hex("#eaf6ee"),
-  opportunity: hex("#a85f06"),
+  // Severity keeps its own hues: a critical finding must never read as brand blue.
+  healthy: hex("#1f6b52"),
+  healthyBg: hex("#e4f4ee"),
+  opportunity: hex("#8d5309"),
   opportunityBg: hex("#fbf2e4"),
-  attention: hex("#c23b2e"),
+  attention: hex("#b3382a"),
   attentionBg: hex("#fcefec"),
 };
 export type Level = "healthy" | "opportunity" | "attention";
@@ -343,7 +347,7 @@ export class Flow {
       page.drawRectangle({ x: 0, y: height - 26, width, height: 26, color: C.dark });
       page.drawText("SMILE AI MARKETING", { x: MARGIN, y: height - 17, size: 8, font: this.f.bold, color: C.white });
       const right = pdfSafe(`${this.meta.kind} · ${this.meta.business.toUpperCase()}`);
-      page.drawText(right, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(right, 8), y: height - 17, size: 8, font: this.f.bold, color: hex("#ff7a8c") });
+      page.drawText(right, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(right, 8), y: height - 17, size: 8, font: this.f.bold, color: hex("#a9c8f2") });
       page.drawLine({ start: { x: MARGIN, y: MARGIN + 18 }, end: { x: width - MARGIN, y: MARGIN + 18 }, thickness: 0.5, color: C.border });
       const foot = pdfSafe(`Report date ${this.meta.date} · ${this.meta.url}`);
       page.drawText(foot, { x: MARGIN, y: MARGIN + 6, size: 7.5, font: this.f.regular, color: C.muted });
