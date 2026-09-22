@@ -87,6 +87,10 @@ export interface TextOpts {
 /** Flow layout: a cursor that moves down the page and breaks to a new page when needed. */
 export class Flow {
   pages: PDFPage[] = [];
+  /** Masthead labels per page: left (issue/section) and right (area). Set with `label()`. */
+  labels: Array<{ left: string; right: string }> = [];
+  /** The label a page break inherits, so a section that runs long keeps its masthead. */
+  private currentLabel: { left: string; right: string } | null = null;
   page!: PDFPage;
   y = 0;
   dryRun = false;
@@ -124,7 +128,15 @@ export class Flow {
     if (this.dryRun) return; // measuring: keep flowing downwards so the total height is known
     this.page = this.doc.addPage(PAGE);
     this.pages.push(this.page);
+    this.labels.push(this.currentLabel ?? { left: `${this.meta.kind} · ${this.meta.business.toUpperCase()}`, right: "" });
     this.y = this.top;
+  }
+
+  /** Masthead text for the page being written (left = what this page is, right = its area). */
+  label(left: string, right = "") {
+    if (this.dryRun) return;
+    this.currentLabel = { left, right };
+    if (this.labels.length) this.labels[this.labels.length - 1] = { left, right };
   }
 
   ensure(h: number) {
@@ -339,22 +351,84 @@ export class Flow {
     }
   }
 
-  /** Header + footer on every page, drawn last so page counts are known. */
+  /**
+   * Masthead bar and footer rule on every page, drawn last so page counts and
+   * per-page labels are known. Editorial format: a solid bar carrying what the
+   * page is on the left and its subject on the right, and a footer naming who
+   * the report was prepared for.
+   */
   finish() {
     const total = this.pages.length;
     this.pages.forEach((page, i) => {
       const { width, height } = page.getSize();
-      page.drawRectangle({ x: 0, y: height - 26, width, height: 26, color: C.dark });
-      page.drawText("SMILE AI MARKETING", { x: MARGIN, y: height - 17, size: 8, font: this.f.bold, color: C.white });
-      const right = pdfSafe(`${this.meta.kind} · ${this.meta.business.toUpperCase()}`);
-      page.drawText(right, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(right, 8), y: height - 17, size: 8, font: this.f.bold, color: hex("#a9c8f2") });
-      page.drawLine({ start: { x: MARGIN, y: MARGIN + 18 }, end: { x: width - MARGIN, y: MARGIN + 18 }, thickness: 0.5, color: C.border });
-      const foot = pdfSafe(`Report date ${this.meta.date} · ${this.meta.url}`);
-      page.drawText(foot, { x: MARGIN, y: MARGIN + 6, size: 7.5, font: this.f.regular, color: C.muted });
-      const pn = `Page ${i + 1} of ${total}`;
-      page.drawText(pn, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(pn, 7.5), y: MARGIN + 6, size: 7.5, font: this.f.bold, color: C.accent });
+      const lab = this.labels[i] ?? { left: `${this.meta.kind} · ${this.meta.business.toUpperCase()}`, right: "" };
+      page.drawRectangle({ x: 0, y: height - 28, width, height: 28, color: C.dark });
+      page.drawText(pdfSafe(lab.left.toUpperCase()), { x: MARGIN, y: height - 18, size: 7.5, font: this.f.bold, color: C.white });
+      if (lab.right) {
+        const r = pdfSafe(lab.right.toUpperCase());
+        page.drawText(r, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(r, 7.5), y: height - 18, size: 7.5, font: this.f.bold, color: hex("#a9c8f2") });
+      }
+      page.drawLine({ start: { x: MARGIN, y: MARGIN + 18 }, end: { x: width - MARGIN, y: MARGIN + 18 }, thickness: 0.8, color: C.dark });
+      const foot = pdfSafe(`PREPARED FOR ${this.meta.business.toUpperCase()}`);
+      page.drawText(foot, { x: MARGIN, y: MARGIN + 6, size: 7, font: this.f.bold, color: C.ink });
+      const mid = pdfSafe(this.meta.date.toUpperCase());
+      page.drawText(mid, { x: width / 2 - this.f.regular.widthOfTextAtSize(mid, 7) / 2, y: MARGIN + 6, size: 7, font: this.f.regular, color: C.muted });
+      const pn = `PAGE ${i + 1} OF ${total}`;
+      page.drawText(pn, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(pn, 7), y: MARGIN + 6, size: 7, font: this.f.bold, color: C.ink });
     });
   }
+
+  /** A highlight block behind a run of display text, painted before the glyphs. */
+  highlight(x: number, yTop: number, w: number, h: number, color = C.accentSoft) {
+    if (this.dryRun) return;
+    this.page.drawRectangle({ x: x - 3, y: yTop - h, width: w + 6, height: h, color });
+  }
+
+  /**
+   * Display headline in the editorial style: very large and tight, with an
+   * optional phrase set on a highlight block. The phrase is matched word by
+   * word across the wrapped lines, so a highlight that spans a line break is
+   * painted on both lines.
+   */
+  display(text: string, highlightPhrase: string, o: { size?: number; lineHeight?: number; color?: RGB } = {}) {
+    const size = o.size ?? 30;
+    const lh = o.lineHeight ?? size * 1.06;
+    const color = o.color ?? C.dark;
+    const lines = this.wrap(text, this.f.bold, size, this.usable);
+    const phrase = highlightPhrase.trim();
+    const phraseWords = phrase ? phrase.toLowerCase().split(/\s+/) : [];
+    let taken = 0; // how many phrase words have been matched so far
+    for (const line of lines) {
+      this.ensure(lh + 6);
+      if (!this.dryRun) {
+        const y = this.y - size;
+        if (phraseWords.length && taken < phraseWords.length) {
+          const words = line.split(" ");
+          const startIdx = words.findIndex((w, k) => {
+            const clean = w.toLowerCase().replace(/[^a-z0-9'’.%/-]/g, "");
+            return clean === phraseWords[taken] && words.slice(k).length >= 1;
+          });
+          if (startIdx >= 0) {
+            let end = startIdx;
+            let t = taken;
+            while (end < words.length && t < phraseWords.length && words[end].toLowerCase().replace(/[^a-z0-9'’.%/-]/g, "") === phraseWords[t]) {
+              end++;
+              t++;
+            }
+            const before = words.slice(0, startIdx).join(" ");
+            const run = words.slice(startIdx, end).join(" ");
+            const x0 = this.left + (before ? this.f.bold.widthOfTextAtSize(`${before} `, size) : 0);
+            this.highlight(x0, this.y + 3, this.f.bold.widthOfTextAtSize(run, size), size * 1.2);
+            taken = t;
+          }
+        }
+        this.page.drawText(line, { x: this.left, y, size, font: this.f.bold, color });
+      }
+      this.y -= lh;
+    }
+    if (!this.dryRun && text.trim()) this.transcript.push(pdfSafe(text));
+  }
+
 }
 
 

@@ -21,6 +21,8 @@ export type FindingDeveloperDetail = {
 
 export type FindingView = {
   id: string;
+  findingKey?: string;
+  expectedValue?: string | null;
   pillar: string;
   severity: string;
   title: string;

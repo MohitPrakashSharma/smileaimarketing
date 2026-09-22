@@ -8,12 +8,12 @@ import { IconMapPin, IconSearch } from "@/components/icons";
 import { ButtonArrow } from "@/components/ui/buttonStyles";
 import { CtaCards } from "@/components/visuals/compositions";
 import { trackEvent } from "@/lib/analytics.client";
-import { SOCIAL_LINKS } from "@/lib/siteConfig";
+import { CONTACT, SOCIAL_LINKS } from "@/lib/siteConfig";
 import { SERVICES } from "@/lib/services";
 
-const CONTACT_EMAIL = "hello@smileaimarketing.com";
-const CONTACT_PHONE = { display: "+1 437-971-4014", href: "tel:+14379714014" };
-const CONTACT_ADDRESS = ["98 Personna Cir", "Brampton, ON L6X 0P2, Canada"];
+const CONTACT_EMAIL = CONTACT.email;
+const CONTACT_PHONE = CONTACT.phone;
+const CONTACT_ADDRESS = CONTACT.address;
 
 const SECTION_LINKS = [
   { href: "#seo-audit", label: "Free Website Audit" },

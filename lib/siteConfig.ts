@@ -16,3 +16,13 @@ export const SOCIAL_LINKS: { key: "instagram" | "facebook" | "linkedin" | "googl
   { key: "linkedin", label: "LinkedIn", href: "" },
   { key: "google", label: "Google Business Profile", href: "" },
 ];
+
+/**
+ * How a practice reaches us. One source for the footer, the audit report and
+ * the PDFs, so a change here reaches every surface.
+ */
+export const CONTACT = {
+  email: "hello@smileaimarketing.com",
+  phone: { display: "+1 437-971-4014", href: "tel:+14379714014" },
+  address: ["98 Personna Cir", "Brampton, ON L6X 0P2, Canada"],
+};

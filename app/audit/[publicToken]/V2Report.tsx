@@ -1,11 +1,13 @@
 "use client";
 
 import { buttonClasses, ButtonArrow } from "@/components/ui/buttonStyles";
+import { CONTACT } from "@/lib/siteConfig";
 import { cap, type IndustryProfile } from "@/lib/industry";
 import { buildBriefing, type BriefingFinding } from "@/lib/audit/view/briefing";
 import type { PerfRow } from "@/lib/audit/view/performanceView";
 import { consultationUrl } from "@/lib/audit/technicalReport";
 import GoogleScoresStrip from "./GoogleScoresStrip";
+import StoryCard from "./StoryCard";
 import LocalComparisonSection from "./LocalComparisonSection";
 import OpportunitySection from "./OpportunitySection";
 import type { LocalComparison, LocalComparisonState } from "@/lib/audit/competitors/types";
@@ -16,15 +18,18 @@ import DownloadPdfButton from "./DownloadPdfButton";
 import RequestTechnicalReportLink from "./RequestTechnicalReportLink";
 
 /**
- * The v2 customer report — a business briefing, not a technical dump:
+ * The v2 customer report — an editorial briefing, read top to bottom:
  *
- *   A  Executive briefing        headline, ≤60-word summary, four numbers,
- *                                 Google's PageSpeed rings for the homepage
- *   B  Your three biggest problems   evidence → implication → action, one line each
- *   C  What could this be worth?     the automated opportunity scenario
- *   D  Your local competitors        verified side-by-side measurements
- *   E  Your next three actions
- *   F  One closing consultation CTA
+ *   Cover     the headline, the numbers, Google's PageSpeed rings
+ *   Stories   one per verified problem: measured chip, what's happening,
+ *             how to fix it, what the fix is measured against
+ *   Worth     the automated opportunity scenario
+ *   Nearby    the verified competitor comparison
+ *   Next      the three actions, then a direct line to us (phone, email)
+ *
+ * There is no form on this page: a practice owner who wants to talk should be
+ * able to call or email in one tap. The same briefing builder feeds the
+ * customer PDF, so the two documents always read the same.
  *
  * Sections A, B and E come from `buildBriefing`, the same function the
  * customer PDF calls, so the two documents always state the same headline,
@@ -67,6 +72,8 @@ const SEVERITY_STYLE: Record<string, string> = {
 
 const toBriefingFinding = (f: FindingView): BriefingFinding => ({
   id: f.id,
+  findingKey: f.findingKey,
+  expectedValue: f.expectedValue,
   title: f.title,
   pillar: f.pillar,
   severity: f.severity,
@@ -80,16 +87,6 @@ const toBriefingFinding = (f: FindingView): BriefingFinding => ({
   whyItMatters: f.whyItMatters,
   device: f.device,
 });
-
-function Stat({ value, label, note }: { value: string; label: string; note?: string }) {
-  return (
-    <div className="rounded-[var(--radius-medium)] border border-white/10 bg-white/5 px-4 py-3">
-      <p className="font-display text-[1.75rem] font-bold leading-none tracking-[-0.02em] text-white">{value}</p>
-      <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wider text-white/70">{label}</p>
-      {note && <p className="text-[11px] leading-snug text-white/55">{note}</p>}
-    </div>
-  );
-}
 
 export default function V2Report({ data, ind, publicToken }: { data: V2ReportData; ind: IndustryProfile; publicToken: string }) {
   const { business, scores, findings } = data;
@@ -106,99 +103,88 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
 
   return (
     <div className="space-y-6">
-      {/* A ── Executive briefing ─────────────────────────────────────────── */}
-      <section id="overview" aria-labelledby="overview-heading" className="band-dark overflow-hidden rounded-2xl p-6 shadow-sm sm:p-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-metadata">
-          <span>
-            <span className="font-bold uppercase tracking-wider text-white/60">{cap(ind.business)} </span>
-            <span className="font-semibold text-white">{business.name}</span>
-            {business.city && <span className="text-white/60"> · {business.city}</span>}
-          </span>
-          <span>
-            <span className="font-bold uppercase tracking-wider text-white/60">Audited </span>
-            <span className="font-semibold text-white">{data.checkedAtLabel}</span>
-          </span>
+      {/* Cover ───────────────────────────────────────────────────────────── */}
+      <section id="overview" aria-labelledby="overview-heading" className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex items-center justify-between gap-4 bg-background-dark px-5 py-2.5 sm:px-8">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-white">Website report · {data.checkedAtLabel}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-accent-on-dark">Executive briefing</span>
         </div>
 
-        <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
-          <div className="min-w-0 max-w-2xl">
-            <p className="text-eyebrow text-white/60">Executive briefing</p>
-            <h1 id="overview-heading" className="mt-2 font-display text-[1.75rem] font-extrabold leading-[1.1] tracking-[-0.02em] text-white sm:text-[2.25rem]">
-              {briefing.headline}
-            </h1>
-            <p className="mt-4 text-body leading-relaxed text-white/85">{briefing.summary}</p>
-            {!briefing.performanceMeasured && (
-              <p className="mt-3 text-metadata text-white/60">Google PageSpeed could not test this site during the audit, so speed is not scored here.</p>
-            )}
+        <div className="p-5 sm:p-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b-2 border-foreground pb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-primary-ink">Exclusive briefing</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+              For {business.name}{business.city ? ` — ${business.city}` : ""} · {cap(ind.business)}
+            </span>
           </div>
-          <div className="flex w-full shrink-0 flex-col items-start gap-1 lg:w-auto lg:items-end">
-            <DownloadPdfButton publicToken={publicToken} className="w-full lg:w-auto" />
-          </div>
-        </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat value={stats.score === null ? "—" : `${stats.score}`} label="Audit score" note="out of 100" />
-          <Stat value={String(stats.findings)} label="Verified issues" note={`from ${stats.checksRun} checks`} />
-          <Stat value={String(stats.criticalHigh)} label="Critical & high" note={`${stats.critical} critical · ${stats.high} high`} />
-          <Stat value={String(stats.pagesCrawled)} label="Pages crawled" note={data.crawlStats?.budgetHit && data.crawlStats.budgetHit !== "none" ? "crawl budget reached" : "full crawl"} />
-        </dl>
+          <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h1 id="overview-heading" className="font-display text-[2rem] font-extrabold leading-[1.04] tracking-[-0.025em] text-foreground sm:text-[3rem]">
+                {stats.findings === 0 ? "No Blocking Problems." : `${stats.findings} Verified Problems.`}{" "}
+                {stats.score === null ? "Your Site Was Not Scored." : `Your Site Scores ${stats.score}/100.`}{" "}
+                <span className="bg-accent-soft box-decoration-clone px-1">{stats.findings === 0 ? "Here's What We Checked." : "Here's What To Fix First."}</span>
+              </h1>
+              <p className="mt-4 max-w-3xl font-copy text-body-large italic text-foreground">{briefing.summary}</p>
+              {!briefing.performanceMeasured && (
+                <p className="mt-2 text-metadata text-muted-foreground">Google PageSpeed could not test this site during the audit, so speed is not scored here.</p>
+              )}
+            </div>
+            <div className="shrink-0">
+              <DownloadPdfButton publicToken={publicToken} className="w-full lg:w-auto" />
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-x-10 gap-y-7 border-t-2 border-foreground pt-6 sm:grid-cols-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground">By the numbers</p>
+              <dl className="mt-3 space-y-2.5">
+                {[
+                  [stats.score === null ? "—" : `${stats.score}/100`, "website health score"],
+                  [String(stats.findings), "verified problems"],
+                  [String(stats.criticalHigh), `critical & high (${stats.critical} critical)`],
+                  [String(stats.pagesCrawled), "pages crawled"],
+                ].map(([v, label]) => (
+                  <div key={label} className="flex items-baseline gap-3">
+                    <dd className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-primary">{v}</dd>
+                    <dt className="font-copy text-body-small italic text-foreground">{label}</dt>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground">Inside this report</p>
+              <ol className="mt-3 space-y-1.5 text-body-small text-foreground">
+                {briefing.problems.map((p, i) => (
+                  <li key={p.id}>
+                    <a href={`#story-${i + 1}`} className="hover:text-primary hover:underline">
+                      <span className="font-bold">{String(i + 1).padStart(2, "0")}</span> {p.storyHeadline}
+                    </a>
+                  </li>
+                ))}
+                <li><a href="#opportunity" className="hover:text-primary hover:underline">What the fixes could be worth.</a></li>
+                <li><a href="#local-comparison" className="hover:text-primary hover:underline">How you compare with nearby practices.</a></li>
+                <li><a href="#next" className="hover:text-primary hover:underline">Your next moves, and how to reach us.</a></li>
+              </ol>
+            </div>
+          </div>
+
+          {briefing.more.total > 0 && (
+            <p className="mt-6 text-body-small text-muted-foreground">
+              <span className="font-semibold text-foreground">Also found: {briefing.more.total} further finding{briefing.more.total === 1 ? "" : "s"}</span> — {briefing.more.byArea.map((a) => `${a.count} ${a.label.toLowerCase()}`).join(", ")}.
+              {briefing.more.titles.length > 0 && ` Including: ${briefing.more.titles.join("; ")}${briefing.more.total > briefing.more.titles.length ? "; and more" : ""}. Every one is listed with its full evidence in the technical report.`}
+            </p>
+          )}
+        </div>
       </section>
 
       {/* A2 ── Google's own scores for the homepage (only when measured) ─── */}
       <GoogleScoresStrip rows={data.performance} />
 
-      {/* B ── Your three biggest website problems ────────────────────────── */}
-      {briefing.problems.length > 0 && (
-        <section id="problems" aria-labelledby="problems-heading" className="space-y-3">
-          <div className="px-1">
-            <h2 id="problems-heading" className="text-heading-2 text-foreground">Your {briefing.problems.length === 1 ? "biggest website problem" : `${briefing.problems.length} biggest website problems`}</h2>
-            <p className="mt-1 text-body-small text-muted-foreground">Verified on your own pages — what we measured, what it can mean and what to do.</p>
-          </div>
-          <ol className="space-y-3">
-            {briefing.problems.map((p, i) => (
-              <li key={p.id} className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-4">
-                  <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft font-display text-body font-bold text-primary sm:flex">{String(i + 1).padStart(2, "0")}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_STYLE[p.severity] ?? SEVERITY_STYLE.LOW}`}>{p.severityLabel}</span>
-                      <span className="text-[11px] text-muted-foreground">{p.area} · {p.ownerLabel}</span>
-                    </div>
-                    <h3 className="mt-2 font-display text-[1.25rem] font-bold leading-snug tracking-[-0.01em] text-foreground sm:text-[1.375rem]">{p.headline}</h3>
-                    <dl className="mt-3 space-y-1.5 text-body-small">
-                      <div className="flex flex-wrap gap-x-2">
-                        <dt className="font-semibold text-foreground">Measured:</dt>
-                        <dd className="min-w-0 flex-1 text-foreground">{p.evidence}</dd>
-                      </div>
-                      <div className="flex flex-wrap gap-x-2">
-                        <dt className="font-semibold text-foreground">What it can mean:</dt>
-                        <dd className="min-w-0 flex-1 text-muted-foreground">{p.implication}</dd>
-                      </div>
-                      <div className="flex flex-wrap gap-x-2">
-                        <dt className="font-semibold text-foreground">Do this:</dt>
-                        <dd className="min-w-0 flex-1 text-foreground">{p.action}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {briefing.more.total > 0 && (
-            <div className="rounded-2xl border border-border bg-surface px-5 py-4 shadow-sm sm:px-6">
-              <p className="text-body-small text-foreground">
-                <span className="font-semibold">Also found: {briefing.more.total} further finding{briefing.more.total === 1 ? "" : "s"}</span>
-                <span className="text-muted-foreground"> — {briefing.more.byArea.map((a) => `${a.count} ${a.label.toLowerCase()}`).join(", ")}.</span>
-              </p>
-              {briefing.more.titles.length > 0 && (
-                <p className="mt-1 text-metadata text-muted-foreground">
-                  Including: {briefing.more.titles.join("; ")}{briefing.more.total > briefing.more.titles.length ? "; and more" : ""}. Every one is listed with its full evidence in the technical report.
-                </p>
-              )}
-            </div>
-          )}
-        </section>
-      )}
+      {/* Stories — one page per verified problem ────────────────────────── */}
+      {briefing.problems.map((p, i) => (
+        <StoryCard key={p.id} problem={p} index={i} total={briefing.problems.length} />
+      ))}
 
       {/* C ── What could these problems be worth? ────────────────────────── */}
       {data.opportunity && <OpportunitySection scenario={data.opportunity} publicToken={publicToken} businessName={business.name} />}
@@ -208,52 +194,69 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
       {!data.comparison && data.comparisonState?.state === "pending" && <LocalComparisonPending />}
       {!data.comparison && data.comparisonState?.state === "unavailable" && <LocalComparisonUnavailable reason={data.comparisonState.reason} />}
 
-      {/* E ── Your next three actions ────────────────────────────────────── */}
-      {briefing.actions.length > 0 && (
-        <section id="next-actions" aria-labelledby="actions-heading" className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
-          <h2 id="actions-heading" className="text-heading-2 text-foreground">Your next {briefing.actions.length === 1 ? "action" : `${briefing.actions.length} actions`}</h2>
-          <p className="mt-1 text-body-small text-muted-foreground">Start at the top. Each one comes straight from a verified finding above.</p>
-          <ol className="mt-5 divide-y divide-border-subtle border-t border-border">
-            {briefing.actions.map((a, i) => (
-              <li key={`${a.title}-${i}`} className="flex items-start gap-4 py-4">
-                <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-primary">{String(i + 1).padStart(2, "0")}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-body font-bold text-foreground">{a.title}</p>
-                  <p className="mt-0.5 text-body-small text-muted-foreground">{a.detail}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_STYLE[a.severity] ?? SEVERITY_STYLE.LOW}`}>{a.severityLabel}</span>
-                  {a.whenLabel && <span className="text-[11px] text-muted-foreground">{a.whenLabel}</span>}
-                </div>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-4 text-metadata text-muted-foreground">
-            Severity is the audit&apos;s own rating of each finding. Fixing these addresses what we measured; it is not a promise of rankings, enquiries or revenue.
-          </p>
-        </section>
-      )}
+      {/* Next moves + a direct line to a person ─────────────────────────── */}
+      <section id="next" aria-labelledby="next-heading" className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex items-center justify-between gap-4 bg-background-dark px-5 py-2.5 sm:px-8">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-white">What to do next</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-accent-on-dark">Talk to us</span>
+        </div>
 
-      {/* F ── Consultation CTA ───────────────────────────────────────────── */}
-      <section id="consultation-cta" aria-labelledby="cta-heading" className="band-dark overflow-hidden rounded-2xl p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-xl">
-            <h2 id="cta-heading" className="font-display text-[1.75rem] font-extrabold leading-[1.12] tracking-[-0.02em] text-white sm:text-[2rem]">
-              Find Out What&apos;s Holding Your Practice Back
-            </h2>
-            <p className="mt-3 text-body text-white/80">
-              We&apos;ll walk you through the findings, explain the opportunities and help you decide which improvements to prioritise.
+        <div className="p-5 sm:p-8">
+          {briefing.actions.length > 0 && (
+            <>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b-2 border-foreground pb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-ink">Your next moves</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{briefing.actions.length} action{briefing.actions.length === 1 ? "" : "s"}, in order</span>
+              </div>
+              <h2 id="next-heading" className="mt-5 font-display text-[1.75rem] font-extrabold leading-[1.06] tracking-[-0.02em] text-foreground sm:text-[2.5rem]">
+                Start Here. <span className="bg-accent-soft box-decoration-clone px-1">We&apos;ll Do The Rest With You.</span>
+              </h2>
+              <ol className="mt-6 divide-y divide-border-subtle border-t border-border">
+                {briefing.actions.map((a, i) => (
+                  <li key={`${a.title}-${i}`} className="flex items-start gap-4 py-4">
+                    <span className="font-display text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-primary">{String(i + 1).padStart(2, "0")}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-body font-bold text-foreground">{a.title}</p>
+                      <p className="mt-0.5 text-body-small text-muted-foreground">{a.detail}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_STYLE[a.severity] ?? SEVERITY_STYLE.LOW}`}>{a.severityLabel}</span>
+                      {a.whenLabel && <span className="text-[11px] text-muted-foreground">{a.whenLabel}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-4 text-metadata text-muted-foreground">
+                Severity is the audit&apos;s own rating of each finding. Fixing these addresses what we measured; it is not a promise of rankings, enquiries or revenue.
+              </p>
+            </>
+          )}
+
+          {/* One tap to a person — no form on this page */}
+          <div className="mt-8 rounded-[var(--radius-large)] border-l-4 border border-primary bg-accent-soft p-5 sm:p-7">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-primary-ink">Talk to a human about this report</p>
+            <p className="mt-2 max-w-2xl text-body text-foreground">
+              Call or email us and we&apos;ll walk you through the findings, explain the opportunities and help you decide what to fix first. Fifteen minutes, no pitch.
             </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
-            <a href={consultationUrl("", publicToken)} className={buttonClasses({ variant: "light" })}>
-              <span>Book your website review</span>
-              <ButtonArrow />
-            </a>
-            <RequestTechnicalReportLink publicToken={publicToken} className="lg:items-end lg:text-right" />
+            <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-4">
+              <a href={CONTACT.phone.href} className="font-display text-[1.75rem] font-extrabold leading-none tracking-[-0.02em] text-foreground hover:text-primary sm:text-[2.25rem]">
+                {CONTACT.phone.display}
+              </a>
+              <a href={`mailto:${CONTACT.email}`} className="text-body font-semibold text-primary-ink underline-offset-4 hover:underline">
+                {CONTACT.email}
+              </a>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-4">
+              <a href={consultationUrl("", publicToken)} className={buttonClasses()}>
+                <span>Or book a 15-minute review</span>
+                <ButtonArrow />
+              </a>
+              <RequestTechnicalReportLink publicToken={publicToken} />
+            </div>
           </div>
         </div>
       </section>
+
     </div>
   );
 }

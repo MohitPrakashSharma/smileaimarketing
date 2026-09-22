@@ -316,8 +316,8 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
   if (isV2 && v2) {
     const perfStage = v2.progress?.stages.find((st) => st.key === "performance");
     return (
-      <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-16">
-        <main className="mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
+      <div className="min-h-screen bg-background pb-12 text-foreground">
+        <main className="mx-auto max-w-[1000px] space-y-6 px-4 py-6 sm:px-8">
           <V2Report
             ind={ind}
             publicToken={publicToken}
@@ -340,11 +340,7 @@ export default function AuditReportClient({ publicToken }: { publicToken: string
               opportunity: v2.opportunity ?? null,
             }}
           />
-          <ConsultationSidebar publicToken={publicToken} ind={ind} />
         </main>
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 p-3 backdrop-blur-sm lg:hidden">
-          <a href="#consultation" className="flex h-12 items-center justify-center rounded-full bg-primary text-body-small font-bold text-primary-foreground transition-colors hover:bg-primary-hover">Talk to us about this report</a>
-        </div>
       </div>
     );
   }

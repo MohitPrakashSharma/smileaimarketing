@@ -16,6 +16,9 @@ import { PILLAR_LABEL, BUCKET_LABEL, OWNER_LABEL } from "./pillars";
 
 export type BriefingFinding = FindingLike & {
   id: string;
+  /** The check group this finding came from — picks its editorial headline. */
+  findingKey?: string;
+  expectedValue?: string | null;
   pillar: string;
   severity: string;
   bucket: string;
@@ -33,8 +36,30 @@ export interface BriefingInput {
   checksRun: number;
 }
 
+export interface StoryFix {
+  /** Short imperative label, e.g. "Compress the hero image". */
+  title: string;
+  detail: string;
+}
+
 export interface BriefingProblem {
   id: string;
+  /** Editorial headline for the story page — direct, descriptive, never an outcome claim. */
+  storyHeadline: string;
+  /** The part of `storyHeadline` to set on a highlight block; empty when the headline stands alone. */
+  storyHighlight: string;
+  /** Kicker tag beside "STORY 01" — the measured fact in a few words. */
+  tag: string;
+  /** The measured value pulled out for the metric chip (e.g. "10.4 s", "46/100", "33 pages"). */
+  chip: string | null;
+  /** One line explaining what the chip is. */
+  chipNote: string;
+  /** "What's happening" — up to two short paragraphs, from our own stored explanation. */
+  happening: string[];
+  /** "How to fix it" — the stored recommendation, split into numbered steps. */
+  fixes: StoryFix[];
+  /** Strip line: the target the check measures against, plus scope. */
+  target: string;
   /** Plain-English problem headline (the verified finding's title). */
   headline: string;
   /** One sentence: what was measured. */
@@ -87,6 +112,35 @@ export interface ReportBriefing {
 
 export const SEVERITY_LABEL: Record<string, string> = { CRITICAL: "Critical", HIGH: "High priority", MEDIUM: "Medium", LOW: "Low", OPPORTUNITY: "Suggestion" };
 
+/**
+ * Editorial headlines for the story pages. Each one describes the verified
+ * finding in the reader's language — it never adds an outcome the audit did
+ * not measure (no "costing you N patients", no ranking promises). Keyed on the
+ * finding key the checks produce; anything unmapped falls back to the finding's
+ * own title, so a new check can never produce a wrong headline.
+ */
+const STORY_HEADLINES: Array<{ match: RegExp; headline: string; highlight: string }> = [
+  { match: /^perf_lcp/, headline: "Your Page Makes Them Wait", highlight: "Makes Them Wait" },
+  { match: /^perf_mobile_load|^perf_score/, headline: "Google Rates Your Mobile Site Slow", highlight: "Rates Your Mobile Site Slow" },
+  { match: /^perf_desktop/, headline: "Desktop Loads Slower Than It Should", highlight: "Slower Than It Should" },
+  { match: /^perf_images|^images_size|^images_lazy/, headline: "Your Images Are Doing The Damage", highlight: "Doing The Damage" },
+  { match: /^perf_third_party/, headline: "Other People's Scripts Are Taxing Your Visitors", highlight: "Taxing Your Visitors" },
+  { match: /^perf_js|^perf_render_block|^perf_main_thread/, headline: "Scripts Are Blocking The Page", highlight: "Blocking The Page" },
+  { match: /^perf_fonts/, headline: "Your Text Waits For The Fonts", highlight: "Waits For The Fonts" },
+  { match: /^perf_cache|^perf_compression/, headline: "Every Visit Downloads Everything Again", highlight: "Downloads Everything Again" },
+  { match: /^perf_server|^server_response/, headline: "Your Server Answers Too Slowly", highlight: "Answers Too Slowly" },
+  { match: /^images_alt/, headline: "Google Can't See Your Images", highlight: "Can't See Your Images" },
+  { match: /^headings/, headline: "Your Pages Have No Clear Headline", highlight: "No Clear Headline" },
+  { match: /^meta_description|^titles|^meta/, headline: "Google Is Writing Your Search Listing", highlight: "Writing Your Search Listing" },
+  { match: /^thin_content|^duplicate/, headline: "Pages With Nothing To Read", highlight: "Nothing To Read" },
+  { match: /^broken|^redirect|^links/, headline: "Links That Lead Nowhere", highlight: "Lead Nowhere" },
+  { match: /^indexab|^robots|^sitemap|^canonical/, headline: "Search Engines Are Being Turned Away", highlight: "Turned Away" },
+  { match: /^schema|^structured/, headline: "Your Practice Details Aren't Machine-Readable", highlight: "Aren't Machine-Readable" },
+  { match: /^contact|^cta|^booking|^phone/, headline: "Visitors Can't Take The Next Step", highlight: "Can't Take The Next Step" },
+  { match: /^https|^security|^mixed/, headline: "Your Site Isn't Fully Secure", highlight: "Isn't Fully Secure" },
+  { match: /^page:/, headline: "One Page Is Letting The Site Down", highlight: "Letting The Site Down" },
+];
+
 const domainOf = (url: string) => {
   try {
     return new URL(url).host.replace(/^www\./, "");
@@ -117,9 +171,58 @@ function budget(sentences: string[], maxWords: number): string {
   return out.join(" ");
 }
 
+/** The measured number for the metric chip: a range when the checks measured one, else the single value. */
+function chipFrom(measured: string): string | null {
+  const range = measured.match(/(\d+(?:[.,]\d+)?)\s?(?:s|ms|KB|MB)?\s?[–—-]\s?(\d+(?:[.,]\d+)?)\s?(s\b|ms\b|KB\b|MB\b|%|\/100)/i);
+  if (range) return `${range[1]}–${range[2]}${range[3].startsWith("/") ? range[3] : ` ${range[3]}`}`.replace(" %", "%");
+  const one = measured.match(/(\d+(?:[.,]\d+)?)\s?(s\b|ms\b|KB\b|MB\b|%|\/100)/i);
+  if (one) return `${one[1]}${one[2].startsWith("/") ? one[2] : ` ${one[2]}`}`.replace(" %", "%");
+  const pages = measured.match(/(\d+)\s+pages?\b/i);
+  if (pages) return `${pages[1]} page${pages[1] === "1" ? "" : "s"}`;
+  const any = measured.match(/\b(\d+(?:[.,]\d+)?)\b/);
+  return any ? any[1] : null;
+}
+
+/** Up to two short paragraphs of our own stored explanation. */
+function happeningFrom(f: BriefingFinding, measured: string): string[] {
+  const why = f.whyItMatters.replace(/\s+/g, " ").trim();
+  const sentences = why.match(/[^.!?]+[.!?]+/g) ?? [why];
+  const first = sentences.slice(0, 2).join(" ").trim();
+  const rest = sentences.slice(2).join(" ").trim();
+  return [stripTrailingDot(measured) + ".", first, rest].filter((x) => x && x.length > 3).slice(0, 3);
+}
+
+/** "How to fix it": the stored recommendation split into numbered steps. */
+function fixesFrom(f: BriefingFinding): StoryFix[] {
+  const lines = f.recommendedFix.split("\n").map((l) => l.trim()).filter(Boolean);
+  const intro = lines.find((l) => !l.startsWith("•"))?.trim() ?? "";
+  const bullets = lines.filter((l) => l.startsWith("•")).map((l) => l.replace(/^•\s*/, "").trim());
+  const items = bullets.length ? bullets : intro ? [intro] : [];
+  return items.slice(0, 3).map((body) => {
+    // Short imperative label: the first clause, cut before any parenthesis, else the opening words.
+    let head = body.split(/[:;—–]|,\s(?=[a-z])/)[0].trim();
+    if (head.includes("(")) head = head.slice(0, head.indexOf("(")).trim();
+    if (head.length < 12 || head.length > 58) head = body.split(/\s+/).slice(0, 6).join(" ");
+    head = stripTrailingDot(head.replace(/\s*\($/, "").trim());
+    return { title: head.charAt(0).toUpperCase() + head.slice(1), detail: sentence(body) };
+  });
+}
+
 function problemFrom(f: BriefingFinding, pagesCrawled: number): BriefingProblem {
+  const measured = measuredSummary(f, pagesCrawled || null);
+  const story = STORY_HEADLINES.find((h) => h.match.test(f.findingKey ?? "")) ?? null;
+  const scope = [`Affects ${f.affectedPageCount} page${f.affectedPageCount === 1 ? "" : "s"}`, BUCKET_LABEL[f.bucket] ?? "", OWNER_LABEL[f.owner] ?? ""].filter(Boolean).join(" · ");
+  const expected = (f.expectedValue ?? "").replace(/\s+/g, " ").trim();
   return {
     id: f.id,
+    storyHeadline: story ? story.headline : stripTrailingDot(f.title),
+    storyHighlight: story ? story.highlight : "",
+    tag: stripTrailingDot(f.title),
+    chip: chipFrom(measured),
+    chipNote: stripTrailingDot(measured),
+    happening: happeningFrom(f, measured),
+    fixes: fixesFrom(f),
+    target: expected ? `Target: ${stripTrailingDot(expected)} · ${scope}` : scope,
     headline: stripTrailingDot(f.title),
     evidence: sentence(measuredSummary(f, pagesCrawled || null)),
     implication: sentence(whyInBrief(f)),

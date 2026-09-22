@@ -151,8 +151,8 @@ describe("v2 report PDF", () => {
     expect(customerPdfIsCurrent(base)).toBe(true);
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok.pdf" })).toBe(false); // legacy public file → regenerate privately
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok-v2r1.pdf" })).toBe(false); // previous layout
-    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r5.pdf" })).toBe(false); // layout before the business briefing → regenerate
-    expect(pdfFileName("tok", "customer")).toContain("cust-r6");
+    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r6.pdf" })).toBe(false); // layout before the editorial rebuild → regenerate
+    expect(pdfFileName("tok", "customer")).toContain("cust-r7");
     // A competitor measured after the PDF was rendered belongs in the next download.
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() - 1000) }] })).toBe(true);
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() + 1000) }] })).toBe(false);
@@ -177,65 +177,58 @@ describe("v2 report PDF", () => {
 });
 
 describe("customer PDF — business briefing", () => {
-  it("renders sections A-F, stays short, and keeps technical clutter out of the free report", async () => {
+  it("renders the editorial layout — cover, one page per problem, closing contact — and keeps technical clutter out", async () => {
     const payload = await buildPayload({ withPerformance: true });
     const out = await renderCustomerPdf(input(payload));
     const t = out.transcript;
-    expect(out.pageCount).toBeGreaterThanOrEqual(2);
-    expect(out.pageCount).toBeLessThanOrEqual(6); // a briefing, not a manual
+    expect(out.pageCount).toBeGreaterThanOrEqual(4);
+    expect(out.pageCount).toBeLessThanOrEqual(9);
 
-    // A — executive briefing: practice, headline, ≤60-word summary, four numbers, the one that matters most
-    expect(t).toContain("EXECUTIVE BRIEFING");
-    expect(t).toContain("Thin Dental Studio");
-    expect(t).toContain(`${payload.findings.length} Verified issues`);
-    expect(t).toContain(`${payload.scores!.overall} Audit score`);
-    expect(t).toContain("MOST CONSEQUENTIAL PROBLEM");
-    expect(t).toContain(payload.findings[0].title);
-
-    // B — exactly the three most consequential problems, four lines each, plus a tally of the rest
-    expect(t).toContain("Your 3 biggest website problems");
-    for (const f of payload.findings.slice(0, 3)) expect(t).toContain(f.title);
-    expect(t).toContain("Measured:");
-    expect(t).toContain("What it can mean:");
-    expect(t).toContain("Do this:");
+    // Cover: kicker, headline, the numbers, what's inside, the extra-findings tally
+    expect(t).toContain("Exclusive briefing — For Thin Dental Studio — Toronto");
+    expect(t).toMatch(/\d+ Verified Problems\. Your Site Scores \d+\/100\./);
+    expect(t).toContain("Here's What To Fix First.");
+    expect(t).toContain("By the numbers");
+    expect(t).toContain("Inside this report");
     expect(t).toMatch(/Also found: \d+ further findings/);
-    // the long per-finding inventory is gone from the free report
-    expect(t).not.toMatch(/All \d+ findings/);
-    expect(t).not.toContain("Problems and recommendations");
-    expect(t).not.toContain("Website health");
 
-    // C — one deterministic scenario, labelled, no per-issue losses
-    expect(t).toContain("What could this be worth?");
-    expect(t).toContain("ILLUSTRATIVE EXAMPLE - NOT YOUR FIGURES");
+    // A story per problem: kicker, editorial headline, measured chip, both columns, the strip
+    for (const p of payload.findings.slice(0, 3)) expect(t).toContain(p.title);
+    expect(t).toContain("Story 01");
+    expect(t).toContain("What's happening");
+    expect(t).toContain("How to fix it");
+    expect(t).toContain("What you'll get");
+
+    // Closing: the three actions and a phone number and email, not a form
+    expect(t).toContain("Start Here. We'll Do The Rest With You.");
+    expect(t).toContain("+1 437-971-4014 -> tel:+14379714014");
+    expect(t).toContain("hello@smileaimarketing.com -> mailto:hello@smileaimarketing.com");
+    expect(t).toContain("Or book a 15-minute website review online -> https://smileaimarketing.com/book-consultation?publicToken=tok");
+    expect(t).toContain("Request your full technical report -> https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
+
+    // One deterministic money scenario, labelled; no per-issue losses
+    expect(t).toContain("What Could This Be Worth?");
+    expect(t).toMatch(/Illustrative example/i);
     expect(t).toMatch(/No separate loss is added up per issue/);
     expect(t).not.toMatch(/\$0\b/);
 
-    // E — exactly three next actions, F — one closing CTA and the unchanged technical-report request
-    expect(t).toContain("Your next 3 actions");
-    expect(t).toContain("Find Out What's Holding Your Practice Back");
-    expect(t).toContain("We'll walk you through the findings, explain the opportunities and help you decide which improvements to prioritise.");
-    expect(t).toContain("Book your website review -> https://smileaimarketing.com/book-consultation?publicToken=tok");
-    expect(t).toContain("Request Your Full Technical Report -> https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
-    expect(t).toContain("provided by our team after a website review, not sent automatically");
-
     // no technical clutter, no dev URLs, no outcome claims
-    expect(t).not.toMatch(/\b(perf|content|tech)\.[a-z_]+\.[a-z_]+/); // check ids
+    expect(t).not.toMatch(/\b(perf|content|tech)\.[a-z_]+\.[a-z_]+/);
     expect(t).not.toMatch(/<[a-z]+[ >]|Cache-Control|fetchpriority/i);
     expect(t).not.toMatch(/localhost|127\.0\.0\.1/);
     expect(t.toLowerCase()).not.toMatch(/is costing you|lost patients|more patients|you are losing/);
     expect(t).not.toMatch(/variant=technical|technical-pdf|\/pdf\?/);
-    expect(t).toContain("https://smileaimarketing.com/audit/tok");
+    expect(t).not.toMatch(/All \d+ findings/);
 
-    // section order: A → B → C → E → F
-    const idx = (s: string) => t.indexOf(s);
-    expect(idx("EXECUTIVE BRIEFING")).toBeLessThan(idx("Your 3 biggest website problems"));
-    expect(idx("Your 3 biggest website problems")).toBeLessThan(idx("What could this be worth?"));
-    expect(idx("What could this be worth?")).toBeLessThan(idx("Your next 3 actions"));
-    expect(idx("Your next 3 actions")).toBeLessThan(idx("Find Out What's Holding Your Practice Back"));
+    // order: cover → stories → worth → next moves
+    const idx = (x: string) => t.indexOf(x);
+    expect(idx("Exclusive briefing — For Thin Dental Studio — Toronto")).toBeLessThan(idx("Story 01"));
+    expect(idx("Story 01")).toBeLessThan(idx("What Could This Be Worth?"));
+    expect(idx("What Could This Be Worth?")).toBeLessThan(idx("Start Here. We'll Do The Rest With You."));
 
-    // the link annotations exist in the file itself
     const uris = await linkUris(out.bytes);
-    expect(uris).toContain("https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
+    expect(uris).toContain("tel:+14379714014");
+    expect(uris).toContain("mailto:hello@smileaimarketing.com");
     expect(uris).toContain("https://smileaimarketing.com/book-consultation?publicToken=tok");
     expect(uris.some((u) => /variant=technical|technical-pdf/.test(u))).toBe(false);
 
@@ -285,15 +278,15 @@ describe("customer PDF — business briefing", () => {
     const ahead = buildLocalComparison(practice, [row("Lakeside Dental", 1, good), row("Harbour Dental", 2, good)] as never, payload.performance as never)!;
     expect(ahead.gaps.some((g) => g.direction === "competitor_better")).toBe(true);
     const t = (await renderCustomerPdf(input({ ...payload, competitors: ahead }))).transcript;
-    expect(t).toContain("Nearby practices have measurable website advantages");
+    expect(t).toContain("Nearby Practices Are Beating Your Page");
     expect(t).toContain("Thin Dental Studio (you) (https://thin.test): Performance");
     expect(t).toMatch(/Lakeside Dental \(https:\/\/lakesidedental\.ca\/\): Performance \d+\/100/);
-    expect(t).toContain("Where nearby practices measured better");
+    expect(t).toContain("Where they beat you");
     expect(t).toContain("How this comparison was made");
     expect(t).toContain("Nearby practices located with Google Maps");
     for (const g of ahead.gaps.filter((x) => x.direction === "competitor_better")) expect(t).toContain(g.sentence);
     // no ranking or business-outcome claims anywhere in the competitor section itself
-    const section = t.slice(t.indexOf("Nearby practices have measurable website advantages"));
+    const section = t.slice(t.indexOf("Nearby Practices Are Beating Your Page"));
     expect(section).not.toMatch(/\brank(s|ing|ed)?\b/i);
     expect(section.toLowerCase()).not.toMatch(/more patients|market share|better overall|more revenue/);
 
@@ -301,8 +294,8 @@ describe("customer PDF — business briefing", () => {
     const weak = { ...good, performanceScore: 1, accessibility: 1, bestPractices: 1, seo: 1, lcpMs: 30000 };
     const behind = buildLocalComparison(practice, [row("Lakeside Dental", 1, weak), row("Harbour Dental", 2, weak)] as never, payload.performance as never)!;
     const t2 = (await renderCustomerPdf(input({ ...payload, competitors: behind }))).transcript;
-    expect(t2).not.toContain("Nearby practices have measurable website advantages");
-    expect(t2).toContain("How your website compares nearby");
+    expect(t2).not.toContain("Nearby Practices Are Beating Your Page");
+    expect(t2).toContain("How Your Page Measures Up Nearby");
     expect(t2).toContain("Lakeside Dental (https://lakesidedental.ca/): Performance 1/100");
     expect(t2).toContain("Harbour Dental (https://harbourdental.ca/): Performance 1/100"); // nobody ahead → everyone listed
 
@@ -329,11 +322,12 @@ describe("customer PDF — business briefing", () => {
     for (const n of aheadNames) expect(t).toContain(n);
   });
 
-  it("without PageSpeed: says so once and invents no Google results", async () => {
+  it("without PageSpeed: no rings are drawn and no Google result is invented", async () => {
     const payload = await buildPayload({ withPerformance: false });
     const t = (await renderCustomerPdf(input(payload))).transcript;
-    expect(t).toContain("Google PageSpeed could not test this site during the audit");
+    expect(t).not.toMatch(/GOOGLE PAGESPEED INSIGHTS/);
     expect(t).not.toMatch(/Accessibility: \d+\/100|Agentic Browsing: \d+ of/);
+    expect(t).toMatch(/Verified Problems/);
   });
 });
 
@@ -348,11 +342,10 @@ describe("financial opportunity in the customer PDF", () => {
     );
     const out = await renderCustomerPdf(input({ ...payload, opportunity: scenario }));
     const t = out.transcript;
-    expect(t).toContain("PRACTICE-SPECIFIC SCENARIO - ESTIMATE");
+    expect(t).toMatch(/Practice-specific scenario/i);
     // figures come from the shared scenario object — web and PDF cannot diverge
-    expect(t).toContain(`$${Math.round(scenario.figures.monthlyContribution!).toLocaleString("en-CA")}`);
-    expect(t).toContain(`about $${Math.round(scenario.figures.dailyContribution!).toLocaleString("en-CA")} a day over 30 days`);
-    expect(t).toContain("From 20 additional enquiries a month and 10 additional patients a month.");
+    expect(t).toContain(`$${Math.round(scenario.figures.monthlyContribution!).toLocaleString("en-CA")} — Potential additional contribution a month under this scenario`);
+    expect(t).toContain(`About $${Math.round(scenario.figures.dailyContribution!).toLocaleString("en-CA")} a day over 30 days, from 20 additional enquiries a month and 10 additional patients.`);
     expect(t).toContain("Measurement period: Aug 2026; FY2025.");
     expect(t).toMatch(/Improvement assumption: enquiry rate rises from 2% to 4%/);
     expect(t).toMatch(/Google Analytics, Aug 2026/);
@@ -363,7 +356,7 @@ describe("financial opportunity in the customer PDF", () => {
     const payload = await buildPayload({ withPerformance: true });
     const scenario = buildOpportunityScenario({ monthlyVisitors: sv(2000, "ga4", "Aug 2026", "GA4 sessions"), currentRate: sv(0.01, "ga4", "Aug 2026", "GA4 enquiries") }, { upliftPoints: 2, illustrativeAllowed: true });
     const t = (await renderCustomerPdf(input({ ...payload, opportunity: scenario }))).transcript;
-    expect(t).toContain("PARTIAL SCENARIO - ESTIMATE");
+    expect(t).toMatch(/Partial scenario/i);
     expect(t).toContain("Additional enquiries a month under this scenario");
     expect(t).toMatch(/A dollar figure needs enquiries that become patients and contribution per new patient/);
     expect(t).not.toMatch(/\$0\b/);
@@ -373,8 +366,8 @@ describe("financial opportunity in the customer PDF", () => {
     const payload = await buildPayload({ withPerformance: true });
     const scenario = buildOpportunityScenario({}, { upliftPoints: 2, illustrativeAllowed: false });
     const t = (await renderCustomerPdf(input({ ...payload, opportunity: scenario }))).transcript;
-    expect(t).toContain("NO DOLLAR FIGURE - DATA NOT AUTHORISED");
+    expect(t).toMatch(/No dollar figure/i);
     expect(t).not.toMatch(/\$\d/);
-    expect(t).toContain("Find Out What's Holding Your Practice Back");
+    expect(t).toContain("No dollar figure is shown for this practice");
   });
 });
