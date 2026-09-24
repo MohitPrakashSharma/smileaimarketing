@@ -111,6 +111,39 @@ export interface CategoryScores {
   seo: CategoryResult | null;
 }
 
+/**
+ * The screenshot Lighthouse took of the finished page, as returned in the same
+ * PSI response we already fetch (`audits["final-screenshot"]`). No extra call
+ * is ever made for it. Stored only for the homepage rows and only when it is
+ * small enough to sit in the report; anything larger is dropped rather than
+ * bloating the audit.
+ */
+export interface PerfScreenshot {
+  /** "data:image/jpeg;base64,…" exactly as Lighthouse returned it. */
+  dataUri: string;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  bytes: number;
+}
+
+/** Above this the screenshot is dropped: the report shows a thumbnail, not a full-page capture. */
+export const SCREENSHOT_MAX_BYTES = 600_000;
+
+export function parseScreenshot(lhr: Record<string, unknown>): PerfScreenshot | null {
+  const audits = obj(lhr.audits) ?? {};
+  const details = obj(obj(audits["final-screenshot"])?.details);
+  const data = str(details?.data) ?? str(obj(obj(lhr.fullPageScreenshot)?.screenshot)?.data);
+  if (!data) return null;
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(data.trim());
+  if (!m) return null;
+  const bytes = Math.floor((m[2].length * 3) / 4);
+  if (bytes > SCREENSHOT_MAX_BYTES || bytes < 500) return null;
+  const width = num(details?.width) ?? num(obj(obj(lhr.fullPageScreenshot)?.screenshot)?.width);
+  const height = num(details?.height) ?? num(obj(obj(lhr.fullPageScreenshot)?.screenshot)?.height);
+  return { dataUri: data.trim(), mimeType: m[1], width, height, bytes };
+}
+
 export interface PerfResult {
   url: string;
   finalUrl: string | null;
@@ -126,6 +159,8 @@ export interface PerfResult {
   categories: CategoryScores;
   /** Agentic Browsing category when Google returned it (null otherwise — never inferred). */
   agentic: AgenticResult | null;
+  /** Lighthouse's own screenshot of the finished page, from this same response (null when absent or too large). */
+  screenshot: PerfScreenshot | null;
   lighthouseVersion: string | null;
   analysisUtc: string | null;
   ms: number;
@@ -411,22 +446,23 @@ export function normalizePsiResponse(url: string, strategy: Strategy, body: unkn
   const root = obj(body);
   const lhr = root ? obj(root.lighthouseResult) : null;
   if (!root || !lhr) {
-    return { url, finalUrl: null, strategy, status: "unavailable", error: "response has no lighthouseResult", errorCode: "malformed", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms };
+    return { url, finalUrl: null, strategy, status: "unavailable", error: "response has no lighthouseResult", errorCode: "malformed", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, screenshot: null, lighthouseVersion: null, analysisUtc: null, ms };
   }
   const runtimeError = obj(lhr.runtimeError);
   if (runtimeError && str(runtimeError.code) && runtimeError.code !== "NO_ERROR") {
-    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: `Lighthouse runtime error ${runtimeError.code}: ${str(runtimeError.message) ?? ""}`.trim(), errorCode: "rejected", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: `Lighthouse runtime error ${runtimeError.code}: ${str(runtimeError.message) ?? ""}`.trim(), errorCode: "rejected", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, screenshot: null, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
   }
   const lab = parseLab(lhr);
   const categories: CategoryScores = { accessibility: parseCategory(lhr, "accessibility"), bestPractices: parseCategory(lhr, "best-practices"), seo: parseCategory(lhr, "seo") };
   const agentic = parseAgentic(lhr);
+  const screenshot = parseScreenshot(lhr);
   if (!lab || lab.performanceScore === null) {
     // Lighthouse can fail a single metric (e.g. NO_LCP) and leave the performance category unscored while
     // Accessibility / Best Practices / SEO / Agentic are perfectly valid. Performance is "unavailable" for
     // this run — never a 0 — but the other categories are kept.
     const audits = obj(lhr.audits) ?? {};
     const metricError = ["largest-contentful-paint", "total-blocking-time", "first-contentful-paint", "speed-index", "cumulative-layout-shift"].map((id) => str(obj(audits[id])?.errorMessage)).find(Boolean);
-    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: metricError ? `Lighthouse could not measure performance for this page (${metricError})` : "Lighthouse result has no performance score", errorCode: metricError ? "rejected" : "malformed", field: noField(), lab, diagnostics: [], lcpElement: null, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+    return { url, finalUrl: str(lhr.finalUrl), strategy, status: "unavailable", error: metricError ? `Lighthouse could not measure performance for this page (${metricError})` : "Lighthouse result has no performance score", errorCode: metricError ? "rejected" : "malformed", field: noField(), lab, diagnostics: [], lcpElement: null, categories, agentic, screenshot, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
   }
   // PSI copies the origin's CrUX data into `loadingExperience` (with
   // `origin_fallback: true`) when the URL itself has no field data — that is a
@@ -435,7 +471,7 @@ export function normalizePsiResponse(url: string, strategy: Strategy, body: unkn
   const urlLevel = le && le.origin_fallback !== true && (!str(le.id) || str(le.id) === url || str(le.id) === str(lhr.finalUrl) || str(le.id)?.replace(/\/$/, "") === url.replace(/\/$/, "")) ? parseField(root.loadingExperience, "url") : null;
   const field = urlLevel ?? parseField(root.originLoadingExperience, "origin") ?? (le && le.origin_fallback === true ? parseField(root.loadingExperience, "origin") : null) ?? noField();
   const { diagnostics, lcpElement } = parseDiagnostics(lhr);
-  return { url, finalUrl: str(lhr.finalUrl), strategy, status: "ok", field, lab, diagnostics, lcpElement, categories, agentic, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
+  return { url, finalUrl: str(lhr.finalUrl), strategy, status: "ok", field, lab, diagnostics, lcpElement, categories, agentic, screenshot, lighthouseVersion: str(lhr.lighthouseVersion), analysisUtc: str(root.analysisUTCTimestamp), ms };
 }
 
 export type PsiFetchImpl = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<Response>;
@@ -461,7 +497,7 @@ export async function runPageSpeed(url: string, strategy: Strategy, opts: PsiOpt
   if (opts.apiKey) q.set("key", opts.apiKey);
   const endpoint = `${opts.endpoint ?? DEFAULT_ENDPOINT}?${q.toString()}`;
 
-  const unavailable = (error: string, errorCode: PerfErrorCode): PerfResult => ({ url, finalUrl: null, strategy, status: "unavailable", error, errorCode, field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms: Date.now() - started });
+  const unavailable = (error: string, errorCode: PerfErrorCode): PerfResult => ({ url, finalUrl: null, strategy, status: "unavailable", error, errorCode, field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, screenshot: null, lighthouseVersion: null, analysisUtc: null, ms: Date.now() - started });
 
   // The key travels only in the request URL. Nothing below may echo the
   // endpoint, and any message that could carry it (a fetch error quoting the

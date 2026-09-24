@@ -374,6 +374,8 @@ async function persistPerformance(auditId: string, results: PerfResult[], select
       // Kept even when performance itself was unavailable (a NO_LCP-style metric error leaves the other categories valid).
       categoriesJson: r.categories.accessibility || r.categories.bestPractices || r.categories.seo ? json(r.categories) : undefined,
       agenticJson: r.agentic ? json(r.agentic) : undefined,
+      // The page a patient lands on first is the one the report shows; other pages' screenshots are dropped.
+      screenshotJson: r.screenshot && reasonFor.get(r.url)?.pageType === "home" ? json(r.screenshot) : undefined,
       lighthouseVersion: r.lighthouseVersion,
       analysisUtc: validDate(r.analysisUtc),
     })),

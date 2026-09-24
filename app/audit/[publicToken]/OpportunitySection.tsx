@@ -9,7 +9,9 @@ import { INPUT_LABEL, type OpportunityInputKey, type OpportunityScenario, type S
  *
  *   verified     practice-specific scenario, sources and periods shown
  *   partial      only the figures the available inputs support
- *   illustrative labelled example numbers, never presented as this practice's
+ *   illustrative the same starting figures we use with every practice until
+ *                theirs are shared — the amount is shown with the four inputs
+ *                behind it, labelled an estimate, never a measured loss
  *   formula_only the method only, no dollar figure
  *
  * One deterministic calculation feeds the whole report: no per-finding loss
@@ -20,12 +22,12 @@ const cad = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD",
 const num = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 1 });
 const RATE_KEYS: OpportunityInputKey[] = ["currentRate", "targetRate", "patientRate"];
 const fmtInput = (key: OpportunityInputKey, v: SourcedValue) => (RATE_KEYS.includes(key) ? `${num.format(v.value * 100)}%` : key === "contribution" ? cad.format(v.value) : num.format(v.value));
-const SOURCE_WORD: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "example" };
+const SOURCE_WORD: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "starting figure" };
 
 const TAG: Record<OpportunityScenario["mode"], string> = {
   verified: "Practice-specific scenario · estimate",
   partial: "Partial scenario · estimate",
-  illustrative: "Illustrative example · not your figures",
+  illustrative: "Estimate · built on starting figures, not your analytics",
   formula_only: "No dollar figure — data not authorised",
 };
 
@@ -39,7 +41,7 @@ export default function OpportunitySection({ scenario, publicToken, businessName
       : mode === "partial"
         ? `Built from the data ${businessName} authorised so far — only what that data supports is shown.`
         : mode === "illustrative"
-          ? "This audit measured the website, not your visitors, enquiries or income. Until those are shared, here is how the maths works on example numbers."
+          ? "Worked on the starting figures we use with every practice until yours are shared. Every input is listed below — change any of them and the number changes."
           : "This audit measured the website, not your visitors, enquiries or income — so no dollar figure is shown.";
   const usedInputs = (Object.keys(scenario.inputs) as OpportunityInputKey[]).filter((k) => scenario.inputs[k]);
 
@@ -48,7 +50,7 @@ export default function OpportunitySection({ scenario, publicToken, businessName
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-growth-soft text-growth-ink"><IconTrendingUp className="h-5 w-5" /></span>
         <div className="min-w-0">
-          <h2 id="opportunity-heading" className="text-heading-2 text-foreground">What could this be worth?</h2>
+          <h2 id="opportunity-heading" className="text-heading-2 text-foreground">How Much Business Are You Losing Without Realizing It?</h2>
           <p className="mt-1 text-body-small text-muted-foreground">{intro}</p>
         </div>
       </div>
@@ -56,26 +58,16 @@ export default function OpportunitySection({ scenario, publicToken, businessName
       <div className="mt-5 rounded-[var(--radius-large)] border border-border bg-background p-5 sm:p-6">
         <p className="text-eyebrow text-muted-foreground">{TAG[mode]}</p>
 
-        {scenario.illustrative ? (
-          /* A worked example: the same numbers for every practice, so they are never the headline. */
-          <div className="mt-3">
-            <p className="text-heading-4 text-foreground">How the maths works, on example numbers</p>
-            <p className="mt-2 text-body-small text-foreground">
-              On the example inputs below, an enquiry rate lifted by two percentage points would mean{" "}
-              {[f.additionalEnquiries !== null ? `${num.format(f.additionalEnquiries)} additional enquiries a month` : null, f.additionalPatients !== null ? `${num.format(f.additionalPatients)} additional patients a month` : null, f.monthlyContribution !== null ? `${cad.format(f.monthlyContribution)} a month in additional contribution` : null]
-                .filter(Boolean)
-                .join(", ")}
-              . These are placeholder numbers used to show the method — they are the same for every practice and say nothing about yours.
-            </p>
-            <p className="mt-2 text-body-small text-muted-foreground">Share your visitors, enquiry rate and what a new patient is worth in a website review and we will build this scenario with your figures.</p>
-          </div>
-        ) : hasMoney ? (
+        {hasMoney ? (
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <p className="font-display text-[2.75rem] font-extrabold leading-none tracking-[-0.03em] text-growth-ink sm:text-[3.25rem]">{cad.format(f.monthlyContribution!)}</p>
               <p className="mt-2 text-body-small text-muted-foreground">
                 Potential additional contribution a month under this scenario — about <span className="font-semibold text-foreground">{cad.format(f.dailyContribution!)}</span> a day over 30 days.
               </p>
+              {scenario.illustrative && (
+                <p className="mt-2 text-metadata text-muted-foreground">Built on the starting figures listed below, not on your analytics.</p>
+              )}
             </div>
             <dl className="grid shrink-0 grid-cols-2 gap-3 sm:text-right">
               {f.additionalEnquiries !== null && (

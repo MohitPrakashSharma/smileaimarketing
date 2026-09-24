@@ -16,6 +16,7 @@ import { industryFromCategory } from "@/lib/industry";
 import { makeFetch, testResolver, ALL_SITES } from "../fixtures/sites";
 import { psiResponse, POOR_MOBILE_LH13 } from "../fixtures/pagespeed";
 import LH13_ALL from "../fixtures/psi-lighthouse13-all-categories.json";
+import { SCREENSHOT_DATA_URI } from "../fixtures/screenshot";
 import type { V2ReportPayload } from "@/lib/audit/report";
 
 /** A complete v2 payload from offline fixtures: crawl → checks → findings → scores, plus PageSpeed rows. */
@@ -151,8 +152,8 @@ describe("v2 report PDF", () => {
     expect(customerPdfIsCurrent(base)).toBe(true);
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok.pdf" })).toBe(false); // legacy public file → regenerate privately
     expect(customerPdfIsCurrent({ ...base, pdfUrl: "/reports/audit-tok-v2r1.pdf" })).toBe(false); // previous layout
-    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r6.pdf" })).toBe(false); // layout before the editorial rebuild → regenerate
-    expect(pdfFileName("tok", "customer")).toContain("cust-r7");
+    expect(customerPdfIsCurrent({ ...base, pdfUrl: "private:audit-tok-customer-cust-r7.pdf" })).toBe(false); // layout before the screenshot cover → regenerate
+    expect(pdfFileName("tok", "customer")).toContain("cust-r8");
     // A competitor measured after the PDF was rendered belongs in the next download.
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() - 1000) }] })).toBe(true);
     expect(customerPdfIsCurrent({ ...base, competitorGaps: [{ measuredAt: new Date(base.pdfGeneratedAt.getTime() + 1000) }] })).toBe(false);
@@ -186,7 +187,9 @@ describe("customer PDF — business briefing", () => {
 
     // Cover: kicker, headline, the numbers, what's inside, the extra-findings tally
     expect(t).toContain("Exclusive briefing — For Thin Dental Studio — Toronto");
-    expect(t).toMatch(/\d+ Verified Problems\. Your Site Scores \d+\/100\./);
+    // each sentence is its own display line on the cover
+    expect(t).toMatch(/\d+ Verified Problems\./);
+    expect(t).toMatch(/Your Site Scores \d+\/100\./);
     expect(t).toContain("Here's What To Fix First.");
     expect(t).toContain("By the numbers");
     expect(t).toContain("Inside this report");
@@ -207,8 +210,10 @@ describe("customer PDF — business briefing", () => {
     expect(t).toContain("Request your full technical report -> https://smileaimarketing.com/book-consultation?publicToken=tok&request=technical-report");
 
     // One deterministic money scenario, labelled; no per-issue losses
-    expect(t).toContain("What Could This Be Worth?");
-    expect(t).toMatch(/Illustrative example/i);
+    expect(t).toContain("How Much Business Are You Losing Without Realizing It?");
+    expect(t).toMatch(/Estimate — built on starting figures, not your analytics/);
+    expect(t).toMatch(/\$[\d,]+ — Potential additional contribution a month under this scenario/);
+    expect(t).toMatch(/Starting figures used/);
     expect(t).toMatch(/No separate loss is added up per issue/);
     expect(t).not.toMatch(/\$0\b/);
 
@@ -216,15 +221,17 @@ describe("customer PDF — business briefing", () => {
     expect(t).not.toMatch(/\b(perf|content|tech)\.[a-z_]+\.[a-z_]+/);
     expect(t).not.toMatch(/<[a-z]+[ >]|Cache-Control|fetchpriority/i);
     expect(t).not.toMatch(/localhost|127\.0\.0\.1/);
-    expect(t.toLowerCase()).not.toMatch(/is costing you|lost patients|more patients|you are losing/);
+    // The opportunity heading is deliberately direct ("How Much Money You Are Losing"); what stays
+    // banned is a claim that the audit measured a loss, or that it counted patients.
+    expect(t.toLowerCase().replace(/how much business are you losing without realizing it\?/g, "")).not.toMatch(/is costing you|lost patients|more patients|you are losing/);
     expect(t).not.toMatch(/variant=technical|technical-pdf|\/pdf\?/);
     expect(t).not.toMatch(/All \d+ findings/);
 
     // order: cover → stories → worth → next moves
     const idx = (x: string) => t.indexOf(x);
     expect(idx("Exclusive briefing — For Thin Dental Studio — Toronto")).toBeLessThan(idx("Story 01"));
-    expect(idx("Story 01")).toBeLessThan(idx("What Could This Be Worth?"));
-    expect(idx("What Could This Be Worth?")).toBeLessThan(idx("Start Here. We'll Do The Rest With You."));
+    expect(idx("Story 01")).toBeLessThan(idx("How Much Business Are You Losing Without Realizing It?"));
+    expect(idx("How Much Business Are You Losing Without Realizing It?")).toBeLessThan(idx("Start Here. We'll Do The Rest With You."));
 
     const uris = await linkUris(out.bytes);
     expect(uris).toContain("tel:+14379714014");
@@ -234,6 +241,31 @@ describe("customer PDF — business briefing", () => {
 
     // nothing about competitors without verified competitor data
     expect(t).not.toMatch(/nearby practices?/i);
+  });
+
+  it("cover shows Lighthouse's own screenshots when the run captured them, and omits the strip when it did not", async () => {
+    const payload = await buildPayload({ withPerformance: true });
+    const shot = { dataUri: SCREENSHOT_DATA_URI, mimeType: "image/jpeg", width: 600, height: 900, bytes: 29_000 };
+
+    // Without a stored screenshot nothing is drawn — an older audit simply has no strip.
+    const plain = await renderCustomerPdf(input(payload));
+    expect(plain.transcript).not.toContain("[screenshot]");
+    expect(plain.transcript).not.toMatch(/WHAT A VISITOR SEES FIRST/);
+
+    // With one on the homepage rows, the cover carries the desktop and mobile views.
+    const withShots = { ...payload, performance: payload.performance.map((r) => ({ ...r, screenshot: shot })) };
+    const out = await renderCustomerPdf(input(withShots as never));
+    expect(out.transcript).toContain("WHAT A VISITOR SEES FIRST · CAPTURED BY GOOGLE PAGESPEED INSIGHTS");
+    expect(out.transcript).toContain("[screenshot] Desktop view");
+    expect(out.transcript).toContain("[screenshot] Mobile view");
+    // the image is really in the file, not just in the transcript
+    expect(out.bytes.byteLength).toBeGreaterThan(plain.bytes.byteLength + 10_000);
+
+    // A malformed data URI is ignored rather than breaking the report.
+    const bad = { ...payload, performance: payload.performance.map((r) => ({ ...r, screenshot: { ...shot, dataUri: "data:image/jpeg;base64,not-base64!!" } })) };
+    const safe = await renderCustomerPdf(input(bad as never));
+    expect(safe.transcript).not.toContain("[screenshot]");
+    expect(safe.pageCount).toBeGreaterThanOrEqual(4);
   });
 
   it("web report and PDF are built from one briefing: identical headline, summary, problems, counts and actions", async () => {

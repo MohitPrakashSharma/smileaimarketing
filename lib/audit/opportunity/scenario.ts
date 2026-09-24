@@ -23,7 +23,7 @@ export interface ScenarioOptions {
 export const HEADING = "What Could These Website Issues Be Costing Your Practice?";
 const DISCLAIMER_VERIFIED = "Figures are a scenario built from the authorised data listed here and the stated improvement assumption. They are potential additional contribution if the enquiry rate improved as assumed — not a measured loss, a forecast or a guarantee.";
 const DISCLAIMER_PARTIAL = "Only the figures the available data supports are shown; nothing is substituted for the inputs that are missing. What is shown is a scenario, not a measured loss.";
-const DISCLAIMER_ILLUSTRATIVE = "These example numbers are placeholders chosen to show how the maths works. They are not benchmarks, not measurements from this audit and say nothing about this practice's actual visitors, enquiries or income.";
+const DISCLAIMER_TYPICAL = "An estimate, not a measured loss: it uses the starting figures above, not your analytics. Share your visitor numbers, enquiry rate and what a new patient is worth and we will rebuild it on your data in a website review.";
 const DISCLAIMER_FORMULA = "This audit measured the website, not your traffic, enquiries or income, so no dollar figure is shown. Share those numbers with us in a website review and we will build the scenario with you.";
 
 const AUTHORISED = new Set(["ga4", "gsc", "crm", "finance", "practice_provided"]);
@@ -88,6 +88,14 @@ export function buildOpportunityScenario(inputs: OpportunityInputs, opts: Scenar
   };
 }
 
+/**
+ * The scenario shown when a practice has not authorised its own analytics: the
+ * same arithmetic run on the starting figures we use with every practice. The
+ * amount is always shown and the four inputs behind it are printed beside it,
+ * so a reader can see exactly what it rests on and swap in their own numbers.
+ * It is labelled an estimate on starting figures — never a measured loss and
+ * never presented as this practice's measured traffic or income.
+ */
 function illustrativeScenario(): OpportunityScenario {
   const ex = ILLUSTRATIVE_INPUTS;
   const v = { monthlyVisitors: Number(ex.monthlyVisitors), currentRate: Number(ex.currentRate) / 100, targetRate: Number(ex.targetRate) / 100, patientRate: Number(ex.patientRate) / 100, contribution: Number(ex.contribution) };
@@ -97,18 +105,18 @@ function illustrativeScenario(): OpportunityScenario {
     mode: "illustrative",
     heading: HEADING,
     inputs: {
-      monthlyVisitors: mk(v.monthlyVisitors, "example: monthly visitors"),
-      currentRate: mk(v.currentRate, "example: current enquiry rate"),
-      targetRate: mk(v.targetRate, "example: improved enquiry rate"),
-      patientRate: mk(v.patientRate, "example: enquiries that become patients"),
-      contribution: mk(v.contribution, "example: contribution per new patient"),
+      monthlyVisitors: mk(v.monthlyVisitors, "starting figure: monthly visitors"),
+      currentRate: mk(v.currentRate, "starting figure: current enquiry rate"),
+      targetRate: mk(v.targetRate, "starting figure: improved enquiry rate"),
+      patientRate: mk(v.patientRate, "starting figure: enquiries that become patients"),
+      contribution: mk(v.contribution, "starting figure: contribution per new patient"),
     },
     missing: ["monthlyVisitors", "currentRate", "patientRate", "contribution"],
     figures: { additionalEnquiries: r.additionalEnquiries, additionalPatients: r.additionalPatients, monthlyContribution: r.monthlyContribution, dailyContribution: r.dailyContribution },
     illustrative: true,
-    assumptions: [`Illustrative inputs: ${v.monthlyVisitors.toLocaleString("en-CA")} visitors a month, enquiry rate ${fmtPct(v.currentRate)} today and ${fmtPct(v.targetRate)} improved, ${fmtPct(v.patientRate)} of enquiries become patients, ${fmtCad(v.contribution)} contribution per new patient.`],
-    sources: ["Illustrative example — no authorised analytics, booking or financial data for this practice"],
-    disclaimer: DISCLAIMER_ILLUSTRATIVE,
+    assumptions: [`Worked on: ${v.monthlyVisitors.toLocaleString("en-CA")} visitors a month, an enquiry rate of ${fmtPct(v.currentRate)} rising to ${fmtPct(v.targetRate)}, ${fmtPct(v.patientRate)} of enquiries becoming patients, and ${fmtCad(v.contribution)} contribution per new patient. Change any of these and the amount changes with them.`],
+    sources: ["Starting figures we use before a practice shares its own analytics, booking and financial data"],
+    disclaimer: DISCLAIMER_TYPICAL,
     periods: [],
   };
 }

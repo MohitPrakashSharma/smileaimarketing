@@ -154,17 +154,23 @@ export default function V2Report({ data, ind, publicToken }: { data: V2ReportDat
             </div>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-foreground">Inside this report</p>
-              <ol className="mt-3 space-y-1.5 text-body-small text-foreground">
-                {briefing.problems.map((p, i) => (
-                  <li key={p.id}>
-                    <a href={`#story-${i + 1}`} className="hover:text-primary hover:underline">
-                      <span className="font-bold">{String(i + 1).padStart(2, "0")}</span> {p.storyHeadline}
+              <ol className="mt-3 space-y-1.5 text-body-small">
+                {[
+                  ...briefing.problems.map((p, i) => ({ href: `#story-${i + 1}`, num: String(i + 1).padStart(2, "0"), label: p.storyHeadline })),
+                  { href: "#local-comparison", num: "", label: "How you compare with nearby practices." },
+                  { href: "#opportunity", num: "", label: "How much business you could be losing without realizing it." },
+                  { href: "#next", num: "", label: "Your next moves, and how to reach us." },
+                ].map((item) => (
+                  <li key={item.href}>
+                    <a
+                      href={item.href}
+                      className="flex items-baseline gap-2 border-l-[3px] border-primary bg-accent-soft px-3 py-2 font-semibold text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-primary hover:text-white"
+                    >
+                      {item.num && <span className="font-display text-[0.8125rem] font-bold text-primary-ink group-hover:text-white">{item.num}</span>}
+                      <span className="min-w-0">{item.label}</span>
                     </a>
                   </li>
                 ))}
-                <li><a href="#opportunity" className="hover:text-primary hover:underline">What the fixes could be worth.</a></li>
-                <li><a href="#local-comparison" className="hover:text-primary hover:underline">How you compare with nearby practices.</a></li>
-                <li><a href="#next" className="hover:text-primary hover:underline">Your next moves, and how to reach us.</a></li>
               </ol>
             </div>
           </div>

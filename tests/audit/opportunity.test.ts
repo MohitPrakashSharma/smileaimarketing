@@ -63,13 +63,18 @@ describe("opportunity scenario engine", () => {
     expect(sc3.figures).toEqual({ additionalEnquiries: null, additionalPatients: null, monthlyContribution: null, dailyContribution: null });
   });
 
-  it("Mode C: no authorised data → labelled illustration, or the formula only when illustrations are off", () => {
+  it("Mode C: no authorised data → an amount on stated starting figures, or the formula only when they are off", () => {
     const ill = buildOpportunityScenario({}, OPTS);
     expect(ill.mode).toBe("illustrative");
     expect(ill.illustrative).toBe(true);
+    // An amount is always shown, and every figure behind it is stated with it.
     expect(ill.figures.monthlyContribution).toBeCloseTo(5760);
-    expect(ill.disclaimer).toMatch(/not benchmarks, not measurements from this audit/);
+    expect(ill.disclaimer).toMatch(/An estimate, not a measured loss/);
+    expect(ill.disclaimer).toMatch(/not your analytics/);
+    expect(ill.assumptions.join(" ")).toMatch(/1,200 visitors a month.*2%.*4%.*40%.*\$600/);
     expect(Object.values(ill.inputs).every((v) => v?.source === "illustrative")).toBe(true);
+    // never dressed up as measured practice data
+    expect(`${ill.disclaimer} ${ill.sources.join(" ")}`).not.toMatch(/your (traffic|analytics|revenue) shows|measured loss of|guarantee/i);
 
     const formula = buildOpportunityScenario({}, { ...OPTS, illustrativeAllowed: false });
     expect(formula.mode).toBe("formula_only");

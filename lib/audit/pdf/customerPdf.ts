@@ -30,13 +30,20 @@ import { CONTACT } from "@/lib/siteConfig";
  * layout changes so cached files are regenerated.
  */
 
-export const CUSTOMER_PDF_LAYOUT = "cust-r7"; // r7: editorial story-per-page layout with direct contact; r6: business briefing; r5: competitor call-out; r4: automated financial scenario
+export const CUSTOMER_PDF_LAYOUT = "cust-r8"; // r8: reference type scale, serif deck, PageSpeed screenshots on the cover; r7: editorial story-per-page layout with direct contact; r6: business briefing; r5: competitor call-out; r4: automated financial scenario
 
 type Finding = V2ReportPayload["findings"][number];
 
 const cad = (n: number) => `$${Math.round(n).toLocaleString("en-CA")}`;
 const num = (n: number) => n.toLocaleString("en-CA", { maximumFractionDigits: 1 });
 const GUTTER = 26;
+/** The editorial layout runs a tighter margin than the technical report. */
+const MARGIN = 38;
+/** Vertical rhythm: every gap on the page is one of these, so the document breathes evenly. */
+const SPACE = { xs: 5, sm: 10, md: 18, lg: 28, xl: 40 } as const;
+/** Display sizes, following the reference layout: a cover that fills the page and story heads twice the body scale. */
+const COVER_DISPLAY = 34;
+const STORY_DISPLAY = 42;
 
 const toBriefingFinding = (f: Finding): BriefingFinding => ({
   id: f.id,
@@ -82,7 +89,7 @@ function columns(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, leftTitle: 
       fl.page.drawLine({ start: { x, y: fl.y - 13 }, end: { x: x + colW, y: fl.y - 13 }, thickness: 0.8, color: C.dark });
       fl.transcript.push(title);
     }
-    fl.y -= 22;
+    fl.y -= 26;
   };
   head(leftTitle, fl.left);
   leftBody();
@@ -96,14 +103,14 @@ function columns(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, leftTitle: 
 
 /** The measured value in a filled cell, with the sentence it supports beside it. */
 function metricChip(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, value: string | null, fill: RGB, headline: string, detail: string) {
-  const chipW = value ? 108 : 0;
+  const chipW = value ? 124 : 0;
   const pad = 12;
   const textX = fl.left + chipW + pad;
   const textW = fl.usable - chipW - pad * 2;
   const inner = () => {
     fl.text(headline, { font: f.bold, size: 11, color: C.dark, x: textX, maxWidth: textW, lineHeight: 14 });
     fl.gap(2);
-    fl.text(detail, { font: f.italic, size: 8.5, color: C.secondary, x: textX, maxWidth: textW, lineHeight: 11.5 });
+    fl.text(detail, { font: f.serifItalic, size: 9.5, color: C.secondary, x: textX, maxWidth: textW, lineHeight: 12.5 });
   };
   fl.keepTogether(() => {
     const h = Math.max(fl.measure(inner) + pad * 2, 52);
@@ -112,7 +119,7 @@ function metricChip(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, value: s
       fl.page.drawRectangle({ x: fl.left, y: top - h, width: fl.usable, height: h, borderColor: C.dark, borderWidth: 1 });
       if (value) {
         fl.page.drawRectangle({ x: fl.left, y: top - h, width: chipW, height: h, color: fill });
-        const size = value.length > 8 ? 15 : value.length > 5 ? 18 : 22;
+        const size = value.length > 8 ? 19 : value.length > 5 ? 24 : 30;
         const w = f.bold.widthOfTextAtSize(pdfSafe(value), size);
         fl.page.drawText(pdfSafe(value), { x: fl.left + chipW / 2 - w / 2, y: top - h / 2 - size * 0.34, size, font: f.bold, color: C.white });
         fl.transcript.push(`${value} — ${headline}`);
@@ -142,8 +149,41 @@ function bottomStrip(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, title: 
   fl.transcript.push(`${title}: ${body}`);
 }
 
+/**
+ * "Desktop view / mobile view": Lighthouse's own screenshots of the homepage,
+ * taken from the PageSpeed response the audit already fetched. Nothing is
+ * re-fetched here and nothing is drawn when the run returned no screenshot, so
+ * an audit stored before screenshots were captured simply omits this strip.
+ */
+async function screenshotStrip(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, rows: PerfRow[], o: { maxH?: number; caption?: string } = {}) {
+  const view = buildPerformanceView(rows);
+  const page = view.pages.find((p) => p.pageType === "home") ?? view.pages[0];
+  const desktop = page?.desktop?.screenshot?.dataUri ?? null;
+  const mobile = page?.mobile?.screenshot?.dataUri ?? null;
+  if (!desktop && !mobile) return false;
+
+  fl.ensure((o.maxH ?? 124) + 34);
+  fl.text(`${o.caption ?? "What a visitor sees first"} · captured by Google PageSpeed Insights`.toUpperCase(), { font: f.bold, size: 7, color: C.muted });
+  fl.gap(16);
+  const top = fl.y;
+  const maxH = o.maxH ?? 124;
+  let drawn = 0;
+  if (desktop) {
+    const w = mobile ? fl.usable * 0.66 - 8 : fl.usable * 0.72;
+    drawn = Math.max(drawn, await fl.image(desktop, fl.left, top, w, maxH, { caption: "Desktop view" }));
+    if (mobile) {
+      const mw = fl.usable * 0.34 - 8;
+      drawn = Math.max(drawn, await fl.image(mobile, fl.left + w + 16, top, mw, maxH, { caption: "Mobile view" }));
+    }
+  } else if (mobile) {
+    drawn = await fl.image(mobile, fl.left, top, fl.usable * 0.34, maxH, { caption: "Mobile view" });
+  }
+  fl.y = top - drawn - 6;
+  return drawn > 0;
+}
+
 /** Google's PageSpeed rings for the audited homepage — only from a stored "ok" run. */
-function googleRings(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, rows: PerfRow[]) {
+function googleRings(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, rows: PerfRow[], o: { radius?: number } = {}) {
   const view = buildPerformanceView(rows);
   const page = view.pages.find((p) => p.pageType === "home") ?? view.pages[0];
   const row = page?.mobile ?? page?.desktop ?? null;
@@ -152,35 +192,38 @@ function googleRings(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, rows: P
   if (!scores.length) return false;
   const device = page?.mobile ? "mobile" : "desktop";
   const date = testDateLabel(row.analysisUtc);
-  fl.ensure(104);
+  fl.ensure(96);
   fl.text(`GOOGLE PAGESPEED INSIGHTS · HOMEPAGE · ${device.toUpperCase()}${date ? ` · TESTED ${date.toUpperCase()}` : ""}`, { font: f.bold, size: 7, color: C.secondaryAccent });
   fl.gap(6);
-  const r = 24;
+  const r = o.radius ?? 22;
   const step = fl.usable / scores.length;
   const top = fl.y;
   scores.forEach((c, i) => {
-    fl.ring(fl.left + step * i + r + 8, top - r - 2, r, c.score, googleLevel(c.score!), { stroke: 5.5, numberSize: 17, caption: c.label });
+    fl.ring(fl.left + step * i + r + 8, top - r - 2, r, c.score, googleLevel(c.score!), { stroke: r * 0.24, numberSize: r * 0.78, caption: c.label });
     fl.transcript.push(`${c.label}: ${c.score}/100 (Google, ${device})`);
   });
-  fl.y = top - (r * 2 + 24);
+  fl.y = top - (r * 2 + 26);
   return true;
 }
 
 // ───────── 1. Cover ─────────
-function cover(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBriefing, input: ReportPdfInput, date: string, perf: PerfRow[], inside: string[]) {
+async function cover(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBriefing, input: ReportPdfInput, date: string, perf: PerfRow[], inside: string[]) {
   fl.label(`Website report · ${date}`, "Executive briefing");
   kicker(fl, f, "Exclusive briefing", `For ${b.practice.name}${b.practice.city ? ` — ${b.practice.city}` : ""}`);
 
   const line1 = b.stats.findings === 0 ? "No Blocking Problems." : `${b.stats.findings} Verified Problems.`;
   const line2 = b.stats.score === null ? "Your Site Was Not Scored." : `Your Site Scores ${b.stats.score}/100.`;
   const line3 = b.stats.findings === 0 ? "Here's What We Checked." : "Here's What To Fix First.";
-  fl.display(`${line1} ${line2}`, "", { size: 27, lineHeight: 30 });
-  fl.display(line3, line3, { size: 27, lineHeight: 30 });
-  fl.gap(8);
-  fl.text(b.summary, { font: f.italic, size: 10.5, color: C.ink, lineHeight: 15 });
-  fl.gap(10);
+  // Each sentence is its own display call, so the cover breaks where the writing does.
+  fl.gap(SPACE.md);
+  fl.display(line1, "", { size: COVER_DISPLAY, lineHeight: COVER_DISPLAY * 1.06 });
+  fl.display(line2, "", { size: COVER_DISPLAY, lineHeight: COVER_DISPLAY * 1.06 });
+  fl.display(line3, line3, { size: COVER_DISPLAY, lineHeight: COVER_DISPLAY * 1.06 });
+  fl.gap(SPACE.md);
+  fl.text(b.summary, { font: f.serifItalic, size: 12.5, color: C.ink, lineHeight: 18 });
+  fl.gap(SPACE.md);
   if (!fl.dryRun) fl.page.drawLine({ start: { x: fl.left, y: fl.y }, end: { x: fl.right, y: fl.y }, thickness: 1.2, color: C.dark });
-  fl.y -= 16;
+  fl.y -= SPACE.md;
 
   // BY THE NUMBERS / INSIDE THIS REPORT
   const stats: Array<[string, string]> = [
@@ -197,46 +240,75 @@ function cover(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBrie
       for (const [v, label] of stats) {
         const y0 = fl.y;
         if (!fl.dryRun) {
-          fl.page.drawText(pdfSafe(v), { x: fl.left, y: y0 - 15, size: 16, font: f.bold, color: C.accent });
-          fl.page.drawText(pdfSafe(label), { x: fl.left + f.bold.widthOfTextAtSize(pdfSafe(v), 16) + 8, y: y0 - 13, size: 8.5, font: f.italic, color: C.ink });
+          fl.page.drawText(pdfSafe(v), { x: fl.left, y: y0 - 16, size: 18, font: f.bold, color: C.accent });
+          fl.page.drawText(pdfSafe(label), { x: fl.left + f.bold.widthOfTextAtSize(pdfSafe(v), 18) + 9, y: y0 - 14, size: 10, font: f.serifItalic, color: C.ink });
           fl.transcript.push(`${v} ${label}`);
         }
-        fl.y = y0 - 22;
+        fl.y = y0 - 26;
       }
     },
     "Inside this report",
     () => {
-      const x = fl.left + (fl.usable - GUTTER) / 2 + GUTTER;
+      const colW = (fl.usable - GUTTER) / 2;
+      const x = fl.left + colW + GUTTER;
+      // Each line sits on its own highlight band, so the contents read as the
+      // report's headlines rather than as a paragraph of small print.
       for (const line of inside) {
-        fl.text(line, { size: 9, color: C.ink, x, maxWidth: (fl.usable - GUTTER) / 2, lineHeight: 13 });
-        fl.gap(3);
+        const lines = fl.wrap(line, f.bold, 9, colW - 18);
+        const h = lines.length * 12 + 9;
+        fl.ensure(h + 5);
+        const top = fl.y;
+        if (!fl.dryRun) {
+          fl.page.drawRectangle({ x, y: top - h, width: colW, height: h, color: C.accentSoft });
+          fl.page.drawRectangle({ x, y: top - h, width: 2.5, height: h, color: C.accent });
+          lines.forEach((l, i) => fl.page.drawText(l, { x: x + 11, y: top - 15 - i * 12, size: 9, font: f.bold, color: C.dark }));
+          fl.transcript.push(line);
+        }
+        fl.y = top - h - 5;
       }
+      fl.gap(SPACE.xs);
+      fl.link(`Read it online: ${input.reportUrl}`, input.reportUrl, { size: 6.5, x, maxWidth: colW, lineHeight: 8.5 });
     },
   );
-  fl.gap(12);
-  googleRings(fl, f, perf);
-  fl.gap(8);
-  if (b.stats.topProblem) fl.text(`Most consequential problem: ${b.stats.topProblem}.`, { font: f.bold, size: 9.5, color: C.dark });
-  if (b.more.total > 0) {
-    fl.gap(4);
-    fl.text(`Also found: ${b.more.total} further finding${b.more.total === 1 ? "" : "s"} — ${b.more.byArea.map((a) => `${a.count} ${a.label.toLowerCase()}`).join(", ")}.`, { size: 9, color: C.ink });
-    if (b.more.titles.length) fl.text(`Including: ${b.more.titles.join("; ")}${b.more.total > b.more.titles.length ? "; and more" : ""}. Every one is listed with its full evidence in the technical report.`, { size: 8, color: C.muted });
-  }
-  fl.gap(6);
-  fl.text(`Online report, with every measurement: ${input.reportUrl}`, { size: 8, color: C.muted });
+  fl.gap(SPACE.md);
+  await screenshotStrip(fl, f, perf, { maxH: 150 });
+  // The cover ends on the imagery: the summary above already names the one to fix
+  // first, and the full tally of everything else is on the closing page.
 }
 
-// ───────── 2..4. One story per problem ─────────
+// ───────── 2. What Google sees ─────────
+async function googlePage(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, perf: PerfRow[], b: ReportBriefing) {
+  const view = buildPerformanceView(perf);
+  const page = view.pages.find((p) => p.pageType === "home") ?? view.pages[0];
+  const row = page?.mobile ?? page?.desktop ?? null;
+  if (!row || row.status !== "ok") return false;
+
+  fl.newPage();
+  fl.label("What Google sees", "PageSpeed Insights");
+  kicker(fl, f, "Google's own measurements", b.practice.domain);
+  fl.display("This Is Your Homepage, As Google Sees It", "As Google Sees It", { size: STORY_DISPLAY - 6, lineHeight: (STORY_DISPLAY - 6) * 1.02 });
+  fl.gap(SPACE.md);
+  fl.text("Google tests one page on one device at a time. These are its scores for your homepage, and the screenshots its test captured — the first thing a visitor sees.", { font: f.serifItalic, size: 12, color: C.ink, lineHeight: 17 });
+  fl.gap(SPACE.xl);
+  googleRings(fl, f, perf, { radius: 40 });
+  fl.gap(SPACE.xl);
+  await screenshotStrip(fl, f, perf, { maxH: 230, caption: "The page Google tested" });
+  fl.gap(SPACE.md);
+  fl.text("Google's measurements of this one page on this one device — not the same thing as the audit score, which covers every page we crawled.", { size: 8, color: C.muted });
+  return true;
+}
+
+// ───────── 3..5. One story per problem ─────────
 function story(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, p: BriefingProblem, i: number, total: number) {
   fl.newPage();
   fl.label(`Problem ${i + 1} of ${total}`, p.area);
   kicker(fl, f, `Story 0${i + 1}`, p.tag);
-  fl.display(p.storyHeadline, p.storyHighlight, { size: 30, lineHeight: 33 });
-  fl.gap(6);
-  fl.text(p.implication, { font: f.italic, size: 11, color: C.ink, lineHeight: 15 });
-  fl.gap(12);
+  fl.display(p.storyHeadline, p.storyHighlight, { size: STORY_DISPLAY, lineHeight: STORY_DISPLAY * 1.02 });
+  fl.gap(SPACE.md);
+  fl.text(p.implication, { font: f.serifItalic, size: 12.5, color: C.ink, lineHeight: 18 });
+  fl.gap(SPACE.lg);
   metricChip(fl, f, p.chip, SEVERITY_COLOR[p.severity] ?? C.accent, `${p.severityLabel} · ${p.headline}`, p.chipNote);
-  fl.gap(16);
+  fl.gap(SPACE.xl);
   columns(
     fl,
     f,
@@ -244,8 +316,8 @@ function story(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, p: BriefingPr
     () => {
       const colW = (fl.usable - GUTTER) / 2;
       for (const para of p.happening) {
-        fl.text(para, { size: 9, color: C.ink, x: fl.left, maxWidth: colW, lineHeight: 13 });
-        fl.gap(6);
+        fl.text(para, { size: 9.5, color: C.ink, x: fl.left, maxWidth: colW, lineHeight: 14.5 });
+        fl.gap(SPACE.sm);
       }
     },
     "How to fix it",
@@ -255,9 +327,9 @@ function story(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, p: BriefingPr
       p.fixes.forEach((fix, n) => {
         const y0 = fl.y;
         if (!fl.dryRun) fl.page.drawText(`0${n + 1}`, { x, y: y0 - 12, size: 13, font: f.bold, color: C.accent });
-        fl.text(fix.title, { font: f.bold, size: 9.5, color: C.dark, x: x + 26, maxWidth: colW - 26, lineHeight: 12.5 });
-        fl.text(fix.detail, { size: 9, color: C.secondary, x: x + 26, maxWidth: colW - 26, lineHeight: 12.5 });
-        fl.gap(8);
+        fl.text(fix.title, { font: f.bold, size: 10, color: C.dark, x: x + 28, maxWidth: colW - 28, lineHeight: 13.5 });
+        fl.text(fix.detail, { size: 9.5, color: C.secondary, x: x + 28, maxWidth: colW - 28, lineHeight: 14 });
+        fl.gap(SPACE.md);
       });
       if (!p.fixes.length) fl.text(p.action, { size: 9, color: C.ink, x: x, maxWidth: colW, lineHeight: 12.5 });
     },
@@ -285,13 +357,13 @@ function competitorsSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, 
   fl.label("Local comparison", "Nearby practices");
   kicker(fl, f, "The comparison", `${measured} of ${cmp.competitors.length} nearby practices measured`);
   const headline = advantages.length > 0 ? "Nearby Practices Are Beating Your Page" : "How Your Page Measures Up Nearby";
-  fl.display(headline, advantages.length > 0 ? "Beating Your Page" : "Measures Up Nearby", { size: 28, lineHeight: 31 });
-  fl.gap(6);
+  fl.display(headline, advantages.length > 0 ? "Beating Your Page" : "Measures Up Nearby", { size: STORY_DISPLAY - 4, lineHeight: (STORY_DISPLAY - 4) * 0.98 });
+  fl.gap(8);
   fl.text(
     ahead.size > 0
       ? `${ahead.size} of the ${measured} nearby ${measured === 1 ? "practice" : "practices"} we measured scored ahead of your homepage on at least one of the five measures — those are the ones below.${pending.length ? ` ${pending.length} more ${pending.length === 1 ? "is" : "are"} still being analysed.` : ""}`
       : `${measured} of ${cmp.competitors.length} nearby ${cmp.competitors.length === 1 ? "practice" : "practices"} could be measured.`,
-    { font: f.italic, size: 10.5, color: C.ink, lineHeight: 14.5 },
+    { font: f.serifItalic, size: 12, color: C.ink, lineHeight: 16 },
   );
   fl.gap(4);
   fl.text("Same Google PageSpeed test: mobile, homepage, the test used on your site. Website measurements only: not rankings, patient numbers or how well a practice is doing.", { size: 8.5, color: C.secondary });
@@ -396,35 +468,29 @@ function competitorsSection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, 
 function opportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, sc: OpportunityScenario, input: ReportPdfInput) {
   const rateKeys: OpportunityInputKey[] = ["currentRate", "targetRate", "patientRate"];
   const fmtInput = (key: OpportunityInputKey, v: SourcedValue) => (rateKeys.includes(key) ? `${num(v.value * 100)}%` : key === "contribution" ? cad(v.value) : num(v.value));
-  const sourceWord: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "example" };
+  const sourceWord: Record<SourcedValue["source"], string> = { ga4: "Google Analytics", gsc: "Search Console", crm: "booking data", finance: "practice financials", practice_provided: "provided by the practice", assumption: "assumption", illustrative: "starting figure" };
   const used = (Object.keys(sc.inputs) as OpportunityInputKey[]).filter((k) => sc.inputs[k]);
-  const tag = sc.illustrative ? "Illustrative example — not your figures" : sc.mode === "verified" ? "Practice-specific scenario — estimate" : sc.mode === "partial" ? "Partial scenario — estimate" : "No dollar figure — data not authorised";
+  const tag = sc.illustrative ? "Estimate — built on starting figures, not your analytics" : sc.mode === "verified" ? "Practice-specific scenario — estimate" : sc.mode === "partial" ? "Partial scenario — estimate" : "No dollar figure — data not authorised";
 
   fl.newPage();
-  fl.label("The opportunity", "What it could be worth");
+  fl.label("The opportunity", "Business you could be losing");
   kicker(fl, f, "The maths", tag);
-  fl.display("What Could This Be Worth?", "Be Worth?", { size: 28, lineHeight: 31 });
-  fl.gap(6);
+  fl.display("How Much Business Are You Losing Without Realizing It?", "Without Realizing It?", { size: STORY_DISPLAY - 6, lineHeight: (STORY_DISPLAY - 6) * 0.98 });
+  fl.gap(8);
   fl.text(
     sc.mode === "verified"
       ? `A scenario built from the data ${input.business.name} authorised, with one stated improvement assumption.`
       : sc.mode === "partial"
         ? `Built from the data ${input.business.name} authorised so far - only what that data supports is shown.`
         : sc.mode === "illustrative"
-          ? "This audit measured the website, not your visitors, enquiries or income. Until those are shared, here is how the maths works on example numbers."
+          ? "Worked on the starting figures we use with every practice until yours are shared. Every input is listed here - change any of them and the number changes."
           : "This audit measured the website, not your visitors, enquiries or income - so no dollar figure is shown.",
-    { font: f.italic, size: 10.5, color: C.ink, lineHeight: 14.5 },
+    { font: f.serifItalic, size: 12, color: C.ink, lineHeight: 16 },
   );
   fl.gap(14);
 
-  if (sc.illustrative) {
-    const bits: string[] = [];
-    if (sc.figures.additionalEnquiries !== null) bits.push(`${num(sc.figures.additionalEnquiries)} additional enquiries a month`);
-    if (sc.figures.additionalPatients !== null) bits.push(`${num(sc.figures.additionalPatients)} additional patients a month`);
-    if (sc.figures.monthlyContribution !== null) bits.push(`${cad(sc.figures.monthlyContribution)} a month in additional contribution`);
-    metricChip(fl, f, "Example", C.secondaryAccent, "How the maths works, on example numbers", bits.length ? `On the example inputs below, an enquiry rate lifted by two percentage points would mean ${bits.join(", ")}. These are placeholder numbers used to show the method — they are the same for every practice and say nothing about yours.` : "Example numbers only.");
-  } else if (sc.figures.monthlyContribution !== null) {
-    metricChip(fl, f, cad(sc.figures.monthlyContribution), C.growth, "Potential additional contribution a month under this scenario", `About ${cad(sc.figures.dailyContribution!)} a day over 30 days${sc.figures.additionalEnquiries !== null ? `, from ${num(sc.figures.additionalEnquiries)} additional enquiries a month` : ""}${sc.figures.additionalPatients !== null ? ` and ${num(sc.figures.additionalPatients)} additional patients` : ""}.`);
+  if (sc.figures.monthlyContribution !== null) {
+    metricChip(fl, f, cad(sc.figures.monthlyContribution), C.growth, "Potential additional contribution a month under this scenario", `About ${cad(sc.figures.dailyContribution!)} a day over 30 days${sc.figures.additionalEnquiries !== null ? `, from ${num(sc.figures.additionalEnquiries)} additional enquiries a month` : ""}${sc.figures.additionalPatients !== null ? ` and ${num(sc.figures.additionalPatients)} additional patients` : ""}.${sc.illustrative ? " Built on the starting figures listed here, not on your analytics." : ""}`);
   } else if (sc.figures.additionalEnquiries !== null) {
     metricChip(fl, f, num(sc.figures.additionalEnquiries), C.accent, "Additional enquiries a month under this scenario", `A dollar figure needs ${sc.missing.map((k) => INPUT_LABEL[k].toLowerCase()).join(" and ")} - not authorised yet, so none is shown.`);
   } else {
@@ -446,7 +512,7 @@ function opportunitySection(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, 
       fl.gap(5);
       fl.text("One calculation for the whole report. No separate loss is added up per issue, and no figure comes from the audit score, PageSpeed or the competitor measurements.", { size: 8, color: C.muted, x: fl.left, maxWidth: colW, lineHeight: 11.5 });
     },
-    sc.illustrative ? "Example inputs" : "Inputs used",
+    sc.illustrative ? "Starting figures used" : "Inputs used",
     () => {
       const colW = (fl.usable - GUTTER) / 2;
       const x = fl.left + colW + GUTTER;
@@ -474,7 +540,7 @@ function closing(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBr
   fl.newPage();
   fl.label("What to do next", "Talk to us");
   kicker(fl, f, "Your next moves", `${b.actions.length} action${b.actions.length === 1 ? "" : "s"}, in order`);
-  fl.display("Start Here. We'll Do The Rest With You.", "We'll Do The Rest With You.", { size: 27, lineHeight: 30 });
+  fl.display("Start Here. We'll Do The Rest With You.", "We'll Do The Rest With You.", { size: STORY_DISPLAY - 6, lineHeight: (STORY_DISPLAY - 6) * 0.98 });
   fl.gap(10);
 
   b.actions.forEach((a, i) => {
@@ -489,6 +555,11 @@ function closing(fl: Flow, f: Awaited<ReturnType<typeof loadFonts>>, b: ReportBr
     });
   });
   fl.text("Severity is the audit's own rating of each finding. Fixing these addresses what we measured; it is not a promise of rankings, enquiries or revenue.", { size: 7.5, color: C.muted });
+  if (b.more.total > 0) {
+    fl.gap(10);
+    fl.text(`Also found: ${b.more.total} further finding${b.more.total === 1 ? "" : "s"} — ${b.more.byArea.map((a) => `${a.count} ${a.label.toLowerCase()}`).join(", ")}.`, { font: f.bold, size: 9, color: C.dark });
+    if (b.more.titles.length) fl.text(`${b.more.titles.join("; ")}${b.more.total > b.more.titles.length ? "; and more" : ""}. Every one is listed with its full evidence in the technical report.`, { size: 8, color: C.muted });
+  }
   fl.gap(16);
 
   // Direct contact — a person, a phone number and an email, not a form.
@@ -538,7 +609,7 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
   doc.setCreationDate(input.completedAt);
   const f = await loadFonts(doc);
   const date = dateLabel(input.completedAt);
-  const fl = new Flow(doc, f, { business: business.name, date, url: input.reportUrl, kind: "Website report" });
+  const fl = new Flow(doc, f, { business: business.name, date, url: input.reportUrl, kind: "Website report" }, MARGIN);
 
   const briefing = buildBriefing({
     business: { name: business.name, website: business.website, city: business.city },
@@ -549,14 +620,17 @@ export async function renderCustomerPdf(input: ReportPdfInput): Promise<PdfOutpu
     checksRun: payload.checks.filter((c) => c.status === "PASS" || c.status === "FAIL").length,
   });
 
+  const hasGooglePage = ((payload.performance ?? []) as unknown as PerfRow[]).some((r) => r.status === "ok");
   const inside = [
+    hasGooglePage ? "Your homepage, as Google sees it." : null,
     ...briefing.problems.map((p, i) => `0${i + 1}  ${p.storyHeadline}`),
     payload.competitors ? "How you compare with nearby practices." : null,
-    "What the fixes could be worth.",
+    "How much business you could be losing without realizing it.",
     "Your next moves, and how to reach us.",
   ].filter((x): x is string => Boolean(x));
 
-  cover(fl, f, briefing, input, date, payload.performance as unknown as PerfRow[], inside);
+  await cover(fl, f, briefing, input, date, payload.performance as unknown as PerfRow[], inside);
+  await googlePage(fl, f, payload.performance as unknown as PerfRow[], briefing);
   briefing.problems.forEach((p, i) => story(fl, f, p, i, briefing.problems.length));
   if (payload.competitors) competitorsSection(fl, f, payload.competitors);
   opportunitySection(fl, f, payload.opportunity, input);

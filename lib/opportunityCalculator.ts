@@ -34,8 +34,10 @@ export const EMPTY_INPUTS: OpportunityInputs = {
 };
 
 /**
- * Clearly labelled illustrative numbers for trying the calculator. They are
- * not benchmarks and say nothing about any real practice.
+ * The starting figures the report and the calculator run when a practice has
+ * not shared its own numbers. They are stated wherever the amount appears, so
+ * a reader can see what the figure rests on and replace any of them. They are
+ * a starting point, not a benchmark and not a measurement of any practice.
  */
 export const ILLUSTRATIVE_INPUTS: OpportunityInputs = {
   monthlyVisitors: "1200",

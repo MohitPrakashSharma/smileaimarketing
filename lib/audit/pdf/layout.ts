@@ -1,4 +1,4 @@
-import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, StandardFonts, clip, closePath, endPath, lineTo, moveTo, popGraphicsState, pushGraphicsState, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 
 /**
  * Shared PDF plumbing for the audit reports (customer and technical):
@@ -72,6 +72,10 @@ export interface Fonts {
   bold: PDFFont;
   italic: PDFFont;
   mono: PDFFont;
+  /** Serif faces: the editorial deck and the figure labels are set in them, as the reference layout does. */
+  serif: PDFFont;
+  serifItalic: PDFFont;
+  serifBold: PDFFont;
 }
 
 export interface TextOpts {
@@ -98,7 +102,9 @@ export class Flow {
   constructor(
     readonly doc: PDFDocument,
     readonly f: Fonts,
-    readonly meta: { business: string; date: string; url: string; kind: string }
+    readonly meta: { business: string; date: string; url: string; kind: string },
+    /** Page margin; the editorial customer report runs tighter than the technical one. */
+    readonly margin: number = MARGIN
   ) {
     this.newPage();
   }
@@ -106,19 +112,19 @@ export class Flow {
     return PAGE[0];
   }
   get left() {
-    return MARGIN;
+    return this.margin;
   }
   get right() {
-    return PAGE[0] - MARGIN;
+    return PAGE[0] - this.margin;
   }
   get usable() {
-    return PAGE[0] - MARGIN * 2;
+    return PAGE[0] - this.margin * 2;
   }
   get bottom() {
-    return MARGIN + FOOTER_H;
+    return this.margin + FOOTER_H;
   }
   get top() {
-    return PAGE[1] - MARGIN - HEADER_H;
+    return PAGE[1] - this.margin - HEADER_H;
   }
   get remaining() {
     return this.y - this.bottom;
@@ -363,19 +369,48 @@ export class Flow {
       const { width, height } = page.getSize();
       const lab = this.labels[i] ?? { left: `${this.meta.kind} · ${this.meta.business.toUpperCase()}`, right: "" };
       page.drawRectangle({ x: 0, y: height - 28, width, height: 28, color: C.dark });
-      page.drawText(pdfSafe(lab.left.toUpperCase()), { x: MARGIN, y: height - 18, size: 7.5, font: this.f.bold, color: C.white });
+      page.drawText(pdfSafe(lab.left.toUpperCase()), { x: this.margin, y: height - 18, size: 7.5, font: this.f.bold, color: C.white });
       if (lab.right) {
         const r = pdfSafe(lab.right.toUpperCase());
-        page.drawText(r, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(r, 7.5), y: height - 18, size: 7.5, font: this.f.bold, color: hex("#a9c8f2") });
+        page.drawText(r, { x: width - this.margin - this.f.bold.widthOfTextAtSize(r, 7.5), y: height - 18, size: 7.5, font: this.f.bold, color: hex("#a9c8f2") });
       }
-      page.drawLine({ start: { x: MARGIN, y: MARGIN + 18 }, end: { x: width - MARGIN, y: MARGIN + 18 }, thickness: 0.8, color: C.dark });
+      page.drawLine({ start: { x: this.margin, y: this.margin + 18 }, end: { x: width - this.margin, y: this.margin + 18 }, thickness: 0.8, color: C.dark });
       const foot = pdfSafe(`PREPARED FOR ${this.meta.business.toUpperCase()}`);
-      page.drawText(foot, { x: MARGIN, y: MARGIN + 6, size: 7, font: this.f.bold, color: C.ink });
+      page.drawText(foot, { x: this.margin, y: this.margin + 6, size: 7, font: this.f.bold, color: C.ink });
       const mid = pdfSafe(this.meta.date.toUpperCase());
-      page.drawText(mid, { x: width / 2 - this.f.regular.widthOfTextAtSize(mid, 7) / 2, y: MARGIN + 6, size: 7, font: this.f.regular, color: C.muted });
+      page.drawText(mid, { x: width / 2 - this.f.regular.widthOfTextAtSize(mid, 7) / 2, y: this.margin + 6, size: 7, font: this.f.regular, color: C.muted });
       const pn = `PAGE ${i + 1} OF ${total}`;
-      page.drawText(pn, { x: width - MARGIN - this.f.bold.widthOfTextAtSize(pn, 7), y: MARGIN + 6, size: 7, font: this.f.bold, color: C.ink });
+      page.drawText(pn, { x: width - this.margin - this.f.bold.widthOfTextAtSize(pn, 7), y: this.margin + 6, size: 7, font: this.f.bold, color: C.ink });
     });
+  }
+
+  /**
+   * Draws an image from a base64 data URI at (x, y-top) scaled to `w`, cropped
+   * to `maxH` from the top when it is taller (a page screenshot is long; the
+   * report shows the part a visitor sees first). Returns the height drawn, or
+   * 0 when the image could not be embedded — a bad image never breaks a report.
+   */
+  async image(dataUri: string, x: number, yTop: number, w: number, maxH: number, o: { caption?: string } = {}): Promise<number> {
+    if (this.dryRun) return 0;
+    const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(dataUri.trim());
+    if (!m) return 0;
+    try {
+      const bytes = Uint8Array.from(Buffer.from(m[2], "base64"));
+      const img = m[1] === "image/png" ? await this.doc.embedPng(bytes) : await this.doc.embedJpg(bytes);
+      const fullH = (img.height * w) / img.width;
+      const h = Math.min(fullH, maxH);
+      // Real clipping: a page screenshot is long, and the report shows the part a
+      // visitor sees first rather than squashing the whole page into a thumbnail.
+      this.page.pushOperators(pushGraphicsState(), moveTo(x, yTop - h), lineTo(x + w, yTop - h), lineTo(x + w, yTop), lineTo(x, yTop), closePath(), clip(), endPath());
+      this.page.drawImage(img, { x, y: yTop - fullH, width: w, height: fullH });
+      this.page.pushOperators(popGraphicsState());
+      this.page.drawRectangle({ x, y: yTop - h, width: w, height: h, borderColor: C.border, borderWidth: 0.8 });
+      if (o.caption) this.page.drawText(pdfSafe(o.caption.toUpperCase()), { x, y: yTop + 5, size: 6.5, font: this.f.bold, color: C.muted });
+      this.transcript.push(`[screenshot] ${o.caption ?? ""}`.trim());
+      return h;
+    } catch {
+      return 0;
+    }
   }
 
   /** A highlight block behind a run of display text, painted before the glyphs. */
@@ -418,7 +453,9 @@ export class Flow {
             const before = words.slice(0, startIdx).join(" ");
             const run = words.slice(startIdx, end).join(" ");
             const x0 = this.left + (before ? this.f.bold.widthOfTextAtSize(`${before} `, size) : 0);
-            this.highlight(x0, this.y + 3, this.f.bold.widthOfTextAtSize(run, size), size * 1.2);
+            // Sized to the line box: from just under the baseline to the cap height, so a
+            // highlighted line never paints over the line above it.
+            this.highlight(x0, this.y - size * 0.22, this.f.bold.widthOfTextAtSize(run, size), size * 1.02);
             taken = t;
           }
         }
@@ -438,6 +475,9 @@ export async function loadFonts(doc: PDFDocument): Promise<Fonts> {
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
     italic: await doc.embedFont(StandardFonts.HelveticaOblique),
     mono: await doc.embedFont(StandardFonts.Courier),
+    serif: await doc.embedFont(StandardFonts.TimesRoman),
+    serifItalic: await doc.embedFont(StandardFonts.TimesRomanItalic),
+    serifBold: await doc.embedFont(StandardFonts.TimesRomanBold),
   };
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runPageSpeed, normalizePsiResponse, rate, THRESHOLDS } from "@/lib/audit/providers/pagespeed";
+import { runPageSpeed, normalizePsiResponse, parseScreenshot, rate, THRESHOLDS, SCREENSHOT_MAX_BYTES } from "@/lib/audit/providers/pagespeed";
+import { SCREENSHOT_DATA_URI } from "../fixtures/screenshot";
 import { psiResponse, makePsiFetch, POOR_MOBILE, NO_CRUX, POOR_MOBILE_LH13 } from "../fixtures/pagespeed";
 import LH13_REAL from "../fixtures/psi-lighthouse13-mobile.json";
 import LH13_ALL from "../fixtures/psi-lighthouse13-all-categories.json";
@@ -464,5 +465,38 @@ describe("performance stage + checks + scoring", () => {
     const stage = await runPerformanceStage(ctx, { maxPages: 4, concurrency: 1, maxDurationMs: 30, psi: { fetchImpl, timeoutMs: 40 } });
     expect(stage.results.length).toBe(8);
     expect(stage.results.filter((r) => r.errorCode === "timeout").length).toBe(8);
+  });
+});
+
+describe("page screenshot", () => {
+  const lhrWith = (data: unknown) => ({ audits: { "final-screenshot": { details: { type: "screenshot", data, width: 600, height: 900 } } } }) as Record<string, unknown>;
+
+  it("takes Lighthouse's own capture from the response we already fetched", () => {
+    const shot = parseScreenshot(lhrWith(SCREENSHOT_DATA_URI));
+    expect(shot).not.toBeNull();
+    expect(shot!.mimeType).toBe("image/jpeg");
+    expect(shot!.width).toBe(600);
+    expect(shot!.height).toBe(900);
+    expect(shot!.bytes).toBeGreaterThan(1000);
+    expect(shot!.dataUri).toBe(SCREENSHOT_DATA_URI);
+  });
+
+  it("falls back to the full-page capture, and refuses anything malformed, oversized or absent", () => {
+    expect(parseScreenshot({ fullPageScreenshot: { screenshot: { data: SCREENSHOT_DATA_URI, width: 412, height: 2000 } } })).not.toBeNull();
+    expect(parseScreenshot({})).toBeNull();
+    expect(parseScreenshot(lhrWith("https://example.com/shot.jpg"))).toBeNull(); // not a data URI — never fetched
+    expect(parseScreenshot(lhrWith("data:image/svg+xml;base64,PHN2Zy8+"))).toBeNull(); // only raster formats are embedded
+    expect(parseScreenshot(lhrWith("data:image/jpeg;base64,AAAA"))).toBeNull(); // too small to be a page
+    const huge = `data:image/jpeg;base64,${"A".repeat(Math.ceil((SCREENSHOT_MAX_BYTES + 10_000) * 4) / 3)}`;
+    expect(parseScreenshot(lhrWith(huge))).toBeNull();
+  });
+
+  it("rides along with a normal result and is absent from a failed run", () => {
+    const body = JSON.parse(JSON.stringify(LH13_ALL)) as { lighthouseResult: { audits: Record<string, unknown> } };
+    body.lighthouseResult.audits["final-screenshot"] = { details: { type: "screenshot", data: SCREENSHOT_DATA_URI, width: 600, height: 900 } };
+    const ok = normalizePsiResponse("https://x.test/", "mobile", body, 1);
+    expect(ok.status).toBe("ok");
+    expect(ok.screenshot?.dataUri).toBe(SCREENSHOT_DATA_URI);
+    expect(normalizePsiResponse("https://x.test/", "mobile", { error: { message: "quota" } }, 1).screenshot).toBeNull();
   });
 });

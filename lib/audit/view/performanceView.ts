@@ -25,6 +25,8 @@ export interface PerfRow {
   /** Google's other Lighthouse categories (null on audits stored before they were collected). */
   categories?: { accessibility: CategoryResultView | null; bestPractices: CategoryResultView | null; seo: CategoryResultView | null } | null;
   agentic?: AgenticResultView | null;
+  /** Lighthouse's own screenshot of this page, from the same PSI response (homepage rows only). */
+  screenshot?: { dataUri: string; mimeType: string; width: number | null; height: number | null; bytes: number } | null;
   lighthouseVersion?: string | null;
   analysisUtc?: string | null;
 }

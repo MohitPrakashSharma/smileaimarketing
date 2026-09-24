@@ -43,7 +43,7 @@ export async function runPerformanceStage(ctx: CheckContext, opts: PerformanceSt
       if (!job) return;
       const elapsed = Date.now() - started;
       if (elapsed > maxDuration) {
-        results.push({ url: job.page.url, finalUrl: null, strategy: job.strategy, status: "unavailable", error: "performance stage time budget exhausted before this run started", errorCode: "timeout", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, lighthouseVersion: null, analysisUtc: null, ms: 0 });
+        results.push({ url: job.page.url, finalUrl: null, strategy: job.strategy, status: "unavailable", error: "performance stage time budget exhausted before this run started", errorCode: "timeout", field: noField(), lab: null, diagnostics: [], lcpElement: null, categories: noCategories(), agentic: null, screenshot: null, lighthouseVersion: null, analysisUtc: null, ms: 0 });
       } else {
         const remaining = Math.max(15_000, maxDuration - elapsed);
         results.push(await runPageSpeed(job.page.url, job.strategy, { ...opts.psi, timeoutMs: Math.min(opts.psi?.timeoutMs ?? 75_000, remaining) }));
