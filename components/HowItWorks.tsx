@@ -4,35 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import { Reveal, RevealGroup, revealItem, motion } from "@/components/ui/Reveal";
 import Eyebrow from "@/components/Eyebrow";
+import Link from "next/link";
+import { ButtonArrow } from "@/components/ui/buttonStyles";
+import { HOW_IT_WORKS_STEPS as STEPS } from "@/lib/howItWorks";
+
 
 /** Each step is a flip card: a photo on the front, the explanation on the back. */
-const STEPS = [
-  {
-    title: "Enter your website and city",
-    detail: "That's all we need. No passwords, no Google account access, nothing to install.",
-    image: "/images/step-enter-website.jpg",
-    alt: "A receptionist in scrubs reading a tablet at a clinic front desk",
-  },
-  {
-    title: "We review how patients find you",
-    detail: "Local search visibility, nearby competitors, reviews, and your website and booking experience.",
-    image: "/images/step-patient-search.jpg",
-    alt: "A person holding a smartphone and searching a map for a nearby location",
-  },
-  {
-    title: "Get your Practice Growth Review",
-    detail: "A plain-English report: what's working, where the opportunities are, and what to fix first. Sent to your email so you can come back to it.",
-    image: "/images/step-growth-review.jpg",
-    alt: "A dentist seated in a treatment room reading a printed report",
-  },
-  {
-    title: "Review the findings",
-    detail: "If you'd like, book a 15-minute call or an in-person visit and we'll walk through the findings with you. No pitch, no obligation.",
-    image: "/images/step-review-findings.jpg",
-    alt: "A dentist and a patient reviewing images together on a screen",
-  },
-];
-
 function StepCard({ step, index }: { step: (typeof STEPS)[number]; index: number }) {
   // Hover/focus flips on pointer devices (CSS); a tap toggles it everywhere else.
   const [flipped, setFlipped] = useState(false);
@@ -105,6 +82,10 @@ export default function HowItWorks() {
             <p className="text-body-small text-muted-foreground">
               No jargon and no long forms — just a clear picture of what&apos;s affecting new patient enquiries. Hover or tap a step for details.
             </p>
+            <Link href="/how-it-works" className="mt-4 inline-flex items-center gap-2 text-body-small font-semibold text-primary-ink">
+              See the full process
+              <ButtonArrow className="h-3.5 w-3.5" />
+            </Link>
           </Reveal>
         </div>
 

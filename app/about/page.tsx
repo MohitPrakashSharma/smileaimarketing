@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PageCta from "@/components/PageCta";
 import AboutContent from "@/components/about/AboutContent";
+import { aboutPageJsonLd, breadcrumbJsonLd, jsonLdProps } from "@/lib/structuredData";
 
 const SITE_URL = "https://smileaimarketing.com";
 const TITLE = "About Smile AI Marketing | Dental Marketing for Canadian Practices";
@@ -34,12 +34,13 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <>
+      {/* Organisation markup comes from the root layout; these two describe the page itself. */}
+      <script {...jsonLdProps(aboutPageJsonLd({ name: TITLE, description: DESCRIPTION }))} />
+      <script {...jsonLdProps(breadcrumbJsonLd([{ name: "About", path: "/about" }]))} />
       <Header />
+      {/* No closing CTA band: the Canadian focus section at the end of
+          AboutContent carries the calls to action instead. */}
       <AboutContent />
-      <PageCta
-        heading="See What Your Dental Website Could Be Doing Better"
-        copy="Start with a free website audit — no logins, no obligation, and a clear picture of what to fix first."
-      />
       <Footer />
     </>
   );

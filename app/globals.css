@@ -338,7 +338,11 @@ body {
   font-family: var(--font-copy);
   font-size: var(--text-body);
   line-height: var(--leading-body);
-  overflow-x: hidden;
+  /* `clip`, not `hidden`. Both stop sideways overflow, but `hidden` makes the
+     body a scroll container, and Chrome then resolves scroll-driven timelines
+     (the pinned section on /about) against that container instead of the page —
+     the timeline never advances and the animation silently never runs. */
+  overflow-x: clip;
   min-height: 100dvh;
   font-feature-settings: "ss01", "cv11";
 }
@@ -714,6 +718,17 @@ input:disabled {
   color: transparent;
 }
 
+/* Highlighter stroke behind a phrase in body copy. The gradient starts part
+   way down the line so it reads as a marker pen rather than a filled block,
+   and `box-decoration-break: clone` keeps it drawn on every line when the
+   phrase wraps. */
+@utility text-marker {
+  background-image: linear-gradient(transparent 55%, color-mix(in srgb, var(--color-brand-teal) 40%, #ffffff) 55%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding-inline: 0.15em;
+}
+
 /* Card surfaces */
 @utility card {
   background: var(--color-surface);
@@ -776,6 +791,74 @@ input:disabled {
   &:hover,
   &:focus-within {
     --card-glow: 1;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover,
+    &:focus-within {
+      transform: none;
+    }
+  }
+}
+
+@property --teal-glow {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+/* Teal-to-white card: the same shape as `card-gradient`, washed with the
+   secondary teal instead of sitting on a flat surface. Used on the about
+   page's pinned evidence track, where the panels carry the section rather
+   than a solid band behind them. */
+@utility card-teal {
+  --teal-glow: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-large);
+  background:
+    linear-gradient(
+        158deg,
+        #ffffff 0%,
+        color-mix(in srgb, var(--color-teal-soft) 60%, #ffffff) 30%,
+        var(--color-teal-soft) 62%,
+        /* Held at 22%: the teal ink used for the labels sitting on this end of
+           the card measures 4.57:1 here, and any more teal drops it below AA.
+           Hover intensifies the border and the lift instead of the fill. */
+        color-mix(in srgb, var(--color-brand-teal) 22%, #ffffff) 100%
+      )
+      padding-box,
+    linear-gradient(
+        158deg,
+        rgba(59, 162, 179, calc(0.3 + 0.5 * var(--teal-glow))) 0%,
+        rgba(59, 162, 179, calc(0.16 + 0.44 * var(--teal-glow))) 58%,
+        rgba(38, 112, 126, calc(0.24 + 0.46 * var(--teal-glow))) 100%
+      )
+      border-box;
+  box-shadow: var(--shadow-xs);
+  transition:
+    --teal-glow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(110% 80% at 100% 0%, rgba(255, 255, 255, 0.85), transparent 60%);
+    opacity: calc(0.7 - 0.3 * var(--teal-glow));
+    transition: opacity var(--duration-normal) var(--ease-out);
+  }
+
+  &:hover,
+  &:focus-within {
+    --teal-glow: 1;
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
@@ -894,6 +977,128 @@ input:disabled {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* =============================================================================
+   Pinned horizontal section (about page — "Evidence before assumptions")
+   The section is several screens tall; its inner wrapper sticks to the top
+   while the track of panels slides sideways, driven by the section's own view
+   timeline. The scroll distance is set from the panel count so the vertical
+   travel roughly matches the horizontal travel.
+
+   Browsers without scroll-driven animations, anyone who prefers reduced motion
+   and every screen under 1024px get the same panels stacked vertically — the
+   content is identical, only the choreography is missing.
+   ============================================================================= */
+.pin-section {
+  position: relative;
+}
+/* Stacked by default; the pinned block below turns this into the moving track. */
+.pin-sticky {
+  padding-block: var(--section-space);
+}
+.pin-track {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+@supports (animation-timeline: view()) {
+  @media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+    .pin-section {
+      height: calc(var(--pin-panels, 6) * 52vh);
+      view-timeline-name: --pin-section;
+      view-timeline-axis: block;
+    }
+
+    .pin-sticky {
+      position: sticky;
+      top: 0;
+      display: flex;
+      align-items: center;
+      height: 100vh;
+      padding-block: 0;
+      /* `clip`, not `hidden`: hidden would make this a scroll container, and
+         tabbing to the link on the last panel would jerk the track sideways. */
+      overflow-x: clip;
+    }
+
+    .pin-track {
+      flex-direction: row;
+      align-items: stretch;
+      gap: 1.75rem;
+      width: max-content;
+      max-width: none;
+      margin-inline: 0;
+      /* Line the first and last panel up with the page's container edges. */
+      padding-inline: max(var(--page-gutter), calc((100vw - var(--container-max-width)) / 2 + var(--page-gutter)));
+      will-change: transform;
+      animation: pin-slide linear both;
+      animation-timeline: --pin-section;
+      /* `contain` runs from the moment the tall section fills the viewport to
+         the moment it starts to leave — exactly while the wrapper is stuck. */
+      animation-range: contain 0% contain 100%;
+    }
+
+    @keyframes pin-slide {
+      to {
+        transform: translateX(calc(-100% + 100vw));
+      }
+    }
+
+    .pin-panel {
+      width: clamp(20rem, 27vw, 25rem);
+      /* No fixed height: `align-items: stretch` on the track makes every panel
+         as tall as the tallest one's content, so nothing is ever clipped on a
+         short viewport. The minimum only stops the sparse panels looking stubby. */
+      min-height: min(26rem, 58vh);
+      /* The photo panel carries an aspect ratio for the stacked fallback; here
+         the stretched height decides, so the ratio must not fight it. */
+      aspect-ratio: auto;
+    }
+
+    .pin-panel-wide {
+      width: clamp(26rem, 36vw, 34rem);
+    }
+  }
+}
+
+/* Renders the pinned section as a plain vertical stack.
+
+   Applied deliberately by EvidenceTrack, and also by its runtime check:
+   `@supports (animation-timeline: view())` can report true in a browser that
+   never actually advances the timeline — the feature can be turned off behind a
+   flag while the CSS parser still accepts the syntax. The layout would then be
+   laid out in a row several thousand pixels wide with no transform to move it,
+   leaving the last panels unreachable. EvidenceTrack checks after mount whether
+   the timeline is live and, if it is not, adds this class to fall back to the
+   plain vertical stack. */
+.pin-section.pin-stacked {
+  height: auto;
+}
+.pin-stacked .pin-sticky {
+  position: static;
+  display: block;
+  height: auto;
+  padding-block: var(--section-space);
+  overflow-x: visible;
+}
+.pin-stacked .pin-track {
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+  animation: none;
+  transform: none;
+}
+.pin-stacked .pin-panel {
+  width: auto;
+  min-height: 0;
+}
+
 /* Focus carousel (about page): countdown bar to the next slide */
 @keyframes focus-progress {
   from { width: 0%; }
@@ -904,4 +1109,28 @@ input:disabled {
 }
 @media (prefers-reduced-motion: reduce) {
   .arc-copy { animation: none; }
+}
+
+/* =============================================================================
+   Admin dashboard — flat surfaces matching the public site
+   No gradients anywhere in the admin: the site is flat navy / blue / teal on
+   white and soft grey. Cards copy the site's 20px white card with a hairline
+   grey border and a whisper shadow.
+   ============================================================================= */
+@utility admin-card {
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+@utility admin-card-hover {
+  transition: box-shadow var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out);
+  &:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-md);
+  }
+}
+:root {
+  /* Growth green as text on the navy band — same step .theme-navy uses (7:1 on #1e3560). */
+  --color-growth-on-dark: #74d6b0;
 }

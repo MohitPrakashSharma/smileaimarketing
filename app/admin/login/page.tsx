@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Eyebrow from "@/components/Eyebrow";
+import { Wordmark } from "@/components/Wordmark";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -45,11 +46,12 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="theme-navy flex min-h-screen items-center justify-center bg-background px-6 py-12 text-foreground">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-surface p-8 shadow-xl">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background-alt px-6 py-12 text-foreground">
+      <Wordmark full />
+      <div className="admin-card w-full max-w-md space-y-8 p-8 shadow-lg">
         <div className="text-center">
-          <Eyebrow tone="dark">Admin Portal</Eyebrow>
-          <h1 className="mt-6 text-heading-1 font-semibold text-foreground">Sign in to your account</h1>
+          <Eyebrow>Admin Portal</Eyebrow>
+          <h1 className="mt-5 font-display text-heading-1 font-bold tracking-[-0.02em] text-foreground">Sign in to your account</h1>
           <p className="mt-2 text-body-small text-muted-foreground">Smile AI Marketing Management Console</p>
         </div>
 

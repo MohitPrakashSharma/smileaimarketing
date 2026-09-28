@@ -127,8 +127,36 @@ model User {
   updatedAt            DateTime              @updatedAt
   activities           SalesActivity[]
   googleCalendarTokens GoogleCalendarToken[]
+  sentEmails           EmailMessage[]        @relation("EmailSentBy")
+
+  // Sales pipeline saved views: the ones this user created, and the one that opens by default.
+  pipelineViews         PipelineView[] @relation("PipelineViewOwner")
+  defaultPipelineViewId String?
+  defaultPipelineView   PipelineView?  @relation("DefaultPipelineView", fields: [defaultPipelineViewId], references: [id], onDelete: SetNull)
+  // Starter views are created once; deleting them afterwards must not bring them back.
+  pipelineViewsSeeded   Boolean        @default(false)
 
   @@index([email])
+}
+
+// A saved configuration of /admin/pipeline: view type, filters, sort, grouping,
+// columns and page size, stored as JSON (shape validated in lib/pipelineViews.ts).
+// Personal by default; `shared` makes it visible (read-only) to every admin.
+model PipelineView {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  owner     User     @relation("PipelineViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  shared    Boolean  @default(false)
+  config    Json
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  defaultFor User[] @relation("DefaultPipelineView")
+
+  @@index([ownerId])
+  @@index([shared])
 }
 
 model Campaign {
@@ -526,10 +554,25 @@ model EmailMessage {
   id            String      @id @default(uuid())
   contactId     String
   contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  stepId        String
-  step          EmailStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  // Null for one-off emails written on a lead's page; those carry their own subject/body.
+  stepId        String?
+  step          EmailStep?  @relation(fields: [stepId], references: [id], onDelete: Cascade)
   status        EmailStatus @default(QUEUED)
   scheduledTime DateTime? // When outreach is scheduled to be sent
+
+  subject       String?
+  bodyText      String? // As written by the admin, merge tags already applied
+  sentById      String?
+  sentBy        User?   @relation("EmailSentBy", fields: [sentById], references: [id], onDelete: SetNull)
+  failureReason String?
+
+  // Engagement roll-up; the individual hits live in EngagementEvent (email_opened / email_clicked).
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  firstOpenedAt  DateTime?
+  lastOpenedAt   DateTime?
+  firstClickedAt DateTime?
+  repliedAt      DateTime?
 
   messageId String? // External email service ID
   sentAt    DateTime?

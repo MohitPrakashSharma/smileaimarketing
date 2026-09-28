@@ -220,7 +220,7 @@ export default function AdminCampaignDetailPage({ params }: { params: Promise<{ 
             &larr; Back to Campaigns
           </Link>
           <div className="mt-1 flex items-center gap-2.5">
-            <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">{campaign.name}</h1>
+            <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">{campaign.name}</h1>
             <StatusBadge status={campaign.status} />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -264,19 +264,19 @@ export default function AdminCampaignDetailPage({ params }: { params: Promise<{ 
               <div
                 className={`relative flex flex-1 flex-col items-center gap-1 rounded-xl border p-3 text-center transition-colors ${
                   node.state === "done"
-                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    ? "border-growth/30 bg-growth/5"
                     : node.state === "running"
-                      ? "border-amber-500/30 bg-amber-500/5"
+                      ? "border-warning/30 bg-warning/5"
                       : "border-border bg-background"
                 }`}
               >
                 {node.state === "running" && (
-                  <span className="absolute right-2 top-2 h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                  <span className="absolute right-2 top-2 h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
                 )}
                 <span className="text-lg leading-none">{node.icon}</span>
                 <span
                   className={`text-base font-extrabold ${
-                    node.state === "done" ? "text-emerald-400" : node.state === "running" ? "text-amber-400" : "text-muted-foreground"
+                    node.state === "done" ? "text-growth-ink" : node.state === "running" ? "text-warning" : "text-muted-foreground"
                   }`}
                 >
                   {node.count}

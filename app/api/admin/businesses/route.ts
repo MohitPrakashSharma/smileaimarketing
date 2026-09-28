@@ -45,6 +45,9 @@ export async function GET(request: Request) {
           : null,
         audit: audit ? { score: audit.score, status: audit.status, pdfStatus: audit.pdfStatus, publicToken: audit.publicToken } : null,
         outreachStatus: contact?.emailMessages[0]?.status || null,
+        dealValueCents: b.dealValueCents,
+        wonAt: b.wonAt,
+        createdAt: b.createdAt,
         updatedAt: b.updatedAt,
       };
     });

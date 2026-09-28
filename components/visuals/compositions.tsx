@@ -8,7 +8,7 @@ import { MockSite, RankCard, EnquiryCard, StatCard, SpeedGauge, MOCK_PRACTICE } 
  *   JourneyVisual     /services "how the services work together"
  *   AboutVisual       /about hero (strategy → audit → roadmap → growth)
  *   BeforeAfterVisual /case-studies feature (cluttered → clear)
- *   CtaBackdrop       abstract rings/glows for the dark CTA bands
+ *   CtaBackdrop       abstract rings/glows behind the closing CTA band
  */
 
 export function HeroVisual() {
@@ -204,17 +204,17 @@ export function BeforeAfterVisual({ className = "" }: { className?: string }) {
 export function CtaBackdrop({ className = "" }: { className?: string }) {
   return (
     <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden>
-      <div className="absolute -left-24 -top-32 h-96 w-96 rounded-full blur-3xl" style={{ background: "rgba(59,103,178,0.22)" }} />
+      <div className="absolute -left-24 -top-32 h-96 w-96 rounded-full blur-3xl" style={{ background: "rgba(59,103,178,0.14)" }} />
       <div className="absolute -bottom-40 right-[10%] h-[28rem] w-[28rem] rounded-full blur-3xl" style={{ background: "rgba(59,162,179,0.16)" }} />
-      <svg className="absolute -right-24 -top-24 h-[36rem] w-[36rem] opacity-40" viewBox="0 0 400 400" fill="none">
+      <svg className="absolute -right-24 -top-24 h-[36rem] w-[36rem] opacity-70" viewBox="0 0 400 400" fill="none">
         {[60, 110, 160, 210].map((r, i) => (
-          <circle key={r} cx="200" cy="200" r={r} stroke="white" strokeOpacity={0.18 - i * 0.035} strokeWidth="1" />
+          <circle key={r} cx="200" cy="200" r={r} stroke="#3ba2b3" strokeOpacity={0.3 - i * 0.055} strokeWidth="1" />
         ))}
-        <circle cx="200" cy="200" r="4" fill="#a9c8f2" />
-        <circle cx="290" cy="150" r="3" fill="#a9c8f2" fillOpacity="0.8" />
-        <circle cx="120" cy="290" r="3" fill="white" fillOpacity="0.5" />
+        <circle cx="200" cy="200" r="4" fill="#3b67b2" />
+        <circle cx="290" cy="150" r="3" fill="#3ba2b3" />
+        <circle cx="120" cy="290" r="3" fill="#3b67b2" fillOpacity="0.55" />
       </svg>
-      <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)", backgroundSize: "26px 26px", maskImage: "linear-gradient(90deg, rgba(0,0,0,0.6), transparent 70%)" }} />
+      <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(38,112,126,0.16) 1px, transparent 0)", backgroundSize: "26px 26px", maskImage: "linear-gradient(90deg, rgba(0,0,0,0.5), transparent 70%)" }} />
     </div>
   );
 }

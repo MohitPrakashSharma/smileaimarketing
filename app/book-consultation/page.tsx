@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Eyebrow from "@/components/Eyebrow";
-import MinimalShell from "@/components/MinimalShell";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import CnTowerVector from "@/components/contact/CnTowerVector";
+import { CONTACT } from "@/lib/siteConfig";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -147,13 +150,19 @@ function BookConsultationForm() {
   };
 
   return (
-    <div className="card-elevated w-full max-w-2xl p-6 sm:p-8">
+    <div className="card-elevated w-full p-6 sm:p-8">
       <div className="space-y-3">
-        <Eyebrow>{technicalReport ? "Full technical report" : isInPerson ? "In-person visit" : "Free 15-minute consultation"}</Eyebrow>
-        <h1 className="text-heading-2 text-foreground">
+        {/* Only the variants label themselves; the default card's heading and
+            intro already say what it is. */}
+        {(technicalReport || isInPerson) && (
+          <Eyebrow>{technicalReport ? "Full technical report" : "In-person visit"}</Eyebrow>
+        )}
+        <h2 className="text-heading-3 text-foreground">
           {technicalReport ? "Request your full technical report" : isInPerson ? "Request an in-person visit" : "Book a consultation"}
-        </h1>
-        <p className="max-w-md text-body text-muted-foreground">
+        </h2>
+        {/* `max-w-md` dated from when this card sat in a narrow column; the card
+            now spans the container, so the intro can use a full reading measure. */}
+        <p className="max-w-[46rem] text-body text-muted-foreground">
           {technicalReport
             ? "Book a website review with our team. We'll walk through your audit findings together and provide the complete technical breakdown as part of the follow-up — it isn't sent automatically."
             : isInPerson
@@ -294,16 +303,97 @@ function BookConsultationForm() {
   );
 }
 
+const OFFICE_QUERY = encodeURIComponent(`${CONTACT.address.join(", ")}`);
+
+function ContactDetail({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-eyebrow text-secondary-ink">{label}</dt>
+      <dd className="mt-2 text-body-small text-foreground">{children}</dd>
+    </div>
+  );
+}
+
 export default function BookConsultationPage() {
   return (
-    <MinimalShell>
-      <Suspense
-        fallback={
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
-        }
-      >
-        <BookConsultationForm />
-      </Suspense>
-    </MinimalShell>
+    <>
+      <Header />
+      <main className="flex-1 bg-background">
+        {/* Masthead, form and details share one backdrop so the tower runs the
+            whole way down rather than stopping at the end of the heading. */}
+        <div className="relative overflow-hidden">
+          {/* Behind everything: the tower spans the full height of the group,
+              so its shaft passes the form and its base spreads under the
+              details. `z-0` with the content at `z-10` — a negative z-index
+              would drop it behind the wrapper's own background and vanish. */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-0 w-[72%] sm:right-[2%] sm:w-[54%] lg:right-[4%] lg:w-[44%]">
+            <CnTowerVector className="h-full w-full" />
+          </div>
+
+          {/* No min-height here: the heading sets its own measure, and centring
+              it in a tall box was what put the air above and below it. */}
+          <section className="relative z-10">
+            <div className="container-site relative pb-4 pt-10 sm:pb-6 sm:pt-14">
+              {/* Ink on top of a pale tower: a difference blend inverted the
+                  brand blue to orange, which is off-palette. The tower is light
+                  enough that the heading simply sits over it. */}
+              <h1 className="relative text-[clamp(2.75rem,15vw,225px)] font-bold leading-[0.88] tracking-[-0.05em] text-foreground">
+                Contact us
+              </h1>
+            </div>
+          </section>
+
+          {/* The form, full width of the container */}
+          <section className="container-site relative z-10 pb-[var(--section-space-sm)] pt-8">
+            <Suspense
+              fallback={
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-border border-t-primary" />
+              }
+            >
+              <BookConsultationForm />
+            </Suspense>
+          </section>
+
+          {/* Ways to reach us, in a card matching the form above it */}
+          <section className="container-site relative z-10 pb-[var(--section-space)]">
+            <div className="card-elevated grid gap-10 p-6 sm:grid-cols-2 sm:p-8 lg:grid-cols-4 lg:gap-12">
+              <p className="text-body-small text-muted-foreground">
+                For an audit walkthrough, a question about your website, or an in-person visit — reach out and we will
+                come back to you.
+              </p>
+              <ContactDetail label="Email">
+                <a href={`mailto:${CONTACT.email}`} className="link-underline font-medium">
+                  {CONTACT.email}
+                </a>
+              </ContactDetail>
+              <ContactDetail label="Phone">
+                <a href={CONTACT.phone.href} className="link-underline font-medium">
+                  {CONTACT.phone.display}
+                </a>
+              </ContactDetail>
+              <ContactDetail label="Office">
+                {CONTACT.address.map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </ContactDetail>
+            </div>
+          </section>
+        </div>
+
+        {/* Map, edge to edge, closing the page */}
+        <section aria-label="Our location" className="relative h-[20rem] w-full border-t border-border sm:h-[24rem] lg:h-[28rem]">
+          <iframe
+            title={`Map showing ${CONTACT.address.join(", ")}`}
+            src={`https://www.google.com/maps?q=${OFFICE_QUERY}&output=embed`}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            className="absolute inset-0 h-full w-full border-0"
+          />
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }

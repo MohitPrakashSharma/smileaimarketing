@@ -3,87 +3,116 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { Wordmark } from "@/components/Wordmark";
 import {
   IconGrid,
   IconStorefront,
   IconTarget,
   IconChat,
   IconCalendarCheck,
+  IconClipboardCheck,
   IconTrendingUp,
+  IconGauge,
+  IconLink,
+  IconClock,
   IconSettings,
   IconLogout,
-  IconMenuDots,
   IconSearch,
-  IconCheck,
+  IconMenu,
+  IconClose,
   IconChevronDown,
-  IconMonitor,
+  IconSidebar,
 } from "@/components/icons";
 
-const PRIMARY_NAV_ITEMS = [
-  { label: "Overview", path: "/admin", Icon: IconGrid },
-  { label: "Campaigns", path: "/admin/campaigns", Icon: IconTarget },
-  { label: "Leads", path: "/admin/businesses", Icon: IconStorefront },
-  { label: "Outreach", path: "/admin/outreach", Icon: IconChat, xlOnly: true },
-  { label: "Meetings", path: "/admin/meetings", Icon: IconCalendarCheck },
-];
+const SIDEBAR_KEY = "admin.sidebarCollapsed";
 
-const MORE_NAV_ITEMS = [
-  { label: "Outreach", path: "/admin/outreach", Icon: IconChat, mdOnly: true },
-  { label: "Audits", path: "/admin/audits", Icon: IconTarget },
-  { label: "Pipeline", path: "/admin/pipeline", Icon: IconTrendingUp },
-  { label: "Analytics", path: "/admin/analytics", Icon: IconMonitor },
-  { label: "Integrations", path: "/admin/integrations", Icon: IconCheck },
-  { label: "Automations", path: "/admin/automations", Icon: IconSettings },
-  { label: "Settings", path: "/admin/settings", Icon: IconSettings },
-];
-
-const MOBILE_NAV_ITEMS = [
-  { label: "Overview", path: "/admin", Icon: IconGrid },
-  { label: "Campaigns", path: "/admin/campaigns", Icon: IconTarget },
-  { label: "Leads", path: "/admin/businesses", Icon: IconStorefront },
-  { label: "Outreach", path: "/admin/outreach", Icon: IconChat },
-];
-
-const PAGE_TITLES: Record<string, string> = {
-  "/admin": "Overview",
-  "/admin/campaigns": "Campaigns",
-  "/admin/businesses": "Leads",
-  "/admin/audits": "Audits",
-  "/admin/outreach": "Outreach",
-  "/admin/meetings": "Meetings",
-  "/admin/appointments": "Meetings",
-  "/admin/pipeline": "Pipeline",
-  "/admin/analytics": "Analytics",
-  "/admin/integrations": "Integrations",
-  "/admin/automations": "Automations",
-  "/admin/settings": "Settings",
+type NavItem = {
+  label: string;
+  path: string;
+  Icon: (props: { className?: string }) => React.ReactElement;
+  /** Extra routes that should light this item up (detail pages, aliases). */
+  match?: (pathname: string) => boolean;
 };
 
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Workspace",
+    items: [
+      { label: "Overview", path: "/admin", Icon: IconGrid },
+      { label: "Campaigns", path: "/admin/campaigns", Icon: IconTarget },
+      { label: "Leads", path: "/admin/businesses", Icon: IconStorefront },
+      { label: "Outreach", path: "/admin/outreach", Icon: IconChat },
+      {
+        label: "Meetings",
+        path: "/admin/meetings",
+        Icon: IconCalendarCheck,
+        match: (p) => p.startsWith("/admin/appointments"),
+      },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      { label: "Audits", path: "/admin/audits", Icon: IconClipboardCheck },
+      { label: "Pipeline", path: "/admin/pipeline", Icon: IconTrendingUp },
+      { label: "Analytics", path: "/admin/analytics", Icon: IconGauge },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { label: "Integrations", path: "/admin/integrations", Icon: IconLink },
+      { label: "Automations", path: "/admin/automations", Icon: IconClock },
+      { label: "Settings", path: "/admin/settings", Icon: IconSettings },
+    ],
+  },
+];
+
+const NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+
+function isItemActive(item: NavItem, pathname: string) {
+  if (item.path === "/admin") return pathname === "/admin";
+  return pathname === item.path || pathname.startsWith(`${item.path}/`) || !!item.match?.(pathname);
+}
+
+/*
+ * Shell: one white "L" (header across the top, sidebar down the left, no divider
+ * between them) framing a soft-grey content panel. On desktop the panel is fixed
+ * and scrolls on its own, so its rounded top-left corner — where header and
+ * sidebar meet — stays put while content moves underneath.
+ */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
+    } catch {}
+  }, []);
+
+  const toggleSidebar = () => {
+    setCollapsed((v) => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, v ? "0" : "1");
+      } catch {}
+      return !v;
+    });
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setUserMenuOpen(false);
-      }
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        setDrawerOpen(false);
         setUserMenuOpen(false);
-        setMoreOpen(false);
-        setSearchModalOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -111,156 +140,161 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchValue.trim();
-    setSearchModalOpen(false);
     router.push(q ? `/admin/businesses?q=${encodeURIComponent(q)}` : "/admin/businesses");
   };
 
-  // Contextual action rule: Show campaign action ONLY on Overview, Campaigns list, and Campaign Detail pages
-  const isOverview = pathname === "/admin";
-  const isCampaignRoute = pathname.startsWith("/admin/campaigns");
-  const showCampaignAction = isOverview || isCampaignRoute;
+  const pageTitle = NAV_ITEMS.find((item) => isItemActive(item, pathname))?.label ?? "Command Centre";
 
-  const isMoreRouteActive = MORE_NAV_ITEMS.some(
-    (item) => pathname === item.path || (pathname.startsWith("/admin/businesses/") && item.path === "/admin/businesses")
-  );
-
-  const pageTitle = PAGE_TITLES[pathname] || "Command Centre";
-
-  return (
-    <div className="theme-navy ui-copy min-h-screen bg-background font-body text-foreground">
-      {/* Desktop Top Header */}
-      <header className="sticky top-0 z-40 hidden border-b border-border bg-surface/95 backdrop-blur-md lg:block">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-4 px-6">
-          
-          {/* ZONE 1: LEFT (Logo) */}
-          <div className="flex shrink-0 items-center gap-3">
-            <Link href="/admin" className="text-base font-extrabold tracking-tight text-foreground transition-opacity hover:opacity-90">
-              Smile AI<span className="text-primary">.</span>
-            </Link>
-          </div>
-
-          {/* ZONE 2: CENTER (Primary Navigation + More Dropdown) */}
-          <nav aria-label="Admin primary desktop" className="flex min-w-0 items-center gap-1 xl:gap-2">
-            {PRIMARY_NAV_ITEMS.map((item) => {
-              const isActive =
-                pathname === item.path ||
-                (item.path === "/admin/businesses" && pathname.startsWith("/admin/businesses")) ||
-                (item.path === "/admin/meetings" && pathname === "/admin/appointments");
-
-              const visibilityClass = item.xlOnly ? "hidden xl:flex" : "flex";
-
+  // `compact` is the collapsed desktop rail: icons only, labels move to tooltips.
+  const renderNav = (compact: boolean) => (
+    <nav aria-label="Admin" className={`space-y-6 pb-6 pt-2 ${compact ? "px-3" : "px-4"}`}>
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.title}>
+          {compact ? (
+            <span aria-hidden className="mx-auto mb-2 block h-px w-6 bg-border" />
+          ) : (
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-faint">{section.title}</p>
+          )}
+          <ul className="space-y-1">
+            {section.items.map((item) => {
+              const active = isItemActive(item, pathname);
               return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`${visibilityClass} items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                  }`}
-                >
-                  <item.Icon className="h-3.5 w-3.5 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
+                <li key={item.path}>
+                  <Link
+                    href={item.path}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setDrawerOpen(false)}
+                    aria-label={compact ? item.label : undefined}
+                    title={compact ? item.label : undefined}
+                    className={`flex min-h-11 items-center gap-3 rounded-full text-sm font-semibold ${compact ? "mx-auto w-11 justify-center" : "px-4"} transition-colors duration-[var(--duration-normal)] ${
+                      active
+                        ? "bg-background-dark text-white shadow-sm"
+                        : "text-foreground-secondary hover:bg-surface-muted hover:text-foreground"
+                    }`}
+                  >
+                    <item.Icon className="h-[18px] w-[18px] shrink-0" />
+                    {!compact && <span>{item.label}</span>}
+                  </Link>
+                </li>
               );
             })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
 
-            {/* Accessible "More" Dropdown */}
-            <div className="relative shrink-0" ref={moreMenuRef}>
-              <button
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-expanded={moreOpen}
-                aria-haspopup="true"
-                aria-label="More navigation items"
-                className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  isMoreRouteActive || moreOpen
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                }`}
-              >
-                <span>More</span>
-                <IconChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`} />
-              </button>
+  return (
+    <div className="ui-copy min-h-screen bg-surface font-body text-foreground">
+      {/* Header — spans the full width; its left cell is the sidebar's top, so the two read as one surface */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-[72px] items-center bg-surface">
+        <div
+          className={`flex h-full shrink-0 items-center gap-2 px-4 transition-[width] duration-[var(--duration-normal)] ${
+            collapsed ? "lg:w-[88px] lg:justify-center lg:px-0" : "lg:w-[264px] lg:pl-7 lg:pr-2"
+          }`}
+        >
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-surface-muted lg:hidden"
+          >
+            <IconMenu className="h-5 w-5" />
+          </button>
+          {!collapsed && (
+            <Link href="/admin" className="hidden whitespace-nowrap rounded-sm lg:block" aria-label="Smile AI Marketing admin — overview">
+              <Wordmark full className="text-[1.1rem]" />
+            </Link>
+          )}
+          <button
+            onClick={toggleSidebar}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`hidden h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground lg:flex ${
+              collapsed ? "" : "ml-auto"
+            }`}
+          >
+            <IconSidebar className="h-5 w-5" />
+          </button>
+          <p className="truncate font-display text-lg font-semibold lg:hidden">{pageTitle}</p>
+        </div>
 
-              {moreOpen && (
-                <div className="animate-fade-in-down absolute left-0 top-10 z-50 w-48 rounded-xl border border-border bg-surface p-1.5 shadow-xl">
-                  {MORE_NAV_ITEMS.map((item) => {
-                    const isActive = pathname === item.path;
-                    const visibilityClass = item.mdOnly ? "flex xl:hidden" : "flex";
-
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        onClick={() => setMoreOpen(false)}
-                        className={`${visibilityClass} min-h-[44px] items-center gap-2.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
-                          isActive
-                            ? "bg-primary/15 text-primary"
-                            : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                        }`}
-                      >
-                        <item.Icon className="h-4 w-4 text-primary shrink-0" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </nav>
-
-          {/* ZONE 3: RIGHT (Search Icon + Contextual Action + User Menu) */}
-          <div className="flex shrink-0 items-center gap-2.5">
-            {/* Search Icon Button */}
-            <button
-              onClick={() => setSearchModalOpen(true)}
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-4 sm:pr-6 lg:pl-2">
+          <form onSubmit={handleSearch} role="search" className="relative hidden w-full max-w-sm md:block">
+            <IconSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Search practices, cities, domains…"
               aria-label="Search practices"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-11 w-full rounded-full border border-border bg-surface pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </form>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Link
+              href="/admin/campaigns"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full bg-background-dark px-5 text-sm font-semibold text-white transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
-              <IconSearch className="h-4 w-4" />
-            </button>
+              <span aria-hidden className="text-base leading-none">+</span>
+              <span className="hidden sm:inline">New Campaign</span>
+            </Link>
 
-            {/* Contextual Campaign Action */}
-            {showCampaignAction && (
-              <Link
-                href="/admin/campaigns"
-                className="inline-flex h-9 items-center rounded-full bg-primary px-3.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <span className="hidden xl:inline">+ New Campaign</span>
-                <span className="inline xl:hidden">+ New</span>
-              </Link>
-            )}
+            <span aria-hidden className="mx-2 hidden h-7 w-px bg-border sm:block" />
 
-            {/* User Avatar Menu */}
-            <div className="relative" ref={userMenuRef}>
+            <Link
+              href="/admin/integrations"
+              aria-label="Integrations"
+              title="Integrations"
+              className="hidden h-11 w-11 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-surface-muted sm:flex"
+            >
+              <IconLink className="h-[18px] w-[18px]" />
+            </Link>
+            <Link
+              href="/admin/settings"
+              aria-label="Settings"
+              title="Settings"
+              className="hidden h-11 w-11 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-surface-muted sm:flex"
+            >
+              <IconSettings className="h-[18px] w-[18px]" />
+            </Link>
+
+            <div className="relative ml-1" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
                 aria-expanded={userMenuOpen}
                 aria-haspopup="true"
                 aria-label="Account menu"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary transition-colors hover:bg-primary/25 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex items-center gap-3 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-surface-muted"
               >
-                A
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">A</span>
+                <span className="hidden text-left leading-tight xl:block">
+                  <span className="block text-sm font-semibold text-foreground">Admin</span>
+                  <span className="block text-[11px] text-muted-foreground">Superadmin</span>
+                </span>
+                <IconChevronDown
+                  className={`hidden h-4 w-4 text-muted-foreground transition-transform xl:block ${userMenuOpen ? "rotate-180" : ""}`}
+                />
               </button>
 
               {userMenuOpen && (
-                <div className="animate-fade-in-down absolute right-0 top-11 z-50 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-xl">
-                  <p className="truncate px-3 py-2 text-metadata text-muted-foreground">
-                    hello@smileaimarketing.com
-                  </p>
+                <div className="animate-fade-in-down absolute right-0 top-14 z-50 w-60 rounded-2xl border border-border bg-surface p-1.5 shadow-lg">
+                  <p className="truncate px-3 py-2 text-xs text-muted-foreground">hello@smileaimarketing.com</p>
                   <div className="my-1 border-t border-border" />
                   <Link
                     href="/admin/settings"
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 text-xs font-semibold text-foreground hover:bg-surface-muted"
+                    className="flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-foreground hover:bg-surface-muted"
                   >
                     <IconSettings className="h-4 w-4 text-muted-foreground" /> Settings
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 text-left text-xs font-semibold text-danger hover:bg-danger/10"
+                    className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-semibold text-danger hover:bg-danger/10"
                   >
-                    <IconLogout className="h-4 w-4" /> Log Out
+                    <IconLogout className="h-4 w-4" /> Log out
                   </button>
                 </div>
               )}
@@ -269,143 +303,51 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
 
-      {/* Compact Search Dialog / Popover */}
-      {searchModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-20 backdrop-blur-xs px-4"
-          onClick={() => setSearchModalOpen(false)}
-        >
-          <div
-            className="animate-fade-in-down w-full max-w-md space-y-3 rounded-2xl border border-border bg-surface p-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-body-small font-bold text-foreground">Search Practices</h2>
-              <button
-                onClick={() => setSearchModalOpen(false)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-                aria-label="Close search"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <input
-                type="search"
-                autoFocus
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search by practice name, city, or domain..."
-                aria-label="Search practices"
-                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
-              >
-                Search
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Top Bar */}
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur-md lg:hidden">
-        <div className="flex items-center gap-2">
-          <h1 className="text-body font-bold text-foreground">{pageTitle}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {showCampaignAction && (
-            <Link
-              href="/admin/campaigns"
-              className="inline-flex h-8 items-center rounded-full bg-primary px-3 text-metadata font-bold text-primary-foreground"
-            >
-              + New
-            </Link>
-          )}
-          <button
-            onClick={handleLogout}
-            aria-label="Log out"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground"
-          >
-            <IconLogout className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto max-w-[1400px] px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-8">{children}</main>
-
-      {/* Mobile Bottom Navigation */}
-      <nav
-        aria-label="Admin primary mobile"
-        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur-md lg:hidden"
+      {/* Sidebar — continues the header surface; no border between them */}
+      <aside
+        className={`fixed bottom-0 left-0 top-[72px] z-30 hidden overflow-y-auto overflow-x-hidden bg-surface transition-[width] duration-[var(--duration-normal)] lg:block ${
+          collapsed ? "w-[88px]" : "w-[264px]"
+        }`}
       >
-        <div className="grid grid-cols-5">
-          {MOBILE_NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.path || (item.path === "/admin/businesses" && pathname.startsWith("/admin/businesses"));
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold ${
-                  isActive ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <item.Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-          <button
-            onClick={() => setMoreOpen((v) => !v)}
-            aria-expanded={moreOpen}
-            className={`flex min-h-14 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold ${
-              moreOpen || MORE_NAV_ITEMS.some((i) => i.path === pathname) ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <IconMenuDots className="h-5 w-5" />
-            <span>More</span>
-          </button>
-        </div>
-      </nav>
+        {renderNav(collapsed)}
+      </aside>
 
-      {/* Mobile "More" Bottom Sheet */}
-      {moreOpen && (
-        <>
-          <button
-            aria-label="Close menu"
-            onClick={() => setMoreOpen(false)}
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          />
-          <div className="pb-safe animate-fade-in-up fixed inset-x-0 bottom-16 z-50 rounded-t-2xl border-t border-border bg-surface p-4 shadow-xl lg:hidden">
-            <div className="space-y-1">
-              {MORE_NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  onClick={() => setMoreOpen(false)}
-                  className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-body-small font-semibold text-foreground hover:bg-surface-muted"
-                >
-                  <item.Icon className="h-5 w-5 text-primary" />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+      {/* Mobile drawer */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button aria-label="Close menu" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-black/40" />
+          <aside className="animate-fade-in absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-surface shadow-xl">
+            <div className="flex h-[72px] shrink-0 items-center justify-between px-6">
+              <Wordmark full className="text-[1.2rem]" />
               <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  handleLogout();
-                }}
-                className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body-small font-semibold text-danger hover:bg-danger/10"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close menu"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted hover:text-foreground"
               >
-                <IconLogout className="h-5 w-5" />
-                <span>Log Out</span>
+                <IconClose className="h-5 w-5" />
               </button>
             </div>
-          </div>
-        </>
+            <div className="flex-1 overflow-y-auto">{renderNav(false)}</div>
+          </aside>
+        </div>
       )}
+
+      {/* Content panel — inset into the white shell, curved where header meets sidebar */}
+      <main className={`min-h-screen bg-background-alt pt-[72px] lg:fixed lg:bottom-0 lg:right-0 lg:transition-[left] lg:duration-[var(--duration-normal)] ${collapsed ? "lg:left-[88px]" : "lg:left-[264px]"} lg:top-[72px] lg:min-h-0 lg:overflow-y-auto lg:rounded-tl-[28px] lg:pt-0`}>
+        <div className="px-4 py-5 sm:px-6 lg:px-6 lg:py-6 2xl:px-8">
+          <nav aria-label="Breadcrumb" className="mb-5 flex items-center gap-2 rounded-full bg-surface px-5 py-2.5 text-sm shadow-xs">
+            <IconGrid className="h-4 w-4 text-muted-foreground" />
+            <Link href="/admin" className="text-muted-foreground hover:text-foreground">
+              Admin
+            </Link>
+            <span aria-hidden className="text-border-strong">/</span>
+            <span aria-current="page" className="font-semibold text-foreground">
+              {pageTitle}
+            </span>
+          </nav>
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

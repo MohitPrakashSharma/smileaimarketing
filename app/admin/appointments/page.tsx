@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -33,7 +33,7 @@ const TABS = [
 ];
 
 const TECH_STATUS_LABEL: Record<NonNullable<Appointment["technicalReportStatus"]>, string> = { PENDING: "Pending", CONTACTED: "Contacted", DELIVERED: "Delivered" };
-const TECH_STATUS_STYLE: Record<NonNullable<Appointment["technicalReportStatus"]>, string> = { PENDING: "bg-amber-500/10 text-amber-400", CONTACTED: "bg-sky-500/10 text-sky-400", DELIVERED: "bg-emerald-500/10 text-emerald-400" };
+const TECH_STATUS_STYLE: Record<NonNullable<Appointment["technicalReportStatus"]>, string> = { PENDING: "bg-warning/10 text-warning", CONTACTED: "bg-secondary/10 text-secondary-ink", DELIVERED: "bg-growth/10 text-growth-ink" };
 
 /**
  * Technical-report hand-off panel. The lead asked for the full report through
@@ -64,7 +64,7 @@ function TechnicalReportPanel({ appointment, onUpdated }: { appointment: Appoint
   };
   const canDownload = appointment.audit?.engine === "CRAWL_V2" && appointment.audit.status === "COMPLETED";
   return (
-    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
+    <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-bold text-foreground">
           Full technical report requested
@@ -73,7 +73,7 @@ function TechnicalReportPanel({ appointment, onUpdated }: { appointment: Appoint
         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${TECH_STATUS_STYLE[status]}`}>{TECH_STATUS_LABEL[status]}</span>
       </div>
       <p className="text-muted-foreground">Contact the lead, walk through the audit, then share the PDF by hand. It is never sent automatically.</p>
-      {error && <p className="font-bold text-rose-400">{error}</p>}
+      {error && <p className="font-bold text-danger">{error}</p>}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {canDownload ? (
           <a href={`/api/admin/audits/${appointment.audit!.id}/technical-pdf`} className="inline-flex h-8 items-center rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover">
@@ -163,7 +163,7 @@ function ApprovalControls({
 
   return (
     <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
-      {error && <p className="text-xs font-bold text-rose-400">{error}</p>}
+      {error && <p className="text-xs font-bold text-danger">{error}</p>}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           type="datetime-local"
@@ -202,21 +202,25 @@ export default function AdminAppointmentsPage() {
   const [selectedTab, setSelectedTab] = useState("ACTION_REQUIRED");
   const [loading, setLoading] = useState(true);
 
-  const fetchAppointments = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/appointments");
-      const data = await res.json();
-      if (res.ok) setAppointments(data.appointments || []);
-    } catch (err) {
-      console.error("Error fetching appointments:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Loaded once; later changes are folded in by `handleUpdated` rather than refetched.
   useEffect(() => {
-    void fetchAppointments();
-  }, [fetchAppointments]);
+    let cancelled = false;
+    async function loadAppointments() {
+      try {
+        const res = await fetch("/api/admin/appointments");
+        const data = await res.json();
+        if (!cancelled && res.ok) setAppointments(data.appointments || []);
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void loadAppointments();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleUpdated = (updated: Appointment) => {
     setAppointments((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
@@ -245,7 +249,7 @@ export default function AdminAppointmentsPage() {
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Meetings &amp; Consultations</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Meetings &amp; Consultations</h1>
           <p className="text-body-small text-muted-foreground">
             Manage online review appointments and in-person practice visit requests.
           </p>
@@ -253,7 +257,7 @@ export default function AdminAppointmentsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto rounded-xl border border-border bg-surface p-1 gap-1">
+      <div className="flex overflow-x-auto rounded-full border border-border bg-surface p-1 gap-1">
         {TABS.map((tab) => {
           const count = appointments.filter((a) => {
             if (tab.value === "ACTION_REQUIRED") return a.status === "REQUESTED";
@@ -289,7 +293,7 @@ export default function AdminAppointmentsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((a) => (
-            <div key={a.id} className="rounded-xl border border-border bg-surface p-4 shadow-xs space-y-3">
+            <div key={a.id} className="admin-card p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-bold text-foreground text-sm">{a.business?.name || "Practice Request"}</p>
@@ -303,7 +307,7 @@ export default function AdminAppointmentsPage() {
                       Technical report · {TECH_STATUS_LABEL[a.technicalReportStatus]}
                     </span>
                   )}
-                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${a.type === "ONLINE" ? "bg-sky-500/10 text-sky-400" : "bg-purple-500/10 text-purple-400"}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${a.type === "ONLINE" ? "bg-secondary/10 text-secondary-ink" : "bg-primary/10 text-primary-ink"}`}>
                     {a.type === "ONLINE" ? "Video Consultation" : "In-Person Visit"}
                   </span>
                   <StatusBadge status={a.status} />

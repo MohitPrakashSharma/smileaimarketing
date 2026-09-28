@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     await prisma.emailMessage.update({
       where: { id: message.id },
-      data: { status: "REPLIED" },
+      data: { status: "REPLIED", repliedAt: new Date() },
     });
 
     await trackEvent({

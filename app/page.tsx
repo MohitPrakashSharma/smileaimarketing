@@ -11,27 +11,6 @@ import FAQ from "@/components/FAQ";
 import { FAQS } from "@/components/faqData";
 import Footer from "@/components/Footer";
 
-const ORGANIZATION_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "ProfessionalService",
-  name: "Smile AI Marketing",
-  description:
-    "Digital marketing agency for Canadian dental practices — local search visibility, qualified patient enquiries, and websites that help practices grow.",
-  url: "https://smileaimarketing.com",
-  email: "hello@smileaimarketing.com",
-  telephone: "+1-437-971-4014",
-  address: { "@type": "PostalAddress", streetAddress: "98 Personna Cir", addressLocality: "Brampton", addressRegion: "ON", postalCode: "L6X 0P2", addressCountry: "CA" },
-  areaServed: "CA",
-  knowsAbout: [
-    "Dental marketing",
-    "Local SEO",
-    "Google Business Profile optimization",
-    "Dental website design",
-    "Patient lead generation",
-    "Reputation management",
-  ],
-};
-
 const FAQ_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -45,10 +24,7 @@ const FAQ_JSON_LD = {
 export default function Home() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
-      />
+      {/* Organisation markup is rendered site-wide in app/layout.tsx. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}

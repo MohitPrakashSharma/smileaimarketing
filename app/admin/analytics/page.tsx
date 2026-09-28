@@ -58,7 +58,7 @@ export default function AdminAnalyticsPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Analytics</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Analytics</h1>
           <p className="text-body-small text-muted-foreground">
             Who came, what they did, and which leads turned into revenue — full funnel, by acquisition source.
           </p>
@@ -66,7 +66,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Segment filters */}
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 admin-card p-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <label htmlFor="source-filter" className="text-xs font-semibold text-muted-foreground">
             Source

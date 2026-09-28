@@ -2,6 +2,7 @@ import nodemailer, { Transporter } from "nodemailer";
 import { prisma } from "./prisma";
 import { env, integrationStatus } from "./env.server";
 import { trackEvent } from "./analytics";
+import { instrumentEmailHtml } from "./emailTracking";
 
 export interface SendEmailParams {
   emailMessageId?: string;
@@ -65,7 +66,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
       if (params.emailMessageId) {
         await prisma.emailMessage.update({
           where: { id: params.emailMessageId },
-          data: { status: "BOUNCED" },
+          data: { status: "BOUNCED", failureReason: "Recipient unsubscribed or is suppressed" },
         });
       }
       return {
@@ -77,6 +78,8 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
     }
 
     let messageId: string;
+    // Stored messages get open/click tracking; ad-hoc sends (e.g. test sends) go out untouched.
+    const html = params.emailMessageId ? instrumentEmailHtml(params.html, params.emailMessageId) : params.html;
 
     if (goingLive) {
       const info = await getGmailTransporter().sendMail({
@@ -84,7 +87,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
         to: `"${params.toName}" <${targetRecipient}>`,
         replyTo: env.EMAIL_REPLY_TO || env.EMAIL_FROM_ADDRESS,
         subject: params.subject,
-        html: params.html,
+        html,
         text: params.text,
       });
       messageId = info.messageId;
@@ -101,6 +104,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
           status: "SENT",
           sentAt: new Date(),
           messageId,
+          failureReason: null,
         },
         include: { step: { select: { stepDay: true } }, contact: { select: { businessId: true } } },
       });
@@ -108,7 +112,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
         eventName: "email_sent",
         businessId: sentMessage.contact.businessId,
         emailMessageId: sentMessage.id,
-        properties: { step_day: sentMessage.step.stepDay },
+        properties: sentMessage.step ? { step_day: sentMessage.step.stepDay } : undefined,
       });
     }
 
@@ -123,7 +127,7 @@ export async function sendOutreachEmail(params: SendEmailParams): Promise<EmailD
     if (params.emailMessageId) {
       await prisma.emailMessage.update({
         where: { id: params.emailMessageId },
-        data: { status: "BOUNCED" },
+        data: { status: "BOUNCED", failureReason: error instanceof Error ? error.message : "Send failed" },
       });
     }
     return {

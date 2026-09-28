@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Outfit, Poppins } from "next/font/google";
 import "./globals.css";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import { organizationJsonLd, jsonLdProps } from "@/lib/structuredData";
 
 // All three faces are SIL Open Font License and self-hosted by next/font (no
 // runtime request to Google). Outfit carries display headings; Poppins carries
@@ -90,6 +91,13 @@ export default function RootLayout({
       {/* suppressHydrationWarning: browser extensions (Grammarly etc.) inject attributes on <body>
           before React hydrates, which otherwise logs a hydration-mismatch error on every page. */}
       <body className="min-h-screen flex flex-col bg-background text-foreground antialiased" suppressHydrationWarning>
+        {/* Site-wide organisation markup: rendered once here so no page repeats it. */}
+        <script {...jsonLdProps(organizationJsonLd)} />
+        {/* Scroll reveals set their own starting opacity through JavaScript; with
+            scripting off nothing would ever reveal them, so force them visible. */}
+        <noscript>
+          <style>{`[data-reveal]{opacity:1!important;transform:none!important}`}</style>
+        </noscript>
         <AnalyticsProvider />
         {children}
       </body>

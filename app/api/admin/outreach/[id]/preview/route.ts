@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
-import { renderOutreachEmail } from "@/lib/emailTemplate";
+import { renderLeadEmail, renderOutreachEmail } from "@/lib/emailTemplate";
 import { env } from "@/lib/env.server";
 
 /** Renders the exact same content the outreach worker would actually send — preview never drifts from reality. */
@@ -27,6 +27,16 @@ export async function GET(
 
     if (!message) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    // One-off lead emails carry their own content; show exactly what was sent.
+    if (!message.step) {
+      const rendered = renderLeadEmail({ bodyText: message.bodyText ?? "", unsubscribeUrl: `${env.APP_BASE_URL}/unsubscribe` });
+      return NextResponse.json({
+        subject: message.subject ?? "",
+        html: rendered.html,
+        to: `${message.contact.firstName} ${message.contact.lastName} <${message.contact.email}>`,
+      });
     }
 
     const business = message.contact.business;

@@ -11,7 +11,8 @@ type OutreachMessage = {
   status: string;
   createdAt: string;
   contact?: { firstName: string; lastName: string; email: string; business?: { website: string; name?: string } };
-  step?: { subject: string; bodyTemplate?: string };
+  step?: { subject: string; bodyTemplate?: string } | null;
+  subject?: string | null; // one-off emails written on a lead page
 };
 
 const TABS = [
@@ -174,8 +175,8 @@ export default function AdminOutreachPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Email Outreach</h1>
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-400">
+            <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Email Outreach</h1>
+            <span className="rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-[10px] font-bold text-warning">
               SAFE DISPATCH MODE
             </span>
           </div>
@@ -198,7 +199,7 @@ export default function AdminOutreachPage() {
       )}
 
       {/* Manual Test Dispatch Control Box */}
-      <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs">
+      <div className="admin-card p-3.5">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Send Test Email</h2>
@@ -220,7 +221,7 @@ export default function AdminOutreachPage() {
       </div>
 
       {/* Status Tabs */}
-      <div className="flex overflow-x-auto rounded-xl border border-border bg-surface p-1 gap-1">
+      <div className="flex overflow-x-auto rounded-full border border-border bg-surface p-1 gap-1">
         {TABS.map((tab) => {
           const count = messages.filter((m) => {
             if (tab.value === "AWAITING") return m.status === "QUEUED" || m.status === "PENDING" || m.status === "AWAITING_APPROVAL";
@@ -258,7 +259,7 @@ export default function AdminOutreachPage() {
           {/* Mobile Cards (< 1024px) */}
           <div className="space-y-3 lg:hidden">
             {filteredMessages.map((m) => (
-              <div key={m.id} className="rounded-xl border border-border bg-surface p-3.5 space-y-2.5 shadow-xs">
+              <div key={m.id} className="admin-card p-3.5 space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-foreground text-sm">{m.contact?.business?.name || "Practice Lead"}</p>
@@ -266,7 +267,7 @@ export default function AdminOutreachPage() {
                   </div>
                   <StatusBadge status={m.status} />
                 </div>
-                <p className="text-xs text-foreground font-medium truncate">{m.step?.subject || "Dental Audit Executive Report"}</p>
+                <p className="text-xs text-foreground font-medium truncate">{m.subject || m.step?.subject || "Dental Audit Executive Report"}</p>
 
                 <div className="flex items-center justify-between border-t border-border/40 pt-2">
                   <button
@@ -290,7 +291,7 @@ export default function AdminOutreachPage() {
           </div>
 
           {/* Desktop Table (>= 1024px) */}
-          <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-xs lg:block">
+          <div className="hidden overflow-hidden admin-card lg:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -312,7 +313,7 @@ export default function AdminOutreachPage() {
                         {m.contact ? `${m.contact.firstName} ${m.contact.lastName}` : "Pending"}
                       </td>
                       <td className="px-4 py-3 font-medium text-foreground truncate max-w-xs">
-                        {m.step?.subject || "Executive Dental Audit Findings"}
+                        {m.subject || m.step?.subject || "Executive Dental Audit Findings"}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <StatusBadge status={m.status} />
@@ -348,7 +349,7 @@ export default function AdminOutreachPage() {
       {/* Side Panel / Modal Email Preview — shows exactly what would be sent, rendered server-side */}
       {previewMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-5 shadow-2xl space-y-4">
+          <div className="w-full max-w-xl admin-card p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-sm font-bold text-foreground">Email Preview</h3>
               <button

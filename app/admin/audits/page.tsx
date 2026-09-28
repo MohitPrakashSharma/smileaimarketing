@@ -50,7 +50,7 @@ export default function AdminAuditsPage() {
           href={`/api/audit/${a.publicToken}/pdf`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+          className="inline-flex h-8 items-center rounded-lg bg-growth/10 px-3 text-xs font-bold text-growth-ink hover:bg-growth/20"
         >
           Download PDF
         </a>
@@ -73,7 +73,7 @@ export default function AdminAuditsPage() {
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Audit Reports</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Audit Reports</h1>
           <p className="text-body-small text-muted-foreground">
             Review practice diagnostic scores, live report web pages, and generated PDF files.
           </p>
@@ -90,7 +90,7 @@ export default function AdminAuditsPage() {
           {/* Mobile Cards (< 1024px) */}
           <div className="space-y-3 lg:hidden">
             {audits.map((a) => (
-              <div key={a.id} className="rounded-xl border border-border bg-surface p-3.5 space-y-2.5 shadow-xs">
+              <div key={a.id} className="admin-card p-3.5 space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-foreground text-sm">{a.business?.name || "Practice Audit"}</p>
@@ -120,7 +120,7 @@ export default function AdminAuditsPage() {
           </div>
 
           {/* Desktop Table (>= 1024px) */}
-          <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-xs lg:block">
+          <div className="hidden overflow-hidden admin-card lg:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>

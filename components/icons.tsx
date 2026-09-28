@@ -187,10 +187,122 @@ export function IconMenuDots({ className }: IconProps) {
   );
 }
 
+export function IconInfo({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </Svg>
+  );
+}
+
+export function IconMail({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="M4 7l8 6 8-6" />
+    </Svg>
+  );
+}
+
+export function IconUser({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20c1.2-3.6 4.1-5.5 7.5-5.5s6.3 1.9 7.5 5.5" />
+    </Svg>
+  );
+}
+
+export function IconPencil({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16v4z" />
+      <path d="M13.5 6.5l4 4" />
+    </Svg>
+  );
+}
+
+export function IconPlus({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}
+
+export function IconArrowUpRight({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M7 17L17 7M9 7h8v8" />
+    </Svg>
+  );
+}
+
+export function IconCheckCircle({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 12.5l2.3 2.3 4.7-5" />
+    </Svg>
+  );
+}
+
+export function IconSparkle({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+      <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
+    </Svg>
+  );
+}
+
+export function IconMenu({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Svg>
+  );
+}
+
+export function IconTrash({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" />
+    </Svg>
+  );
+}
+
+/** Panel with a left rail — sidebar open/close toggle. */
+export function IconSidebar({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </Svg>
+  );
+}
+
+export function IconClose({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Svg>
+  );
+}
+
 export function IconChevronDown({ className }: IconProps) {
   return (
     <Svg className={className}>
       <path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function IconChevronRight({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M9 6l6 6-6 6" />
     </Svg>
   );
 }

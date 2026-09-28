@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     const message = await prisma.emailMessage.update({
       where: { id: messageId },
-      data: { status: "REPLIED" },
+      data: { status: "REPLIED", repliedAt: new Date() },
       include: { contact: { include: { business: true } } },
     });
 

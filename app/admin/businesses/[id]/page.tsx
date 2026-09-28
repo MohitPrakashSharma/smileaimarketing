@@ -3,7 +3,35 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
-import { IconMenuDots } from "@/components/icons";
+import {
+  IconMenuDots,
+  IconStorefront,
+  IconArrowUpRight,
+  IconInfo,
+  IconLink,
+  IconPhoneWave,
+  IconMapPin,
+  IconStar,
+  IconFileText,
+  IconGauge,
+  IconTarget,
+  IconClock,
+  IconTrendingUp,
+  IconCheck,
+  IconSparkle,
+  IconClipboardCheck,
+  IconCheckCircle,
+  IconMonitor,
+  IconUsers,
+  IconUser,
+  IconPlus,
+  IconMail,
+  IconCalendarCheck,
+} from "@/components/icons";
+import { AdminCard } from "@/components/admin/AdminCard";
+import { IconButton } from "@/components/admin/IconButton";
+import { InfoRow, Chip, StatusLine } from "@/components/admin/InfoRow";
+import { LeadEmails } from "@/components/admin/LeadEmails";
 
 type AuditResultRow = { category: string; score: number; findingsJson: Record<string, unknown>; detailsJson: unknown };
 type Audit = {
@@ -70,10 +98,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CONTACT_SOURCE_LABELS: Record<string, { label: string; classes: string }> = {
-  APOLLO: { label: "Apollo Verified", classes: "bg-emerald-500/10 text-emerald-400" },
-  WEBSITE: { label: "Found on Website", classes: "bg-sky-500/10 text-sky-400" },
-  SELF_SERVE: { label: "Self-Submitted", classes: "bg-sky-500/10 text-sky-400" },
-  MANUAL: { label: "Manually Added", classes: "bg-amber-500/10 text-amber-400" },
+  APOLLO: { label: "Apollo Verified", classes: "bg-growth/10 text-growth-ink" },
+  WEBSITE: { label: "Found on Website", classes: "bg-secondary/10 text-secondary-ink" },
+  SELF_SERVE: { label: "Self-Submitted", classes: "bg-secondary/10 text-secondary-ink" },
+  MANUAL: { label: "Manually Added", classes: "bg-warning/10 text-warning" },
 };
 
 export default function AdminBusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -268,214 +296,261 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
     },
   ];
 
+  const statusTone =
+    business.status === "CONVERTED" ? "good" : business.status === "DISQUALIFIED" ? "bad" : business.status === "DISCOVERED" ? "neutral" : "warn";
+  const sourceLabel =
+    business.providerSource === "GOOGLE_PLACES"
+      ? "Google Places"
+      : business.providerSource === "DATAFORSEO"
+        ? "DataForSEO"
+        : business.providerSource === "APOLLO"
+          ? "Apollo"
+          : business.providerSource === "TEST_PROVIDER"
+            ? "Test Fixture"
+            : "Direct Website Check";
+  const location = [business.city, business.state, business.country].filter(Boolean).join(", ");
+  const menuItemClass = "flex w-full min-h-[40px] items-center rounded-xl px-3 text-left text-xs font-semibold transition-colors";
+
   return (
-    <div className="space-y-6">
-      {/* Top Header & Operational Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link href="/admin/businesses" className="text-metadata font-semibold text-muted-foreground hover:text-primary">
-            &larr; All Businesses
-          </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="text-heading-2 font-bold text-foreground">{business.name}</h1>
-            <span className="rounded-full bg-primary/15 px-3 py-1 text-metadata font-bold uppercase tracking-wider text-primary">
-              {business.status.replace(/_/g, " ")}
-            </span>
-            {business.wonAt && (
-              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-metadata font-bold uppercase tracking-wider text-emerald-400">
-                Won{business.dealValueCents ? ` · $${(business.dealValueCents / 100).toLocaleString()}` : ""}
-              </span>
-            )}
-          </div>
-          {(business.firstTouchSource || business.firstTouchCampaign) && (
-            <p className="mt-1 text-metadata text-muted-foreground">
-              Acquired via {business.firstTouchSource || "direct"}
-              {business.firstTouchMedium ? ` / ${business.firstTouchMedium}` : ""}
-              {business.firstTouchCampaign ? ` — campaign "${business.firstTouchCampaign}"` : ""}
-            </p>
-          )}
-          <p className="mt-1 text-body-small text-muted-foreground">
-            <a href={business.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">
-              {business.website.replace(/^https?:\/\//, "")}
-            </a>
-            {" • "}
-            {[business.city, business.state, business.country].filter(Boolean).join(", ")}
-          </p>
-        </div>
-
-        {/* 3-Dot Dropdown for secondary / override actions — the pipeline below runs automatically */}
-        <div className="flex items-center gap-2">
-          <div className="relative" ref={actionMenuRef}>
-            <button
-              onClick={() => setActionMenuOpen((v) => !v)}
-              aria-label="More actions"
-              aria-expanded={actionMenuOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <IconMenuDots className="h-4 w-4" />
-            </button>
-
-            {actionMenuOpen && (
-              <div className="animate-fade-in-down absolute right-0 top-11 z-30 w-48 rounded-xl border border-border bg-surface p-1.5 shadow-xl space-y-0.5">
-                <button
-                  onClick={() => {
-                    setActionMenuOpen(false);
-                    void handleUpdateStatus("QUALIFIED");
-                  }}
-                  className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted"
-                >
-                  Mark Qualified
-                </button>
-                <button
-                  onClick={() => {
-                    setActionMenuOpen(false);
-                    void handleRunAudit();
-                  }}
-                  className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted"
-                >
-                  Run / Rerun Audit
-                </button>
-                {business.status !== "CONVERTED" && (
-                  <button
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      void handleMarkWon();
-                    }}
-                    className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
-                  >
-                    Mark Won
-                  </button>
-                )}
-                {business.status !== "DISQUALIFIED" && (
-                  <button
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      void handleUpdateStatus("DISQUALIFIED");
-                    }}
-                    className="flex w-full min-h-[40px] items-center rounded-lg px-3 text-left text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
-                  >
-                    Mark Disqualified
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/admin/businesses" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+          &larr; All leads
+        </Link>
       </div>
 
       {actionMessage && (
-        <div role="alert" className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-body-small font-semibold text-primary">
+        <div role="alert" className="rounded-2xl border border-primary/20 bg-accent-soft p-4 text-sm font-semibold text-primary-ink">
           {actionMessage}
         </div>
       )}
 
-      {/* Business information */}
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Category</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">{business.category}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Phone</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">{business.phone || "—"}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Address</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">{business.address || "—"}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Google Reviews</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">
-            {business.rating != null ? `${business.rating.toFixed(1)} ★` : "—"}
-            {business.reviewCount != null && <span className="font-normal text-muted-foreground"> ({business.reviewCount})</span>}
-          </span>
-          {business.googlePlaceId && (
-            <a
-              href={`https://www.google.com/maps/place/?q=place_id:${business.googlePlaceId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 block text-metadata font-bold text-primary hover:underline"
-            >
-              View on Google Maps &rarr;
-            </a>
-          )}
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">DATA SOURCE</span>
-          <span className="mt-1 block text-body-small font-bold text-foreground">
-            {business.providerSource === "GOOGLE_PLACES" ? "Google Places" : business.providerSource === "DATAFORSEO" ? "DataForSEO" : business.providerSource === "APOLLO" ? "Apollo" : business.providerSource === "TEST_PROVIDER" ? "Test Fixture" : "Direct Website Check"}
-          </span>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Opportunity Score</span>
-          <span className="mt-1 block text-body-small font-bold text-primary">{business.opportunityScore}/100</span>
-        </div>
-      </div>
-
-      {/* Automation Pipeline — read only, reflects real state, nothing here is manually triggered */}
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <div className="border-b border-border pb-4">
-          <h2 className="text-body font-bold text-foreground">Automation Pipeline</h2>
-          <p className="mt-0.5 text-metadata text-muted-foreground">
-            Runs end to end with no manual approval: Google/Apollo/website enrichment, DataForSEO + AI audit, PDF report, and outreach email all happen automatically once this practice is discovered.
-          </p>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-0 sm:flex-row sm:items-stretch sm:gap-0">
-          {pipelineNodes.map((node, i) => (
-            <div key={node.label} className="flex flex-1 sm:items-center">
-              <div className="flex flex-1 flex-col items-start gap-1 rounded-xl border border-border bg-background p-3 sm:items-center sm:text-center">
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold ${
-                    node.state === "done"
-                      ? "bg-emerald-500/15 text-emerald-400"
-                      : node.state === "blocked"
-                        ? "bg-rose-500/15 text-rose-400"
-                        : "animate-pulse bg-amber-500/15 text-amber-400"
-                  }`}
-                >
-                  {node.state === "done" ? "✓" : node.state === "blocked" ? "!" : i + 1}
-                </span>
-                <span className="text-xs font-bold text-foreground">{node.label}</span>
-                <span className="text-[11px] text-muted-foreground">{node.detail}</span>
+      <div className="grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start">
+        {/* Profile */}
+        <AdminCard
+          title="Profile"
+          icon={IconStorefront}
+          action={
+            <>
+              <IconButton Icon={IconArrowUpRight} label="Open website" href={business.website} />
+              <div className="relative" ref={actionMenuRef}>
+                <IconButton
+                  Icon={IconMenuDots}
+                  label="More actions"
+                  onClick={() => setActionMenuOpen((v) => !v)}
+                  aria-expanded={actionMenuOpen}
+                  aria-haspopup="true"
+                />
+                {actionMenuOpen && (
+                  <div className="animate-fade-in-down absolute right-0 top-12 z-30 w-48 space-y-0.5 rounded-2xl border border-border bg-surface p-1.5 shadow-lg">
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        void handleUpdateStatus("QUALIFIED");
+                      }}
+                      className={`${menuItemClass} text-foreground hover:bg-surface-muted`}
+                    >
+                      Mark Qualified
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        void handleRunAudit();
+                      }}
+                      className={`${menuItemClass} text-foreground hover:bg-surface-muted`}
+                    >
+                      Run / Rerun Audit
+                    </button>
+                    {business.status !== "CONVERTED" && (
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          void handleMarkWon();
+                        }}
+                        className={`${menuItemClass} text-growth-ink hover:bg-growth-soft`}
+                      >
+                        Mark Won
+                      </button>
+                    )}
+                    {business.status !== "DISQUALIFIED" && (
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          void handleUpdateStatus("DISQUALIFIED");
+                        }}
+                        className={`${menuItemClass} text-danger hover:bg-danger/10`}
+                      >
+                        Mark Disqualified
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              {i < pipelineNodes.length - 1 && (
-                <div className="hidden h-px w-4 shrink-0 self-center bg-border sm:block" />
-              )}
-            </div>
-          ))}
-        </div>
+            </>
+          }
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="font-display text-xl font-bold leading-tight tracking-[-0.01em] text-foreground">{business.name}</h1>
+            <span className="mt-1 shrink-0 text-xs">
+              <StatusLine tone={statusTone}>{business.status.replace(/_/g, " ").toLowerCase()}</StatusLine>
+            </span>
+          </div>
+
+          <div className="mt-4 flex aspect-[4/3] flex-col items-center justify-center rounded-2xl bg-accent-soft text-primary-ink">
+            <span className="font-display text-6xl font-bold">{business.name.charAt(0).toUpperCase()}</span>
+            <span className="mt-2 text-xs font-semibold">{business.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Chip label="City">{business.city}</Chip>
+            <Chip label="Category">{business.category}</Chip>
+            <Chip label="Score">{business.opportunityScore}/100</Chip>
+            {business.rating != null && (
+              <Chip label="Rating">
+                {business.rating.toFixed(1)} ★{business.reviewCount != null ? ` (${business.reviewCount})` : ""}
+              </Chip>
+            )}
+            {business.wonAt && (
+              <Chip className="bg-growth-soft text-growth-ink">
+                Won{business.dealValueCents ? ` · $${(business.dealValueCents / 100).toLocaleString()}` : ""}
+              </Chip>
+            )}
+          </div>
+
+          {business.campaign && (
+            <>
+              <p className="mt-4 text-xs font-semibold text-foreground">Campaign</p>
+              <div className="mt-2">
+                <Link href={`/admin/campaigns/${business.campaign.id}`}>
+                  <Chip className="hover:bg-border">{business.campaign.name}</Chip>
+                </Link>
+              </div>
+            </>
+          )}
+        </AdminCard>
+
+        {/* Main information */}
+        <AdminCard
+          title="Main Information"
+          icon={IconInfo}
+          subtitle={<StatusLine tone={statusTone}>Status in the pipeline: {business.status.replace(/_/g, " ").toLowerCase()}</StatusLine>}
+          action={<IconButton Icon={IconArrowUpRight} label="Open website" href={business.website} />}
+          flush
+        >
+          <div className="grid divide-y divide-border px-5 sm:grid-cols-2 sm:divide-y-0 sm:gap-x-8 [&>*]:border-border sm:[&>*:nth-child(n+3)]:border-t">
+            <InfoRow Icon={IconLink} label="Website">
+              <a href={business.website} target="_blank" rel="noopener noreferrer" className="truncate hover:text-primary-ink hover:underline">
+                {business.website.replace(/^https?:\/\//, "")}
+              </a>
+            </InfoRow>
+            <InfoRow Icon={IconPhoneWave} label="Phone">
+              {business.phone || "—"}
+            </InfoRow>
+            <InfoRow Icon={IconMapPin} label="Address">
+              {business.address || location}
+            </InfoRow>
+            <InfoRow
+              Icon={IconStar}
+              label="Google reviews"
+              aside={
+                business.googlePlaceId && (
+                  <a
+                    href={`https://www.google.com/maps/place/?q=place_id:${business.googlePlaceId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-primary-ink underline-offset-2 hover:underline"
+                  >
+                    Maps
+                  </a>
+                )
+              }
+            >
+              {business.rating != null ? `${business.rating.toFixed(1)} ★` : "—"}
+              {business.reviewCount != null && <span>· {business.reviewCount} reviews</span>}
+            </InfoRow>
+            <InfoRow Icon={IconFileText} label="Data source">
+              {sourceLabel}
+            </InfoRow>
+            <InfoRow Icon={IconGauge} label="Opportunity score">
+              <span className="font-semibold text-primary-ink">{business.opportunityScore}/100</span>
+            </InfoRow>
+            <InfoRow Icon={IconTarget} label="Acquired via">
+              {business.firstTouchSource || "direct"}
+              {business.firstTouchMedium ? ` / ${business.firstTouchMedium}` : ""}
+              {business.firstTouchCampaign ? ` · “${business.firstTouchCampaign}”` : ""}
+            </InfoRow>
+            <InfoRow Icon={IconClock} label="Discovered on">
+              {new Date(business.createdAt).toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })}
+              {business.lastCheckedAt && <span>· checked {new Date(business.lastCheckedAt).toLocaleDateString("en-CA")}</span>}
+            </InfoRow>
+          </div>
+        </AdminCard>
       </div>
+
+      {/* Automation pipeline — read only, reflects real state, nothing here is manually triggered */}
+      <AdminCard
+        title="Automation Pipeline"
+        icon={IconTrendingUp}
+        subtitle="Enrichment, audit, PDF and outreach run automatically once a practice is discovered."
+      >
+        <ol className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          {pipelineNodes.map((node, i) => (
+            <li key={node.label} className="flex items-start gap-3 rounded-2xl bg-surface-muted/70 p-3.5">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
+                  node.state === "done"
+                    ? "border-growth/40 bg-growth-soft text-growth-ink"
+                    : node.state === "blocked"
+                      ? "border-danger/30 bg-danger/10 text-danger"
+                      : "border-warning/30 bg-warning/10 text-warning"
+                }`}
+              >
+                {node.state === "done" ? <IconCheck className="h-4 w-4" /> : node.state === "blocked" ? "!" : i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">{node.label}</span>
+                <span className="block text-[11px] leading-snug text-muted-foreground">{node.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </AdminCard>
 
       {/* Personalized pitch — non-technical, ready to say on a call. Built from
           the same real findings as the audit, just translated out of raw scores. */}
       {narrative && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
-          <span className="text-metadata font-bold uppercase tracking-wider text-primary">Personalized Strategy For This Practice</span>
-          <h2 className="mt-1 text-heading-3 font-bold text-foreground">
-            {narrative.headline.line1} {narrative.headline.line2}
+        <AdminCard title="Personalized Strategy" icon={IconSparkle} subtitle="Talking points for this practice, from its audit">
+          <h2 className="font-display text-xl font-bold leading-snug tracking-[-0.01em] text-foreground">
+            {narrative.headline.line1} <span className="text-secondary-ink">{narrative.headline.line2}</span>
           </h2>
-          <p className="mt-2 text-body-small leading-relaxed text-foreground">{narrative.dek}</p>
+          <p className="mt-2 max-w-3xl font-copy text-sm leading-relaxed text-muted-foreground">{narrative.dek}</p>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {narrative.stats.map((s) => (
-              <div key={s.label} className="rounded-xl border border-border bg-surface p-3 text-center">
-                <span className="block text-heading-3 font-bold text-primary">{s.value}</span>
-                <span className="mt-0.5 block text-metadata font-semibold text-foreground">{s.label}</span>
-                <span className="block text-[10px] text-muted-foreground">{s.caption}</span>
+              <div key={s.label} className="rounded-2xl bg-surface-muted/70 p-4">
+                <span className="block font-display text-2xl font-bold text-foreground">{s.value}</span>
+                <span className="mt-1 block text-xs font-semibold text-foreground">{s.label}</span>
+                <span className="block text-[11px] text-muted-foreground">{s.caption}</span>
               </div>
             ))}
           </div>
 
           {narrative.fixCards.length > 0 && (
             <div className="mt-5">
-              <span className="text-metadata font-semibold uppercase tracking-wider text-muted-foreground">What to lead with</span>
-              <ul className="mt-2 space-y-2">
+              <p className="text-xs font-semibold text-foreground">What to lead with</p>
+              <ul className="mt-1 divide-y divide-border">
                 {narrative.fixCards.map((f, i) => (
-                  <li key={f.title} className="rounded-xl border border-border bg-surface p-3">
-                    <p className="text-body-small font-bold text-foreground">{i + 1}. {f.title}</p>
-                    <p className="mt-0.5 text-metadata text-muted-foreground">{f.detail}</p>
-                    <p className="mt-1 text-metadata font-bold text-primary">{f.impact}</p>
+                  <li key={f.title} className="flex items-start gap-4 py-3.5">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border font-display text-sm font-bold text-foreground">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{f.title}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{f.detail}</span>
+                    </span>
+                    <span className="hidden shrink-0 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-semibold text-primary-ink sm:block">
+                      {f.impact}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -484,95 +559,69 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
 
           {narrative.quietLeaks.length > 0 && (
             <div className="mt-4">
-              <span className="text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Also worth mentioning</span>
-              <ul className="mt-2 space-y-1.5">
+              <p className="text-xs font-semibold text-foreground">Also worth mentioning</p>
+              <div className="mt-2 flex flex-wrap gap-2">
                 {narrative.quietLeaks.map((q) => (
-                  <li key={q.title} className="text-body-small text-foreground">
-                    <span className="font-bold">{q.title}.</span> <span className="text-muted-foreground">{q.detail}</span>
-                  </li>
+                  <span key={q.title} title={q.detail} className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-foreground">
+                    {q.title}
+                  </span>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
-        </div>
+        </AdminCard>
       )}
 
       {/* Audit status & scores */}
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <h2 className="text-body font-bold text-foreground">Audit &amp; PDF Report Control</h2>
-          {latestAudit && (
-            <div className="flex items-center gap-2">
-              <a
-                href={`/audit/${latestAudit.publicToken}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-8 items-center rounded-full border border-border px-3 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
-              >
-                View Web Report
-              </a>
+      <AdminCard
+        title="Audit & PDF Report"
+        icon={IconClipboardCheck}
+        subtitle={
+          latestAudit ? (
+            <StatusLine tone={latestAudit.status === "COMPLETED" ? "good" : "warn"}>
+              Audit {latestAudit.status.toLowerCase()} · PDF {latestAudit.pdfStatus.replace(/_/g, " ").toLowerCase()}
+            </StatusLine>
+          ) : (
+            "No audit yet"
+          )
+        }
+        action={
+          latestAudit && (
+            <>
+              <IconButton Icon={IconArrowUpRight} label="View web report" href={`/audit/${latestAudit.publicToken}`} />
               <a
                 href={`/api/audit/${latestAudit.publicToken}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-8 items-center rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover"
+                className="inline-flex h-10 items-center rounded-full bg-background-dark px-4 text-xs font-semibold text-white transition-colors hover:bg-primary"
               >
                 Download PDF
               </a>
-            </div>
-          )}
-        </div>
-
+            </>
+          )
+        }
+      >
         {!latestAudit ? (
-          <div className="py-6 text-center text-body-small text-muted-foreground">
-            No audit has been run for this business yet. Click &quot;Run / Rerun Audit&quot; above to analyze practice performance.
-          </div>
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            No audit has been run for this practice yet. Use &quot;Run / Rerun Audit&quot; in the profile menu.
+          </p>
         ) : (
           <>
-            <div className="mt-4 flex flex-wrap items-center gap-6">
-              <div>
-                <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Overall Score</span>
-                <span className="text-heading-2 font-bold text-primary">{latestAudit.score}<span className="text-body-small font-normal text-muted-foreground">/100</span></span>
-              </div>
-              <div>
-                <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Audit Status</span>
-                <span className="text-body-small font-bold text-foreground">{latestAudit.status}</span>
-              </div>
-              <div>
-                <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">PDF Status</span>
-                <span className="text-body-small font-bold text-foreground">{latestAudit.pdfStatus}</span>
-              </div>
-              <div>
-                <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">Report Views</span>
-                <span className="text-body-small font-bold text-foreground">
-                  {latestAudit.viewCount} {latestAudit.lastViewedAt ? `(Last ${new Date(latestAudit.lastViewedAt).toLocaleDateString()})` : ""}
-                </span>
-              </div>
+            <div className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
+              <InfoRow Icon={IconGauge} label="Overall score">
+                <span className="font-display text-base font-bold text-primary-ink">{latestAudit.score}</span>/100
+              </InfoRow>
+              <InfoRow Icon={IconCheckCircle} label="Audit status">
+                {latestAudit.status.toLowerCase()}
+              </InfoRow>
+              <InfoRow Icon={IconFileText} label="PDF status">
+                {latestAudit.pdfStatus.replace(/_/g, " ").toLowerCase()}
+              </InfoRow>
+              <InfoRow Icon={IconMonitor} label="Report views">
+                {latestAudit.viewCount}
+                {latestAudit.lastViewedAt && <span>· last {new Date(latestAudit.lastViewedAt).toLocaleDateString("en-CA")}</span>}
+              </InfoRow>
             </div>
-
-            <details className="mt-5 border-t border-border pt-4">
-              <summary className="cursor-pointer text-metadata font-bold uppercase tracking-wider text-muted-foreground hover:text-primary">
-                Show raw audit data (category scores, verified facts, API sources)
-              </summary>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {latestAudit.results.map((r) => (
-                  <div key={r.category} className="rounded-xl border border-border bg-background p-3 text-center">
-                    <span className="block text-metadata text-muted-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
-                    <span className="mt-1 block font-bold text-primary">{r.score}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {latestAudit.results.map((r) => (
-                  <div key={r.category} className="rounded-xl border border-border bg-background p-3">
-                    <span className="block text-metadata font-bold text-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
-                    <code className="mt-1 block break-all text-[10px] text-muted-foreground">{JSON.stringify(r.findingsJson)}</code>
-                  </div>
-                ))}
-              </div>
-            </details>
 
             {(() => {
               const localResult = latestAudit.results.find((r) => r.category === "LOCAL_VISIBILITY");
@@ -580,110 +629,121 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
               const ownRank = localResult?.findingsJson?.ownRank as number | null | undefined;
               if (!localResult) return null;
               return (
-                <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
-                  <div>
-                    <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
-                      Google Local Pack Position (from last audit)
-                    </span>
-                    <p className="mt-1 text-body-small text-foreground">
-                      {verified
-                        ? ownRank != null
-                          ? `Ranked #${ownRank} in ${business.city}`
-                          : `Checked — did not appear in the top local results for ${business.city}`
-                        : `Not verified against a live lookup at audit time — score is an estimate.`}
-                    </p>
-                  </div>
+                <div className="grid gap-x-8 border-t border-border sm:grid-cols-2">
+                  <InfoRow Icon={IconMapPin} label="Google Local Pack position">
+                    {verified
+                      ? ownRank != null
+                        ? `Ranked #${ownRank} in ${business.city}`
+                        : `Checked — not in the top local results for ${business.city}`
+                      : "Not verified against a live lookup — score is an estimate"}
+                  </InfoRow>
                   {latestAudit.competitorGaps.length > 0 && (
-                    <div>
-                      <span className="block text-metadata font-semibold uppercase tracking-wider text-muted-foreground">
-                        Competitors Outranking Them
-                      </span>
-                      <ul className="mt-1 space-y-1">
-                        {latestAudit.competitorGaps.map((c) => (
-                          <li key={c.name} className="text-body-small text-foreground">
-                            #{c.rank} {c.name}{c.mapScore != null ? ` — ${c.mapScore}★` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <InfoRow Icon={IconUsers} label="Competitors outranking them">
+                      {latestAudit.competitorGaps.map((c) => (
+                        <Chip key={c.name}>
+                          #{c.rank} {c.name}
+                          {c.mapScore != null ? ` · ${c.mapScore}★` : ""}
+                        </Chip>
+                      ))}
+                    </InfoRow>
                   )}
                 </div>
               );
             })()}
+
+            <details className="mt-3 border-t border-border pt-4">
+              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
+                Show raw audit data (category scores, verified facts, API sources)
+              </summary>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {latestAudit.results.map((r) => (
+                  <Chip key={r.category} label={CATEGORY_LABELS[r.category] || r.category}>
+                    {r.score}
+                  </Chip>
+                ))}
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {latestAudit.results.map((r) => (
+                  <div key={r.category} className="rounded-2xl bg-surface-muted/70 p-3">
+                    <span className="block text-xs font-semibold text-foreground">{CATEGORY_LABELS[r.category] || r.category}</span>
+                    <code className="mt-1 block break-all text-[10px] text-muted-foreground">{JSON.stringify(r.findingsJson)}</code>
+                  </div>
+                ))}
+              </div>
+            </details>
           </>
         )}
-      </div>
+      </AdminCard>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         {/* Contacts */}
-        <div className="rounded-2xl border border-border bg-surface p-6">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <h2 className="text-body font-bold text-foreground">Decision Maker Contacts</h2>
-            <button
-              onClick={() => setShowContactModal(true)}
-              className="text-metadata font-bold text-primary hover:underline"
-            >
-              + Add Contact
-            </button>
-          </div>
+        <AdminCard
+          title="Decision Makers"
+          icon={IconUser}
+          count={business.contacts.length}
+          action={<IconButton Icon={IconPlus} label="Add contact" onClick={() => setShowContactModal(true)} />}
+        >
           {business.contacts.length === 0 ? (
-            <p className="mt-4 text-body-small text-muted-foreground">No decision maker contact captured yet.</p>
+            <p className="text-sm text-muted-foreground">No decision maker contact captured yet.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-border">
+            <div className="-my-3.5 divide-y divide-border">
               {business.contacts.map((c) => {
                 const sourceInfo = CONTACT_SOURCE_LABELS[c.source] || CONTACT_SOURCE_LABELS.MANUAL;
                 return (
-                <li key={c.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="font-semibold text-foreground">{c.firstName} {c.lastName}</p>
-                    <p className="text-metadata text-muted-foreground">{c.role || "Principal Dentist"} • {c.email}</p>
-                    {c.phone && <p className="text-metadata text-muted-foreground">{c.phone}</p>}
-                  </div>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sourceInfo.classes}`}>
-                    {sourceInfo.label}
-                  </span>
-                </li>
+                  <InfoRow
+                    key={c.id}
+                    Icon={IconUser}
+                    label={`${c.firstName} ${c.lastName}`}
+                    aside={<span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${sourceInfo.classes}`}>{sourceInfo.label}</span>}
+                  >
+                    <span>{c.role || "Principal Dentist"}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconMail className="h-3.5 w-3.5" />
+                      {c.email}
+                    </span>
+                    {c.phone && <span>· {c.phone}</span>}
+                  </InfoRow>
                 );
               })}
-            </ul>
+            </div>
           )}
-        </div>
+        </AdminCard>
 
         {/* Meetings */}
-        <div className="rounded-2xl border border-border bg-surface p-6">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <h2 className="text-body font-bold text-foreground">Consultations &amp; Visits</h2>
-            <Link href="/admin/meetings" className="text-metadata font-bold text-primary hover:underline">
-              Manage Meetings &rarr;
-            </Link>
-          </div>
+        <AdminCard
+          title="Consultations & Visits"
+          icon={IconCalendarCheck}
+          count={business.appointments.length}
+          action={<IconButton Icon={IconArrowUpRight} label="Manage meetings" href="/admin/meetings" />}
+        >
           {business.appointments.length === 0 ? (
-            <p className="mt-4 text-body-small text-muted-foreground">No meetings requested yet.</p>
+            <p className="text-sm text-muted-foreground">No meetings requested yet.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-border">
+            <div className="-my-3.5 divide-y divide-border">
               {business.appointments.map((a) => (
-                <li key={a.id} className="py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{a.type.replace("_", " ")}</span>
-                    <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
-                      {a.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-metadata text-muted-foreground">
-                    {a.type === "ONLINE" ? new Date(a.scheduledTime).toLocaleString() : a.address || a.preferredWindow || "Pending details"}
-                  </p>
-                </li>
+                <InfoRow
+                  key={a.id}
+                  Icon={a.type === "ONLINE" ? IconMonitor : IconMapPin}
+                  label={a.type === "ONLINE" ? "Video consultation" : "In-person visit"}
+                  aside={<Chip>{a.status.toLowerCase()}</Chip>}
+                >
+                  {a.type === "ONLINE" ? new Date(a.scheduledTime).toLocaleString("en-CA") : a.address || a.preferredWindow || "Pending details"}
+                </InfoRow>
               ))}
-            </ul>
+            </div>
           )}
-        </div>
+        </AdminCard>
       </div>
+
+      <LeadEmails businessId={business.id} contacts={business.contacts} onSent={fetchDetail} />
 
       {/* Manual Contact Add Modal */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-xl">
-            <h3 className="text-heading-3 font-bold text-foreground">Add Decision Maker Contact</h3>
+          <div className="admin-card w-full max-w-md p-6 shadow-xl">
+            <h3 className="font-display text-xl font-bold text-foreground">Add Decision Maker Contact</h3>
             <form onSubmit={handleAddContact} className="mt-4 space-y-4">
               <div>
                 <label className="block text-metadata font-semibold text-muted-foreground">First Name</label>
@@ -692,7 +752,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                   required
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-body-small text-foreground"
+                  className="mt-1 h-10 w-full rounded-full border border-border bg-input px-4 text-body-small text-foreground"
                 />
               </div>
               <div>
@@ -702,7 +762,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-body-small text-foreground"
+                  className="mt-1 h-10 w-full rounded-full border border-border bg-input px-4 text-body-small text-foreground"
                 />
               </div>
               <div>
@@ -712,7 +772,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-body-small text-foreground"
+                  className="mt-1 h-10 w-full rounded-full border border-border bg-input px-4 text-body-small text-foreground"
                 />
               </div>
               <div>
@@ -720,7 +780,7 @@ export default function AdminBusinessDetailPage({ params }: { params: Promise<{ 
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-body-small text-foreground"
+                  className="mt-1 h-10 w-full rounded-full border border-border bg-input px-4 text-body-small text-foreground"
                 >
                   <option value="Principal Dentist">Principal Dentist</option>
                   <option value="Practice Owner">Practice Owner</option>

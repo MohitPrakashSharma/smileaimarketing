@@ -132,20 +132,21 @@ export default async function ServiceDetailPage({
           </div>
         </div>
 
-        {/* Benefits at a glance */}
+        {/* Benefits at a glance — cards rather than a divided strip, so this band
+            reads like the rest of the site. */}
         <div className="border-b border-border-subtle bg-background">
-          <div className="container-site">
-            <ul className="grid divide-y divide-border-subtle sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x">
+          <div className="container-site py-10 sm:py-12">
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {service.benefits.map((b, i) => (
-                <li key={b} className={`flex items-start gap-3 py-4 text-body-small text-foreground ${i > 0 ? "lg:pl-6" : ""} ${i < service.benefits.length - 1 ? "lg:pr-6" : ""}`}>
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-primary-ink">
-                    <IconCheck className="h-3 w-3" />
+                <li key={b} className="card-teal flex flex-col p-5">
+                  <span className="font-display text-[0.8125rem] font-bold tracking-[0.08em] text-secondary-ink">
+                    {String(i + 1).padStart(2, "0")}
                   </span>
-                  <span>{b}</span>
+                  <span className="mt-3 text-body-small text-foreground">{b}</span>
                 </li>
               ))}
             </ul>
-            <p className="pb-4 text-metadata">Practical outcomes of the work — not guarantees of rankings, patient numbers or revenue.</p>
+            <p className="mt-5 text-metadata">Practical outcomes of the work — not guarantees of rankings, patient numbers or revenue.</p>
           </div>
         </div>
 

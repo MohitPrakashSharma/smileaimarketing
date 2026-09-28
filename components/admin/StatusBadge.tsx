@@ -41,23 +41,23 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
   if (
     ["CONVERTED", "WON", "VERIFIED", "SENT", "COMPLETED", "CONNECTED", "ACTIVE", "RUNNING"].includes(normalized)
   ) {
-    colorClasses = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
-    dotColor = "bg-emerald-400";
+    colorClasses = "bg-growth/10 border-growth/30 text-growth-ink";
+    dotColor = "bg-growth";
   } else if (
     ["DISCOVERED", "REQUESTED", "AUDITED", "SCHEDULED", "PAUSED", "AWAITING_APPROVAL", "MEETING_REQUESTED", "PENDING"].includes(normalized)
   ) {
-    colorClasses = "bg-amber-500/10 border-amber-500/30 text-amber-400";
-    dotColor = "bg-amber-400";
+    colorClasses = "bg-warning/10 border-warning/30 text-warning";
+    dotColor = "bg-warning";
   } else if (
     ["DRAFT", "ENGAGED", "CONTACTED", "IN_PROGRESS", "MEETING_CONFIRMED"].includes(normalized)
   ) {
-    colorClasses = "bg-sky-500/10 border-sky-500/30 text-sky-400";
-    dotColor = "bg-sky-400";
+    colorClasses = "bg-secondary/10 border-secondary/30 text-secondary-ink";
+    dotColor = "bg-secondary";
   } else if (
     ["FAILED", "REJECTED", "LOST", "CANCELLED", "BOUNCED", "ERROR", "DISCONNECTED"].includes(normalized)
   ) {
-    colorClasses = "bg-rose-500/10 border-rose-500/30 text-rose-400";
-    dotColor = "bg-rose-400";
+    colorClasses = "bg-danger/10 border-danger/30 text-danger";
+    dotColor = "bg-danger";
   }
 
   const label = status.replace(/_/g, " ");

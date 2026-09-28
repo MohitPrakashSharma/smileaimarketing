@@ -15,18 +15,19 @@ const CONTACT_EMAIL = CONTACT.email;
 const CONTACT_PHONE = CONTACT.phone;
 const CONTACT_ADDRESS = CONTACT.address;
 
+/** Homepage sections, reached by anchor. */
 const SECTION_LINKS = [
   { href: "#seo-audit", label: "Free Website Audit" },
   { href: "#services", label: "What We Do" },
-  { href: "#how-it-works", label: "How It Works" },
   { href: "#faq", label: "FAQ" },
 ];
 
+/** Mirrors the header's top level, so both read in the same order. */
 const PAGE_LINKS = [
   { href: "/about", label: "About" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/case-studies", label: "Case Studies" },
-  { href: "/services", label: "All Services" },
-  { href: "/book-consultation", label: "Book a Consultation" },
+  { href: "/book-consultation", label: "Contact" },
 ];
 
 const LEGAL_LINKS = [
@@ -205,7 +206,7 @@ export default function Footer() {
             <AuditBanner />
           </div>
 
-        <div className="grid gap-8 py-10 sm:grid-cols-2 sm:py-12 lg:grid-cols-[1.4fr_2fr_1fr_1fr_1.2fr] lg:gap-8 lg:pt-14">
+        <div className="grid gap-8 py-10 sm:grid-cols-2 sm:py-12 lg:grid-cols-[1.2fr_2.4fr_1fr_1fr_1.15fr] lg:gap-8 lg:pt-14">
           <div>
             <Wordmark full className="!text-[1.5rem]" />
             <p className="mt-4 max-w-xs text-body-small text-muted-foreground">
@@ -216,20 +217,24 @@ export default function Footer() {
 
           <nav aria-label="Footer services" className="sm:col-span-2 lg:col-span-1">
             <p className={headingClass}>Services</p>
-            {/* Eight services in two columns of four (first four left, last four right) */}
-            <div className="mt-3 grid grid-cols-2 gap-x-6">
-              {[SERVICES.slice(0, 4), SERVICES.slice(4)].map((half, i) => (
-                <ul key={i} className="space-y-2">
-                  {half.map((s) => (
-                    <li key={s.slug}>
-                      <Link href={`/services/${s.slug}`} className={linkClass}>
-                        {s.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+            {/* One list, two columns while this block spans the full width on
+                small screens and a single column from lg. Splitting the lg
+                column in two left titles like "Dental Website Design &
+                Development" wrapping to four lines. */}
+            <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 lg:grid-cols-1">
+              {SERVICES.map((s) => (
+                <li key={s.slug}>
+                  <Link href={`/services/${s.slug}`} className={linkClass}>
+                    {s.title}
+                  </Link>
+                </li>
               ))}
-            </div>
+              <li className="pt-1">
+                <Link href="/services" className={`${linkClass} font-semibold !text-primary-ink`}>
+                  All services
+                </Link>
+              </li>
+            </ul>
           </nav>
 
           <nav aria-label="Footer company">
@@ -245,8 +250,8 @@ export default function Footer() {
             </ul>
           </nav>
 
-          <nav aria-label="Footer sections">
-            <p className={headingClass}>On this site</p>
+          <nav aria-label="Footer explore">
+            <p className={headingClass}>Explore</p>
             <ul className="mt-3 space-y-2">
               {SECTION_LINKS.map((link) => (
                 <li key={link.href}>

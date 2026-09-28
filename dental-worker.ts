@@ -259,7 +259,8 @@ const outreachWorker = new Worker(
       },
     });
 
-    if (!message) return;
+    // One-off emails (no step) are sent directly from the lead page, never queued here.
+    if (!message?.step) return;
 
     const business = message.contact.business;
     const audit = business.audits[0];

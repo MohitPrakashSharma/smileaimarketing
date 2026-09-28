@@ -116,7 +116,7 @@ export default function IntegrationsPage() {
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Integrations</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Integrations</h1>
           <p className="text-body-small text-muted-foreground">
             Monitor background services, database connectivity, and external data provider health.
           </p>

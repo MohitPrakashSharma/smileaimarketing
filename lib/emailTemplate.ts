@@ -14,7 +14,7 @@ export interface EmailMergeFields {
 }
 
 /** Replaces {{tag}}, {{ tag }}, {{Tag}} etc. — tolerant of spacing/case admins actually type. */
-function applyMergeTags(template: string, fields: EmailMergeFields): string {
+export function applyMergeTags(template: string, fields: EmailMergeFields): string {
   const map: Record<string, string> = {
     contactname: fields.contactName,
     clinicname: fields.clinicName,
@@ -142,4 +142,35 @@ export function renderOutreachEmail(params: RenderOutreachEmailParams): Rendered
   }\n\nBook a 15-minute video review or request an in-person visit here: ${params.reportUrl}\n\nUnsubscribe: ${params.unsubscribeUrl}`;
 
   return { subject, html, text };
+}
+
+/** Paragraphs with bare URLs turned into links, so click tracking can see them. */
+function textToLinkedParagraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((block) => {
+      const linked = escapeHtml(block)
+        .replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g, (url) => `<a href="${url}" style="color:#0E8F82;">${url}</a>`)
+        .replace(/\n/g, "<br />");
+      return `<p style="margin:0 0 16px;">${linked}</p>`;
+    })
+    .join("");
+}
+
+/**
+ * A one-off email written on a lead's page. Deliberately plain — it should read
+ * like a note from a person, not a newsletter — but it still carries the sender
+ * identity and unsubscribe link commercial email needs (CASL / CAN-SPAM).
+ */
+export function renderLeadEmail(params: { bodyText: string; unsubscribeUrl: string }): { html: string; text: string } {
+  const muted = "#61727A";
+  const html = `
+<div style="font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; color:#0B2430; max-width:600px;">
+  ${textToLinkedParagraphs(params.bodyText)}
+  <p style="margin:32px 0 0; padding-top:12px; border-top:1px solid #DCE8E5; font-size:11px; color:${muted};">
+    Smile AI Marketing &middot; <a href="${params.unsubscribeUrl}" style="color:${muted};">Unsubscribe</a>
+  </p>
+</div>`.trim();
+  const text = `${params.bodyText}\n\n--\nSmile AI Marketing\nUnsubscribe: ${params.unsubscribeUrl}`;
+  return { html, text };
 }

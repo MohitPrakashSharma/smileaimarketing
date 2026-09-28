@@ -137,7 +137,7 @@ function CampaignWizard({ onCreated }: { onCreated: () => void }) {
   };
 
   return (
-    <div className="h-fit rounded-xl border border-border bg-surface p-5 shadow-xs">
+    <div className="h-fit admin-card p-5">
       <h2 className="text-sm font-bold text-foreground">New Outbound Campaign</h2>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Target market, lead criteria, audit scope, and daily limits.
@@ -363,7 +363,7 @@ export default function AdminCampaignsPage() {
       return (
         <Link
           href={`/admin/campaigns/${c.id}`}
-          className="inline-flex h-8 items-center rounded-lg bg-rose-500/10 px-3 text-xs font-bold text-rose-400 hover:bg-rose-500/20"
+          className="inline-flex h-8 items-center rounded-lg bg-danger/10 px-3 text-xs font-bold text-danger hover:bg-danger/20"
         >
           Retry
         </Link>
@@ -373,7 +373,7 @@ export default function AdminCampaignsPage() {
       return (
         <Link
           href={`/admin/campaigns/${c.id}`}
-          className="inline-flex h-8 items-center rounded-lg bg-emerald-500/10 px-3 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+          className="inline-flex h-8 items-center rounded-lg bg-growth/10 px-3 text-xs font-bold text-growth-ink hover:bg-growth/20"
         >
           View Results
         </Link>
@@ -394,7 +394,7 @@ export default function AdminCampaignsPage() {
       {/* Campaigns list */}
       <div className="space-y-4">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Campaigns</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Campaigns</h1>
           <p className="text-body-small text-muted-foreground">Manage active practice discovery and outreach campaigns.</p>
         </div>
 
@@ -408,7 +408,7 @@ export default function AdminCampaignsPage() {
               const converted = c.businesses?.filter((b) => b.status === "CONVERTED").length || 0;
 
               return (
-                <div key={c.id} className="rounded-xl border border-border bg-surface p-4 shadow-xs space-y-3">
+                <div key={c.id} className="admin-card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <Link href={`/admin/campaigns/${c.id}`} className="truncate font-bold text-foreground text-sm hover:text-primary block">
@@ -432,7 +432,7 @@ export default function AdminCampaignsPage() {
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-muted-foreground">Converted</span>
-                      <span className="block font-extrabold text-emerald-400 mt-0.5">{converted}</span>
+                      <span className="block font-extrabold text-growth-ink mt-0.5">{converted}</span>
                     </div>
                   </div>
 

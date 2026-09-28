@@ -19,7 +19,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="max-w-xl space-y-6">
       <div>
-        <h1 className="text-heading-2 font-semibold text-foreground">Settings</h1>
+        <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Settings</h1>
         <p className="mt-1 text-body-small text-muted-foreground">
           Configure background workers, email delivery, and compliance parameters.
         </p>
@@ -31,7 +31,7 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-border bg-surface p-6">
+      <form onSubmit={handleSave} className="space-y-5 admin-card p-6">
         <FormField id="scraper-delay" label="Crawler Delay (ms)" required optionalLabel={false} hint="Throttle delay between requests to avoid rate limits.">
           <Input
             id="scraper-delay"

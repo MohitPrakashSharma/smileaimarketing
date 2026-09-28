@@ -23,7 +23,7 @@ export function EmptyState({
         compact ? "min-h-[110px] py-4" : "min-h-[160px] py-8"
       }`}
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-growth/10 text-growth-ink">
         <IconCheck className="h-4 w-4" />
       </div>
       <p className="mt-2 text-xs font-semibold text-foreground">{title}</p>

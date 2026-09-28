@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Button from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ActionMenu } from "@/components/admin/ActionMenu";
 
@@ -96,7 +95,7 @@ export default function AdminAutomationsPage() {
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground sm:text-[32px]">Automations</h1>
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.02em] text-foreground sm:text-[32px]">Automations</h1>
           <p className="text-body-small text-muted-foreground">
             Manage automated discovery, audit generation, PDF rendering, and outreach workflows.
           </p>
@@ -110,7 +109,7 @@ export default function AdminAutomationsPage() {
       )}
 
       {/* Workflows Table Container */}
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
+      <div className="overflow-hidden admin-card">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -136,9 +135,9 @@ export default function AdminAutomationsPage() {
                   <td className="px-4 py-3 text-center text-muted-foreground">{wf.lastRun}</td>
                   <td className="px-4 py-3 text-center text-muted-foreground">{wf.nextRun}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className="font-bold text-emerald-400">{wf.successCount}</span>
+                    <span className="font-bold text-growth-ink">{wf.successCount}</span>
                     <span className="text-muted-foreground"> / </span>
-                    <span className="font-bold text-rose-400">{wf.failedCount}</span>
+                    <span className="font-bold text-danger">{wf.failedCount}</span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -170,7 +169,7 @@ export default function AdminAutomationsPage() {
       </div>
 
       {/* Global Autopilot Configuration Box */}
-      <div className="rounded-xl border border-border bg-surface p-4 shadow-xs space-y-3">
+      <div className="admin-card p-4 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Global Autopilot Policies</h2>
 
         <div className="grid gap-3 sm:grid-cols-2">

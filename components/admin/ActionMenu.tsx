@@ -17,18 +17,43 @@ interface ActionMenuProps {
 }
 
 export function ActionMenu({ items, align = "right", ariaLabel = "Actions" }: ActionMenuProps) {
-  const [open, setOpen] = useState(false);
+  // Positioned with viewport coordinates (`fixed`) so a scrolling table or card can't clip it;
+  // it opens upward when there isn't room below the button.
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left?: number; right?: number } | null>(null);
+  const open = pos !== null;
+  const setOpen = (next: boolean) => {
+    if (!next) return setPos(null);
+    const r = menuRef.current?.querySelector("button")?.getBoundingClientRect();
+    if (!r) return;
+    const menuHeight = items.length * 38 + 12;
+    const flip = r.bottom + 4 + menuHeight > window.innerHeight && r.top - 4 - menuHeight > 0;
+    setPos({
+      ...(flip ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }),
+      ...(align === "right" ? { right: window.innerWidth - r.right } : { left: r.left }),
+    });
+  };
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setPos(null);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        setPos(null);
       }
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setOpen(false);
+        setPos(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -44,7 +69,7 @@ export function ActionMenu({ items, align = "right", ariaLabel = "Actions" }: Ac
   return (
     <div className="relative inline-block" ref={menuRef}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="true"
@@ -54,17 +79,13 @@ export function ActionMenu({ items, align = "right", ariaLabel = "Actions" }: Ac
       </button>
 
       {open && (
-        <div
-          className={`animate-fade-in-down absolute top-9 z-40 w-44 rounded-xl border border-border bg-surface p-1 shadow-xl space-y-0.5 ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
-        >
+        <div style={pos} className="animate-fade-in-down fixed z-50 w-44 space-y-0.5 rounded-xl border border-border bg-surface p-1 shadow-xl">
           {items.map((item, index) => {
             let textColor = "text-foreground hover:bg-surface-muted";
             if (item.variant === "danger") {
-              textColor = "text-rose-400 hover:bg-rose-500/10";
+              textColor = "text-danger hover:bg-danger/10";
             } else if (item.variant === "success") {
-              textColor = "text-emerald-400 hover:bg-emerald-500/10";
+              textColor = "text-growth-ink hover:bg-growth/10";
             } else if (item.variant === "muted") {
               textColor = "text-muted-foreground hover:bg-surface-muted hover:text-foreground";
             }

@@ -5,6 +5,12 @@
 export const TARGET_CITY = "Toronto";
 export const TARGET_PROVINCE = "Ontario";
 export const TARGET_COUNTRY = "Canada";
+/**
+ * How we describe where we work from in body copy. The practice address in
+ * `CONTACT` is in Brampton, so copy says the region rather than naming Toronto
+ * as the base — the two would otherwise contradict each other on the page.
+ */
+export const TARGET_REGION = "Brampton and the Greater Toronto Area";
 
 /**
  * Social profiles shown in the footer. Fill in the real profile URLs; while an
