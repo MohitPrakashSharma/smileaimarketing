@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+// Clinic pages anyone can open: sign-in and invite acceptance.
+const CLINIC_PUBLIC = ["/clinic/login", "/clinic/accept-invite"];
+
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Protect all /admin routes except the login screen itself
@@ -13,9 +16,16 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Dentist panel — its own cookie; the superadmin session doesn't grant access.
+  if (pathname.startsWith("/clinic") && !CLINIC_PUBLIC.includes(pathname)) {
+    if (!request.cookies.get("clinic_session")?.value) {
+      return NextResponse.redirect(new URL("/clinic/login", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/clinic/:path*"],
 };

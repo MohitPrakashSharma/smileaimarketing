@@ -16,6 +16,9 @@ import { initiateAutomaticOutreach } from "./lib/outreach";
 import { env } from "./lib/env.server";
 import { runAudit, type RunAuditOptions } from "./lib/audit/engine";
 import { runCompetitorIntel, COMPETITOR_JOB } from "./lib/audit/competitors/stage";
+import { publishPost } from "./lib/social/service";
+import { syncMetrics, SOCIAL_METRICS_JOB } from "./lib/social/metrics";
+import { socialQueue } from "./lib/queue";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -310,6 +313,26 @@ const outreachWorker = new Worker(
   { connection, concurrency: 2 }
 );
 
+// 5. SOCIAL WORKER — publishes dentist-panel posts at their scheduled time.
+const socialWorker = new Worker(
+  "social-queue",
+  async (job: Job) => {
+    if (job.name === SOCIAL_METRICS_JOB) {
+      const r = await syncMetrics();
+      console.log(`[Social Worker] Metrics sync: ${r.updated}/${r.checked} live posts updated`);
+      return;
+    }
+    const post = await publishPost(job.data.postId);
+    console.log(`[Social Worker] Post ${job.data.postId}: ${post ? post.status : "skipped (missing or cancelled)"}`);
+  },
+  { connection, concurrency: 2 }
+);
+
+// Real engagement for live posts, every 3 hours (one repeatable job, however often the worker restarts).
+socialQueue
+  .upsertJobScheduler("social-metrics-every-3h", { every: 3 * 60 * 60 * 1000 }, { name: SOCIAL_METRICS_JOB })
+  .catch((err) => console.error("[Social Worker] Couldn't schedule metrics sync:", err));
+
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("[Smile AI Worker] Shutting down daemon gracefully...");
@@ -318,6 +341,7 @@ process.on("SIGTERM", async () => {
   await analysisWorker.close();
   await pdfWorker.close();
   await outreachWorker.close();
+  await socialWorker.close();
   await prisma.$disconnect();
   process.exit(0);
 });

@@ -7,6 +7,7 @@ import { Wordmark } from "@/components/Wordmark";
 import {
   IconGrid,
   IconStorefront,
+  IconUsers,
   IconTarget,
   IconChat,
   IconCalendarCheck,
@@ -41,6 +42,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { label: "Overview", path: "/admin", Icon: IconGrid },
       { label: "Campaigns", path: "/admin/campaigns", Icon: IconTarget },
       { label: "Leads", path: "/admin/businesses", Icon: IconStorefront },
+      { label: "Clinics", path: "/admin/clinics", Icon: IconUsers },
       { label: "Outreach", path: "/admin/outreach", Icon: IconChat },
       {
         label: "Meetings",

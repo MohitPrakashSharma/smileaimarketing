@@ -381,3 +381,39 @@ export function IconCursorClick({ className }: IconProps) {
     </Svg>
   );
 }
+
+export function IconBox({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" />
+      <path d="M3 8l9 5 9-5M12 13v8" />
+    </Svg>
+  );
+}
+
+export function IconReceipt({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </Svg>
+  );
+}
+
+export function IconMegaphone({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M3 11v3a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1z" />
+      <path d="M15 9a4 4 0 010 6M18 6a8 8 0 010 12" />
+    </Svg>
+  );
+}
+
+export function IconSend({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M21 3L10 14" />
+      <path d="M21 3l-7 18-4-7-7-4 18-7z" />
+    </Svg>
+  );
+}

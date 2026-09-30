@@ -706,3 +706,347 @@ model GoogleCalendarToken {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dentist panel (/clinic). Clinics are our customers; everything below is
+// scoped by clinicId and is completely separate from the superadmin User table.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ClinicRole {
+  OWNER // everything, including team and clinic settings
+  MANAGER // everything except team management
+  STAFF // patients, inventory, social media — no accounting
+}
+
+model Clinic {
+  id       String  @id @default(uuid())
+  name     String
+  email    String?
+  phone    String?
+  address  String?
+  city     String?
+  province String?
+  country  String  @default("CA")
+  website  String?
+  currency String  @default("CAD")
+
+  // Sales tax applied to taxable invoice lines, in basis points (1300 = 13%).
+  taxRateBps        Int    @default(1300)
+  taxLabel          String @default("HST")
+  invoicePrefix     String @default("INV")
+  nextInvoiceNumber Int    @default(1)
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              ClinicUser[]
+  patients           Patient[]
+  inventoryItems     InventoryItem[]
+  inventoryMovements InventoryMovement[]
+  invoices           Invoice[]
+  ledgerEntries      LedgerEntry[]
+  socialAccounts     SocialAccount[]
+  socialPosts        SocialPost[]
+  socialMedia        SocialMedia[]
+}
+
+model ClinicUser {
+  id           String     @id @default(uuid())
+  clinicId     String
+  clinic       Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  email        String     @unique
+  name         String
+  role         ClinicRole @default(STAFF)
+  passwordHash String? // null until the invite is accepted
+  active       Boolean    @default(true)
+
+  inviteToken     String?   @unique
+  inviteExpiresAt DateTime?
+  invitedAt       DateTime?
+  acceptedAt      DateTime?
+  lastLoginAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventoryMovements InventoryMovement[]
+  invoices           Invoice[]
+  ledgerEntries      LedgerEntry[]
+  socialPosts        SocialPost[]
+
+  @@index([clinicId])
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// Basic contact list only — no charting, treatment or medical history.
+model Patient {
+  id          String        @id @default(uuid())
+  clinicId    String
+  clinic      Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  dateOfBirth DateTime?
+  address     String?
+  notes       String?
+  tags        String[]      @default([])
+  status      PatientStatus @default(ACTIVE)
+  lastVisitAt DateTime?
+  nextVisitAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  invoices Invoice[]
+
+  @@index([clinicId, lastName])
+}
+
+model InventoryItem {
+  id            String   @id @default(uuid())
+  clinicId      String
+  clinic        Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  name          String
+  sku           String?
+  category      String?
+  unit          String   @default("unit") // box, pack, bottle…
+  quantity      Int      @default(0)
+  reorderLevel  Int      @default(0)
+  unitCostCents Int?
+  supplier      String?
+  location      String?
+  notes         String?
+  archived      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  movements InventoryMovement[]
+
+  @@index([clinicId, archived])
+}
+
+enum InventoryMovementType {
+  RECEIVED // stock in
+  USED // stock out
+  ADJUSTMENT // count correction (can be +/-)
+}
+
+model InventoryMovement {
+  id            String                @id @default(uuid())
+  clinicId      String
+  clinic        Clinic                @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type          InventoryMovementType
+  change        Int // signed
+  quantityAfter Int
+  note          String?
+  createdById   String?
+  createdBy     ClinicUser?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime              @default(now())
+
+  @@index([itemId, createdAt])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  clinicId      String
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  number        String
+  patientId     String?
+  patient       Patient?      @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  // Snapshot of who was billed, so the invoice survives patient edits/deletes.
+  billToName    String
+  billToEmail   String?
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  taxRateBps    Int
+  taxLabel      String
+  subtotalCents Int           @default(0)
+  taxCents      Int           @default(0)
+  totalCents    Int           @default(0)
+  notes         String?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  paymentMethod String?
+  createdById   String?
+  createdBy     ClinicUser?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lines       InvoiceLine[]
+  ledgerEntry LedgerEntry?
+
+  @@unique([clinicId, number])
+  @@index([clinicId, status])
+}
+
+model InvoiceLine {
+  id             String  @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Int     @default(1)
+  unitPriceCents Int
+  taxable        Boolean @default(true)
+  position       Int     @default(0)
+}
+
+enum LedgerType {
+  INCOME
+  EXPENSE
+}
+
+model LedgerEntry {
+  id           String      @id @default(uuid())
+  clinicId     String
+  clinic       Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  type         LedgerType
+  category     String
+  description  String?
+  counterparty String? // vendor for expenses, payer for income
+  amountCents  Int // total including tax
+  taxCents     Int         @default(0)
+  date         DateTime
+  // Set when the entry was created by marking an invoice paid.
+  invoiceId    String?     @unique
+  invoice      Invoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    ClinicUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([clinicId, date])
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  LINKEDIN
+}
+
+// One per clinic per platform. Without a token the clinic has only recorded
+// its handle (test mode); with one, posts to that platform go out for real.
+model SocialAccount {
+  id          String         @id @default(uuid())
+  clinicId    String
+  clinic      Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  platform    SocialPlatform
+  handle      String // display name: Page name, @username…
+  connectedAt DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Live connection (OAuth). The token is AES-256-GCM encrypted (lib/social/secrets.ts).
+  externalId     String? // Facebook Page id, Instagram business account id…
+  accessTokenEnc String?
+  tokenExpiresAt DateTime? // null = doesn't expire (Facebook Page tokens)
+  connectedById  String?
+  lastError      String? // set when the platform rejects the token; the clinic must reconnect
+  lastErrorAt    DateTime?
+
+  @@unique([clinicId, platform])
+}
+
+enum SocialPostStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  PARTIAL // some platforms failed
+  FAILED
+  CANCELLED
+}
+
+model SocialPost {
+  id           String           @id @default(uuid())
+  clinicId     String
+  clinic       Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  topic        String
+  request      String? // what the user asked the agent for
+  caption      String
+  hashtags     String[]         @default([])
+  status       SocialPostStatus @default(SCHEDULED)
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  // The post's image (one per post for now; same image on every platform).
+  mediaId      String?
+  media        SocialMedia?     @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    ClinicUser?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  targets SocialPostTarget[]
+
+  @@index([clinicId, createdAt])
+}
+
+enum SocialTargetStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model SocialPostTarget {
+  id          String             @id @default(uuid())
+  postId      String
+  post        SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform    SocialPlatform
+  caption     String // platform-tailored copy
+  status      SocialTargetStatus @default(PENDING)
+  mode        String             @default("test") // "test" (simulated) | "live"
+  externalId  String?
+  externalUrl String?
+  publishedAt DateTime?
+  error       String?
+
+  // Engagement — only ever filled from the platform's API, never estimated.
+  impressions      Int?
+  likes            Int?
+  comments         Int?
+  shares           Int?
+  clicks           Int?
+  metricsUpdatedAt DateTime?
+
+  @@unique([postId, platform])
+}
+
+enum SocialMediaSource {
+  AI // generated from a prompt
+  UPLOAD // the clinic's own photo
+}
+
+// An image for a social post. The file lives on disk under storage/social/
+// and is only served to signed-in users of the same clinic.
+model SocialMedia {
+  id          String            @id @default(uuid())
+  clinicId    String
+  clinic      Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  source      SocialMediaSource
+  prompt      String? // what the image was generated from (AI only)
+  model       String? // image model used (AI only)
+  fileName    String? // original name (uploads only)
+  mimeType    String
+  sizeBytes   Int
+  path        String // relative to the social storage root
+  createdById String?
+  createdAt   DateTime          @default(now())
+
+  posts SocialPost[]
+
+  @@index([clinicId, createdAt])
+}
